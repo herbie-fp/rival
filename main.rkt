@@ -136,7 +136,7 @@
           (struct-copy ival i [lo (endpoint val xlo!)])))
 
 (define (classify-ival x [val 0.bf])
-  (cond [(bfgte? (ival-lo-val x) val) 1] [(bflte? (ival-hi-val x) val) -1] [else 0]))
+  (cond [(bfgt? (ival-lo-val x) val) 1] [(bflt? (ival-hi-val x) val) -1] [else 0]))
 
 (define (endpoint-min2 e1 e2)
   (if (bflt? (endpoint-val e1) (endpoint-val e2))
