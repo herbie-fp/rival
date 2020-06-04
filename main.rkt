@@ -680,7 +680,7 @@
              (loop (car tail) (cdr tail)))))))
 
 (define (ival-error? x)
-  (ival (endpoint (ival-err? x) #f) (endpoint (ival-err x) #f) #f #f))
+  (ival (endpoint (ival-err x) #f) (endpoint (ival-err? x) #f) #f #f))
 
 (define (ival-if c x y)
   (cond
