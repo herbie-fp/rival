@@ -85,6 +85,7 @@
           [ival->= (->* () #:rest (listof ival?) ival?)]
           [ival-== (->* () #:rest (listof ival?) ival?)]
           [ival-!= (->* () #:rest (listof ival?) ival?)]
+          [ival-error? (-> ival? ival?)]
           [ival-if (-> ival? ival? ival? ival?)]
           [ival-fmin (-> ival? ival? ival?)]
           [ival-fmax (-> ival? ival? ival?)]
@@ -678,6 +679,9 @@
              (foldl ival-and ival-true (map (curry ival-!=2 head) tail))
              (loop (car tail) (cdr tail)))))))
 
+(define (ival-error? x)
+  (ival (endpoint (ival-err? x) #f) (endpoint (ival-err x) #f) #f #f))
+
 (define (ival-if c x y)
   (cond
    [(ival-lo-val c) (propagate-err c x)]
@@ -937,6 +941,16 @@
             (build-list (+ l1 l2 -1) type)
             out1)]
      [else #f]))
+  
+  (let* ([ival1 (mk-ival 1.bf)] [ival0 (mk-ival 0.bf)] [ivalboth (ival-expander 0.bf 1.bf)]
+         [res1 (ival-div ival1 ival1)] [res2 (ival-div ival1 ival0)] [res3 (ival-div ival1 ivalboth)])
+    (check-ival-valid? (ival-error? res1))
+    (check-ival-valid? (ival-error? res2))
+    (check-ival-valid? (ival-error? res3))
+    (check-ival-contains? (ival-error? res1) #f)
+    (check-ival-contains? (ival-error? res2) #t)
+    (check-ival-contains? (ival-error? res3) #f)
+    (check-ival-contains? (ival-error? res3) #t))
 
   (for ([entry (in-list function-table)])
     (match-define (list ival-fn fn args _) entry)
