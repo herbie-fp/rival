@@ -6,21 +6,6 @@
 (struct ival (lo hi err? err) #:transparent)
 
 
-(define value? (or/c bigfloat? boolean?))
-(define-match-expander ival-expander
-  (λ (stx)
-    (syntax-case stx ()
-      [(_me lo hi)
-       #'(ival lo hi  _ _)]
-      [(_me name lo hi)
-       #'(and name (ival lo hi _ _))]))
-  (λ (stx)
-    (syntax-case stx ()
-      [(_ lo hi)
-       #'(ival lo hi #f #f)])))
-(define (ival-error? x)
-  (ival (ival-err x) (ival-err? x) #f #f))
-
 (provide ival? ival-err? ival-err ival-lo-fixed? ival-hi-fixed?
          (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
          (contract-out
@@ -85,8 +70,45 @@
           [ival-copysign (-> ival? ival? ival?)]
           [ival-fdim (-> ival? ival? ival?)]))
 
+;; These added after extraction from Herbie
+(define value? (or/c bigfloat? boolean?))
+(define-match-expander ival-expander
+  (λ (stx)
+    (syntax-case stx ()
+      [(_me lo hi)
+       #'(ival lo hi  _ _)]
+      [(_me name lo hi)
+       #'(and name (ival lo hi _ _))]))
+  (λ (stx)
+    (syntax-case stx ()
+      [(_ lo hi)
+       #'(ival lo hi #f #f)])))
+(define (ival-error? x)
+  (ival (ival-err x) (ival-err? x) #f #f))
+
+(define (endpoint-min2 a b)
+  (if (bflt? a b)
+      a
+      b))
+(define (endpoint-max2 a b)
+  (if (bflt? a b)
+      b
+      a))
+(define (ival-fmin x y)
+  (ival (endpoint-min2 (ival-lo x) (ival-lo y)) (endpoint-min2 (ival-hi x) (ival-hi y))
+        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+(define (ival-fmax x y)
+  (ival (endpoint-max2 (ival-lo x) (ival-lo y)) (endpoint-max2 (ival-hi x) (ival-hi y))
+        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
 (define (ival-hi-fixed? ival) #f)
 (define (ival-lo-fixed? ival) #f)
+
+
+
+
+
+
 
 (define (mk-ival x)
   (match x
