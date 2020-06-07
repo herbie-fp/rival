@@ -18,6 +18,8 @@
     (syntax-case stx ()
       [(_ lo hi)
        #'(ival lo hi #f #f)])))
+(define (ival-error? x)
+  (ival (ival-err x) (ival-err? x) #f #f))
 
 (provide ival? ival-err? ival-err ival-lo-fixed? ival-hi-fixed?
          (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
@@ -232,6 +234,8 @@
   (define err? (or err (ival-err? x) (bflte? (ival-lo x) -1.bf)))
   (ival (rnd 'down bflog1p (ival-lo x)) (rnd 'up bflog1p (ival-hi x))
         err? err))
+
+(define ival-logb (compose ival-floor ival-log2 ival-fabs))
 
 (define (ival-sqrt x)
   (define err (or (ival-err x) (bflt? (ival-hi x) 0.bf)))
