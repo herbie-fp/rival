@@ -5,6 +5,8 @@
 
 (struct ival (lo hi err? err) #:transparent)
 
+
+(define value? (or/c bigfloat? boolean?))
 (define-match-expander ival-expander
   (λ (stx)
     (syntax-case stx ()
