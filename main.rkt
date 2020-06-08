@@ -72,6 +72,22 @@
 
 ;; These added after extraction from Herbie
 (define value? (or/c bigfloat? boolean?))
+(define (ival-lo-val ival)
+  (ival-lo ival))
+(define (ival-hi-val ival)
+  (ival-hi ival))
+(define (ival-copysign x y)
+  (match-define (ival xlo xhi xerr? xerr) (ival-fabs x))
+  (define can-neg (= (bigfloat-signbit (ival-lo-val y)) 1))
+  (define can-pos (= (bigfloat-signbit (ival-hi-val y)) 0))
+  (define err? (or (ival-err? y) xerr?))
+  (define err (or (ival-err y) xerr))
+  (match* (can-neg can-pos)
+    [(#t #t) (ival (bfneg xhi) xhi err? err)]
+    [(#t #f) (ival (bfneg xhi) (bfneg xlo) err? err)]
+    [(#f #t) (ival xlo xhi err? err)]))
+(define (ival-fdim x y)
+  (ival-fmax (ival-sub x y) (mk-ival 0.bf)))
 (define-match-expander ival-expander
   (λ (stx)
     (syntax-case stx ()
@@ -257,7 +273,7 @@
   (ival (rnd 'down bflog1p (ival-lo x)) (rnd 'up bflog1p (ival-hi x))
         err? err))
 
-(define ival-logb (compose ival-floor ival-log2 ival-fabs))
+
 
 (define (ival-sqrt x)
   (define err (or (ival-err x) (bflt? (ival-hi x) 0.bf)))
@@ -476,6 +492,8 @@
 (define-monotonic ival-floor bffloor)
 (define-monotonic ival-trunc bftruncate)
 
+(define ival-logb (compose ival-floor ival-log2 ival-fabs))
+
 (define (ival-erf x)
   (ival (rnd 'down bferf (ival-lo x)) (rnd 'up bferf (ival-hi x)) (ival-err? x) (ival-err x)))
 
@@ -563,8 +581,18 @@
 
 
 (module+ test
-  (require rackunit math/flonum)
-  (require "common.rkt")
+  (require rackunit racket/math
+           racket/format racket/list racket/dict racket/flonum)
+
+
+  (define (random-exp k)
+  "Like (random (expt 2 k)), but k is allowed to be arbitrarily large"
+  (if (< k 31) ; Racket generates random numbers in the range [0, 2^32-2]; I think it's a bug
+      (random (expt 2 k))
+      (let ([head (arithmetic-shift (random-exp (- k 31)) 31)])
+        (+ head (random (expt 2 31))))))
+  (define (sample-double)
+  (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))
 
   (define num-tests 1000)
 
