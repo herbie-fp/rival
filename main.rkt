@@ -2,6 +2,7 @@
 
 (require racket/contract racket/match racket/function math/private/bigfloat/mpfr)
 (require (for-syntax racket/base))
+(module+ test (require rackunit))
 
 (define-match-expander ival-expander
   (λ (stx)
@@ -115,6 +116,28 @@
   (andmap identity as))
 (define (or-fn . as)
   (ormap identity as))
+
+;; The `bfodd?` and `bfeven?` in math/bigfloat (as of Racket 7.7) is super slow
+(define (bfeven? x)
+  (define-values (sig exp) (bigfloat->sig+exp x))
+  ; x = sig << exp
+  ; x | 1 = (sig << exp) | 1 = sig | 1 << -exp
+  (cond
+   [(not (bfinteger? x)) #f]
+   [(> exp 0) #t]
+   [(= sig 0) #t]
+   [(> (- exp) (log (abs sig) 2)) #t] ; Avoid constructing large "1"s
+   [else (= (bitwise-and (abs sig) (expt 2 (- exp))) 0)]))
+
+(define (bfodd? x) (and (bfinteger? x) (not (bfeven? x))))
+
+(module+ test
+  (test-case "bfeven?"
+    (for ([i (in-range -20 20)])
+      (check-pred (if (even? i) bfeven? bfodd?) (bf i)))
+    (define-values (val _1 t _2) (time-apply bfeven? (list (bfstep +inf.bf -1))))
+    (check-true (first val))
+    (check < t 2)))
 
 (define (ival-pi)
   (ival (endpoint (rnd 'down pi.bf) #f) (endpoint (rnd 'up pi.bf) #f) #f #f))
@@ -711,7 +734,7 @@
   (ival-fmax (ival-sub x y) (mk-ival 0.bf)))
 
 (module+ test
-  (require rackunit racket/math racket/dict racket/format math/base math/flonum racket/list)
+  (require racket/math racket/dict racket/format math/base math/flonum racket/list)
   
   (define (bflogb x)
     (bffloor (bflog2 (bfabs x))))
@@ -922,7 +945,7 @@
 
   (define (random-choose l)
     (list-ref l (random 0 (length l))))
-  
+
   (define (compose-entries e1 e2)
     (match-define (list ival-f1 f1 args1 out1) e1)
     (match-define (list ival-f2 f2 args2 out2) e2)
@@ -941,16 +964,17 @@
             (build-list (+ l1 l2 -1) type)
             out1)]
      [else #f]))
-  
-  (let* ([ival1 (mk-ival 1.bf)] [ival0 (mk-ival 0.bf)] [ivalboth (ival-expander 0.bf 1.bf)]
-         [res1 (ival-div ival1 ival1)] [res2 (ival-div ival1 ival0)] [res3 (ival-div ival1 ivalboth)])
-    (check-ival-valid? (ival-error? res1))
-    (check-ival-valid? (ival-error? res2))
-    (check-ival-valid? (ival-error? res3))
-    (check-ival-contains? (ival-error? res1) #f)
-    (check-ival-contains? (ival-error? res2) #t)
-    (check-ival-contains? (ival-error? res3) #f)
-    (check-ival-contains? (ival-error? res3) #t))
+
+  (test-case "ival-error?"
+    (let* ([ival1 (mk-ival 1.bf)] [ival0 (mk-ival 0.bf)] [ivalboth (ival-expander 0.bf 1.bf)]
+           [res1 (ival-div ival1 ival1)] [res2 (ival-div ival1 ival0)] [res3 (ival-div ival1 ivalboth)])
+      (check-ival-valid? (ival-error? res1))
+      (check-ival-valid? (ival-error? res2))
+      (check-ival-valid? (ival-error? res3))
+      (check-ival-contains? (ival-error? res1) #f)
+      (check-ival-contains? (ival-error? res2) #t)
+      (check-ival-contains? (ival-error? res3) #f)
+      (check-ival-contains? (ival-error? res3) #t)))
 
   (for ([entry (in-list function-table)])
     (match-define (list ival-fn fn args _) entry)
