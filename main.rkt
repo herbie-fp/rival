@@ -255,9 +255,12 @@
   (match-define (ival ylo yhi yerr? yerr) y)
 
   (define (mkmult a b c d)
+    (define a-and-b-infinite? (and (bfinfinite? (endpoint-val a)) (bfinfinite? (endpoint-val b))))
+    (define c-and-d-infinite? (and (bfinfinite? (endpoint-val c)) (bfinfinite? (endpoint-val d))))
     (ival (rnd 'down epmul a b x-sign y-sign)
           (rnd 'up   epmul c d x-sign y-sign)
-          (or xerr? yerr?)  (or xerr yerr)))
+          (or xerr? yerr? a-and-b-infinite? c-and-d-infinite?)
+          (or xerr yerr)))
 
   (define x-sign (classify-ival x))
   (define y-sign (classify-ival y))
