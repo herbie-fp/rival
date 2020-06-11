@@ -14,7 +14,7 @@
   (λ (stx)
     (syntax-case stx ()
       [(_ lo hi)
-       #'(ival (endpoint lo #t) (endpoint hi #t) #f #f)])))
+       #'(mk-big-ival lo hi)])))
 
 (struct endpoint (val immovable?) #:transparent)
 (struct ival (lo hi err? err) #:transparent)
@@ -111,6 +111,13 @@
 (define 2.bf (bf 2))
 (define +inf.bf (bf +inf.0))
 (define +nan.bf (bf +nan.0))
+
+(define (mk-big-ival x y)
+  (cond
+   [(bigfloat? x)
+    (if (bf=? x y) (mk-ival x) (ival (endpoint x #f) (endpoint y #f) #f #f))]
+   [(boolean? x)
+    (if (equal? x y) (mk-ival x) (ival (endpoint x #f) (endpoint y #f) #f #f))]))
 
 (define (and-fn . as)
   (andmap identity as))
