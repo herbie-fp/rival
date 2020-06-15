@@ -117,7 +117,7 @@
    [(bigfloat? x)
     (if (bf=? x y) (mk-ival x) (ival (endpoint x #f) (endpoint y #f) #f #f))]
    [(boolean? x)
-    (if (equal? x y) (mk-ival x) (ival (endpoint x #f) (endpoint y #f) #f #f))]))
+    (if (equal? x y) (ival-bool x) (ival (endpoint x #f) (endpoint y #f) #f #f))]))
 
 (define (and-fn . as)
   (andmap identity as))
