@@ -412,11 +412,15 @@
     (match-define (endpoint hi hi!) (rnd 'up   eppow c d x-class y-class))
     (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
         ;; Leverages ival-exp's overflow logic to sometimes set extra immovability flags
-        (ival-exp (ival-mult y (ival-log x)))
+        (let ([v2 (ival-exp (ival-mult y (ival-log x)))])
+          (ival (endpoint lo (ival-lo-fixed? v2))
+                (endpoint hi (ival-hi-fixed? v2))
+                (or xerr? yerr?)
+                (or xerr yerr)))
         (ival (endpoint lo (or lo!))
               (endpoint hi (or hi!))
-              (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (bflte? (endpoint-val ylo) 0.bf)))
-              (or xerr yerr (and (bfzero? (endpoint-val xhi)) (bflte? (endpoint-val yhi) 0.bf))))))
+              (or xerr? yerr?)
+              (or xerr yerr))))
 
   (match* (x-class y-class)
     [( 1  1) (mk-pow xlo ylo xhi yhi)]
