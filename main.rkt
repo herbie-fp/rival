@@ -400,6 +400,12 @@
        (and b! (bfzero? b))
        (and b! (bfinfinite? b) (not (= a-class 0))))))
 
+(define (ival-copy-movability i1 i2)
+  (ival (endpoint (ival-lo-val i1) (ival-lo-fixed? i2))
+        (endpoint (ival-hi-val i1) (ival-hi-fixed? i2))
+        (ival-err? i1)
+        (ival-err i1)))
+
 (define (ival-pow-pos x y)
   ;; Assumes x is positive; code copied from ival-mult
   (match-define (ival xlo xhi xerr? xerr) x)
@@ -410,17 +416,10 @@
   (define (mk-pow a b c d)
     (match-define (endpoint lo lo!) (rnd 'down eppow a b x-class y-class))
     (match-define (endpoint hi hi!) (rnd 'up   eppow c d x-class y-class))
+    (define out (ival (endpoint lo lo!) (endpoint hi hi!) (or xerr? yerr?) (or xerr yerr)))
     (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
-        ;; Leverages ival-exp's overflow logic to sometimes set extra immovability flags
-        (let ([v2 (ival-exp (ival-mult y (ival-log x)))])
-          (ival (endpoint lo (ival-lo-fixed? v2))
-                (endpoint hi (ival-hi-fixed? v2))
-                (or xerr? yerr?)
-                (or xerr yerr)))
-        (ival (endpoint lo (or lo!))
-              (endpoint hi (or hi!))
-              (or xerr? yerr?)
-              (or xerr yerr))))
+      (ival-copy-movability out (ival-exp (ival-mult y (ival-log x))))
+      out))
 
   (match* (x-class y-class)
     [( 1  1) (mk-pow xlo ylo xhi yhi)]
