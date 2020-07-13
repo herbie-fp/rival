@@ -458,12 +458,12 @@
                 (ival-neg (ival-pow-pos xpos odds)))]))
 
 (define (ival-pow x y)
-  (match (classify-ival x)
-    [-1 (ival-pow-neg x y)]
-    [1 (ival-pow-pos x y)]
-    [0
-     (define-values (neg pos) (split-ival x 0.bf))
-     (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
+  (cond
+   [(bflt? (ival-hi-val x) 0.bf) (ival-pow-neg x y)]
+   [(bfgte? (ival-lo-val x) 0.bf) (ival-pow-pos x y)]
+   [else
+    (define-values (neg pos) (split-ival x 0.bf))
+    (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
 
 (define (ival-fma a b c)
   (ival-add (ival-mult a b) c))
