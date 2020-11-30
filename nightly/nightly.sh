@@ -31,25 +31,28 @@ function generate-points {
   done
 }
 
+REPORTDIR = "report"
 
 function run-mpfi {
   echo "running mpfi on generated points"
-  racket "infra/run-mpfi.rkt" "mpfi-reports/all-points.txt" "mpfi-reports/mpfi-results.txt"
+  racket "infra/run-mpfi.rkt" "infra/all-points.txt" "$REPORTDIR/mpfi-results.txt"
 }
 
 function format-data {
   echo "Formatting the mpfi and mathematica data into latex table"
-  racket "infra/format-mpfi.rkt" "mpfi-reports/mathematica-output.txt" "mpfi-reports/rival-output.txt" "mpfi-reports/mpfi-results.txt" "mpfi-reports/table.txt"
+  racket "infra/format-mpfi.rkt" "$REPORTDIR/mathematica-output.txt" "$REPORTDIR/rival-output.txt" "$REPORTDIR/mpfi-results.txt" "$REPORTDIR/table.txt"
 }
 
 function run-mathematica {
   echo "Converting points to mathematica script"
-  racket "infra/run-mathematica.rkt" "mpfi-reports/all-points.txt" "mpfi-reports/mathematica-input.txt" "mpfi-reports/mathematica-output.txt" "mpfi-reports/rival-output.txt"
+  racket "infra/run-mathematica.rkt" "$REPORTDIR/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$REPORTDIR/mathematica-output.txt" "$REPORTDIR/rival-output.txt"
 }
 
+if [ -d "$REPORTDIR" ] {
+  rm -r "$REPORTDIR"
+}
+mkdir "$REPORTDIR"
 
-
-for cmd in $@; do
-    echo "Running $cmd"
-    $cmd
-done
+run-mpfi
+run-mathematica
+format-data

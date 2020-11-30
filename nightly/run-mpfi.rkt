@@ -4,7 +4,7 @@
 (require math/bigfloat)
 
 (require "./interval-evaluate.rkt")
-
+(provide program-body program-variables)
 
 (define (program-body prog)
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
