@@ -31,7 +31,7 @@ function generate-points {
   done
 }
 
-REPORTDIR = "report"
+REPORTDIR="report"
 
 function run-mpfi {
   echo "running mpfi on generated points"
@@ -45,12 +45,13 @@ function format-data {
 
 function run-mathematica {
   echo "Converting points to mathematica script"
-  racket "infra/run-mathematica.rkt" "$REPORTDIR/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$REPORTDIR/mathematica-output.txt" "$REPORTDIR/rival-output.txt"
+  racket "infra/run-mathematica.rkt" "infra/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$REPORTDIR/mathematica-output.txt" "$REPORTDIR/rival-output.txt"
 }
 
-if [ -d "$REPORTDIR" ] {
+if [ -d "$REPORTDIR" ]
+then
   rm -r "$REPORTDIR"
-}
+fi
 mkdir "$REPORTDIR"
 
 run-mpfi

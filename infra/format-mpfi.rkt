@@ -3,9 +3,6 @@
 (require biginterval)
 (require rival)
 
-(require "../src/core/simplify.rkt")
-(require "../src/programs.rkt" "../src/interface.rkt")
-
 (require math/bigfloat)
 (require rival)
 (require "format-mathematica.rkt")

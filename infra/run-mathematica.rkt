@@ -5,11 +5,7 @@
 (require math/bigfloat)
 
 (require "./interval-evaluate.rkt")
-(require "./run-mpfi.rkt"
-
-
-(define (set-var v)
-  (*var-reprs* (cons (cons v (get-representation 'binary64)) (*var-reprs*))))
+(require "./run-mpfi.rkt")
 
 
 (define to-mathematica-function
@@ -121,12 +117,10 @@
   (when (not (equal? read-res eof))
     (match-define (list suite prog pt) read-res)
     (define str (prog->wolfram prog pt))
-    (*var-reprs* '())
-    (map set-var (program-variables prog))
-    (when (and str (expr-supports? (program-body prog) 'ival))
-    	  (define rival-res
-         (parameterize ([bf-precision 10000])
-                       (interval-evaluate (program-body prog) (program-variables prog) pt #f))))
+    (define rival-res
+          	  (parameterize ([bf-precision 10000])
+                  	       (interval-evaluate (program-body prog) (program-variables prog) pt #f)))
+    (when rival-res
 	  (writeln (list suite prog pt rival-res) rival-port)
 	  (write-todo str output))
 

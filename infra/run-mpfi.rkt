@@ -24,7 +24,7 @@
   
                 (when (not (equal? read-res eof))
                       (match-define (list suite prog pt) read-res)
-                      (println prog)
+                      
                       (define mpfi-res
                               (interval-evaluate (program-body prog) (program-variables prog) pt #t))
 
