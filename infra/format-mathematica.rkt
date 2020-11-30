@@ -14,7 +14,7 @@
 (struct mdata (rival-error-hash rival-samplable rival-movability rival-possible mathematica-samplable mathematica-unsamplable mathematica-error))
 
 (define (samplable? left right)
-  (define <-bf (representation-bf->repr (get-representation 'binary64)))
+  (define <-bf bigfloat->flonum)
   (define lo (<-bf left))
   (define hi (<-bf right))
   (or (equal? lo hi) (and (number? lo) (= lo hi))))
