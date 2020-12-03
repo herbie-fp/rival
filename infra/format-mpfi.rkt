@@ -85,7 +85,7 @@
   (string-append (string-join (bold-correct-item data good) " & ") " \\\\\n"))
 
 (define (make-html-row data #:good [good 'none])
-  (string-append "<tr> <th>" (string-join (bold-correct-item data good) "</th> <th>") "</th> </tr>"))
+  (string-append "<tr> <th>" (string-join data "</th> <th>") "</th> </tr>"))
   
 
 (define (output-data bench-to-mdata bench-to-idata output-port)
