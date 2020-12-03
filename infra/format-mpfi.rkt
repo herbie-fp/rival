@@ -9,10 +9,6 @@
 
 (struct idata (mpfi-error-hash rival-error-hash may-error-mpfi-good rival-samplable mpfi-samplable))
 
-
-
-
-
 (define (get-mpfi-left mpfi)
   (bf-list->bf (first mpfi)))
 
@@ -76,19 +72,26 @@
 (define (make-latex-bold str)
   (string-append "\\textbf{" str "}"))
 
-(define (make-latex-row data #:good [good 'none])
+(define (bold-correct-item data good)
   (define bold-index (get-bold-index data good))
   (define strings (map latex-format-item data))
   (define-values (before after) (split-at strings bold-index))
   (define modified-after (if (> (length after) 0)
                              (cons (make-latex-bold (first after)) (rest after))
 			     empty))
-			     
-  (string-append (string-join (append before modified-after) " & ") " \\\\\n"))
+  (append before modified-after))
+
+(define (make-latex-row data #:good [good 'none])
+  (string-append (string-join (bold-correct-item data good) " & ") " \\\\\n"))
+
+(define (make-html-row data #:good [good 'none])
+  (string-append "<tr> <th>" (string-join (bold-correct-item data good) "</th> <th>") "</th> </tr>"))
+  
 
 (define (output-data bench-to-mdata bench-to-idata output-port)
-  (displayln "\\begin{tabular}{r|rrrr}" output-port)
-  (displayln " & Rival & MPFI & Mathematica \\\\  \\hline" output-port)
+  ;;(displayln "\\begin{tabular}{r|rrrr}" output-port)
+  (displayln "<table>" output-port)
+  (displayln (make-html-row (list "" "Rival" "MPFI" "Mathematica")) output-port)
   (define total-points
           (+ (sum-benches bench-to-mdata mdata-mathematica-unsamplable)
 	     (sum-benches bench-to-mdata mdata-mathematica-samplable)))
@@ -96,17 +99,17 @@
           (+ (sum-benches bench-to-idata (lambda (d) (hash-ref (idata-mpfi-error-hash d) 'f)))
 	     (sum-benches bench-to-idata (lambda (d) (hash-ref (idata-mpfi-error-hash d) 'o)))))
 
-  (displayln (make-latex-row (list "Samplable" (sum-benches bench-to-mdata mdata-rival-samplable)
+  (displayln (make-html-row (list "Samplable" (sum-benches bench-to-mdata mdata-rival-samplable)
              		     	   (sum-benches bench-to-idata idata-mpfi-samplable)
 			           (sum-benches bench-to-mdata mdata-mathematica-samplable)) #:good 'max) output-port)
 
-  (displayln (make-latex-row
+  (displayln (make-html-row
                 (list "Unsupported"
 		      0
 		      (- total-points mpfi-supported)
 		      0)) output-port)
 
-  (displayln "\\hline" output-port)
+  ;(displayln "\\hline" output-port)
 
   (define rival-invalid-guarantee (sum-benches bench-to-mdata (lambda (d) (hash-ref (mdata-rival-error-hash d) 't))))
   (define rival-invalid-unsure (sum-benches bench-to-mdata (lambda (d) (hash-ref (mdata-rival-error-hash d) 'o))))
@@ -114,44 +117,44 @@
   (define mathematica-unsamplable (- (sum-benches bench-to-mdata mdata-mathematica-unsamplable) (sum-benches bench-to-mdata mdata-mathematica-error)))
   (define mathematica-invalid-guarantee (sum-benches bench-to-mdata mdata-mathematica-error))
 
-  (displayln (make-latex-row
+  (displayln (make-html-row
                (list "Total Invalid"
 	       	     (+ rival-invalid-guarantee rival-invalid-unsure)
 		     mpfi-invalid
 		     mathematica-invalid-guarantee) #:good 'none) output-port)
 
-  (displayln (make-latex-row
+  (displayln (make-html-row
                (list "Invalid $[\\top, \\top]$"
 	       	     rival-invalid-guarantee
 		     0
 		     mathematica-invalid-guarantee) #:good 'max) output-port)
 
-  (displayln (make-latex-row
+  (displayln (make-html-row
                 (list "Invalid $[\\bot, \\top]$"
 		      rival-invalid-unsure
 		      mpfi-invalid
 		      0) #:good 'min) output-port)
 
-  (displayln "\\hline" output-port)
+  ;(displayln "\\hline" output-port)
 
 
   (define rival-movability-stuck (sum-benches bench-to-mdata mdata-rival-movability))
   (define rival-unsamplable-possible (sum-benches bench-to-mdata mdata-rival-possible))
   (define mpfi-unsamplable (- mpfi-supported (sum-benches bench-to-idata idata-mpfi-samplable) mpfi-invalid))
 
-  (displayln (make-latex-row
+  (displayln (make-html-row
 		(list "Total Stuck"
 		      (+ rival-movability-stuck rival-unsamplable-possible)
 		      mpfi-unsamplable
 		      mathematica-unsamplable) #:good 'none) output-port)
 
-  (displayln (make-latex-row
+  (displayln (make-html-row
 		(list "Stuck $[\\top, \\top]$"
 		      rival-movability-stuck
 		      0
 		      0) #:good 'max) output-port)
 
-  (displayln (make-latex-row
+  (displayln (make-html-row
 		(list "Stuck $[\\bot, \\top]$"
 		      rival-unsamplable-possible
 		      mpfi-unsamplable
@@ -159,13 +162,14 @@
 
   
 
-  #;(displayln (make-latex-row
+  #;(displayln (make-html-row
                 (list "No Error"
 		(sum-benches bench-to-mdata (lambda (d) (hash-ref (mdata-rival-error-hash d) 'f)))
 		(sum-benches bench-to-idata (lambda (d) (hash-ref (idata-mpfi-error-hash d) 'f)))	
 		(sum-benches bench-to-mdata mdata-mathematica-samplable))) output-port)	     	      
 
-  (displayln "\\end{tabular}" output-port))
+  ;(displayln "\\end{tabular}" output-port)
+  (displayln "</table>" output-port))
 
 (define (is-nan? bigfloat)
   (equal? bigfloat '+nan.bf))
