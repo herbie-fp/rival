@@ -9,4 +9,4 @@ upload () {
     rsync --perms --chmod 755 --recursive report/ "$RHOST:$RHOSTDIR/$DIR"
 }
 
-upload "$1"
+upload
