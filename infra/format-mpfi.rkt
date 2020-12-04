@@ -38,13 +38,19 @@
      (cons head (get-substrings-divisible tail n))]))
      
 
-(define (insert-thinspaces string)
-  (string-join (get-substrings string 3) "\\thinspace"))
+(define (insert-thinspaces string space)
+  (string-join (get-substrings string 3) space))
 
 (define (latex-format-item item)
   (cond
     [(exact-integer? item)
-     (insert-thinspaces (format "~a" item))]
+     (insert-thinspaces (format "~a" item) "\\thinspace")]
+    [else (format "~a" item)]))
+
+(define (html-format-item item)
+  (cond
+    [(exact-integer? item)
+     (insert-thinspaces (format "~a" item) " ")]
     [else (format "~a" item)]))
 
 (define (max-num data)
@@ -85,7 +91,7 @@
   (string-append (string-join (bold-correct-item data good) " & ") " \\\\\n"))
 
 (define (make-html-row data #:good [good 'none])
-  (string-append "<tr> <th>" (string-join data "</th> <th>") "</th> </tr>"))
+  (string-append "<tr> <th>" (string-join (map html-format-item data) "</th> <th>") "</th> </tr>"))
   
 
 (define (output-data bench-to-mdata bench-to-idata output-port)
