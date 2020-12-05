@@ -1,9 +1,9 @@
 #lang racket
 
-(require biginterval)
-(require rival)
+(require math/bigfloat xml racket/date)
 
-(require math/bigfloat)
+
+(require biginterval)
 (require rival)
 (require "format-mathematica.rkt")
 
