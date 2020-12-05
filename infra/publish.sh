@@ -5,8 +5,10 @@ RHOST="uwplse.org"
 RHOSTDIR="/var/www/rival"
 
 upload () {
-    DIR="$(date +%s)"
-    rsync --perms --chmod 755 --recursive report/ "$RHOST:$RHOSTDIR/$DIR"
+    B=$(git rev-parse --abbrev-ref HEAD)
+    C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
+    RDIR="$(date +%s):$(hostname):$B:$C"
+    rsync --perms --chmod 755 --recursive report/ "$RHOST:$RHOSTDIR/$RDIR"
 }
 
 upload

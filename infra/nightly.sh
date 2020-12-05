@@ -41,6 +41,7 @@ function run-mpfi {
 function format-data {
   echo "Formatting the mpfi and mathematica data into latex table"
   racket "infra/format-mpfi.rkt" "$REPORTDIR/mathematica-output.txt" "$REPORTDIR/rival-output.txt" "$REPORTDIR/mpfi-results.txt" "$REPORTDIR/index.html"
+  cp "infra/index.css" "$REPORTDIR"
 }
 
 function run-mathematica {

@@ -91,13 +91,13 @@
   (string-append (string-join (bold-correct-item data good) " & ") " \\\\\n"))
 
 (define (make-html-row data #:good [good 'none])
-  (string-append "<tr> <th>" (string-join (map html-format-item data) "</th> <th>") "</th> </tr>"))
+  `(tr
+    ,(map (lambda (element) `(td ,element)) (map html-format-item data))))
   
 
 (define (output-data bench-to-mdata bench-to-idata output-port)
   ;;(displayln "\\begin{tabular}{r|rrrr}" output-port)
-  (displayln "<table>" output-port)
-  (displayln (make-html-row (list "" "Rival" "MPFI" "Mathematica")) output-port)
+
   (define total-points
           (+ (sum-benches bench-to-mdata mdata-mathematica-unsamplable)
 	     (sum-benches bench-to-mdata mdata-mathematica-samplable)))
@@ -105,66 +105,74 @@
           (+ (sum-benches bench-to-idata (lambda (d) (hash-ref (idata-mpfi-error-hash d) 'f)))
 	     (sum-benches bench-to-idata (lambda (d) (hash-ref (idata-mpfi-error-hash d) 'o)))))
 
-  (displayln (make-html-row (list "Samplable" (sum-benches bench-to-mdata mdata-rival-samplable)
-             		     	   (sum-benches bench-to-idata idata-mpfi-samplable)
-			           (sum-benches bench-to-mdata mdata-mathematica-samplable)) #:good 'max) output-port)
-
-  (displayln (make-html-row
-                (list "Unsupported"
-		      0
-		      (- total-points mpfi-supported)
-		      0)) output-port)
-
-  ;(displayln "\\hline" output-port)
-
   (define rival-invalid-guarantee (sum-benches bench-to-mdata (lambda (d) (hash-ref (mdata-rival-error-hash d) 't))))
   (define rival-invalid-unsure (sum-benches bench-to-mdata (lambda (d) (hash-ref (mdata-rival-error-hash d) 'o))))
   (define mpfi-invalid (sum-benches bench-to-idata (lambda (d) (hash-ref (idata-mpfi-error-hash d) 'o))))
   (define mathematica-unsamplable (- (sum-benches bench-to-mdata mdata-mathematica-unsamplable) (sum-benches bench-to-mdata mdata-mathematica-error)))
   (define mathematica-invalid-guarantee (sum-benches bench-to-mdata mdata-mathematica-error))
 
-  (displayln (make-html-row
-               (list "Total Invalid"
-	       	     (+ rival-invalid-guarantee rival-invalid-unsure)
-		     mpfi-invalid
-		     mathematica-invalid-guarantee) #:good 'none) output-port)
-
-  (displayln (make-html-row
-               (list "Invalid $[\\top, \\top]$"
-	       	     rival-invalid-guarantee
-		     0
-		     mathematica-invalid-guarantee) #:good 'max) output-port)
-
-  (displayln (make-html-row
-                (list "Invalid $[\\bot, \\top]$"
-		      rival-invalid-unsure
-		      mpfi-invalid
-		      0) #:good 'min) output-port)
-
-  ;(displayln "\\hline" output-port)
-
-
   (define rival-movability-stuck (sum-benches bench-to-mdata mdata-rival-movability))
   (define rival-unsamplable-possible (sum-benches bench-to-mdata mdata-rival-possible))
   (define mpfi-unsamplable (- mpfi-supported (sum-benches bench-to-idata idata-mpfi-samplable) mpfi-invalid))
+  
+  (write-xexpr
+   `(html
+     (head
+      (meta ([charset "utf-8"]))
+      (link ([rel "stylesheet"] [href "index.css"]))
+      (title "Rival evaluation for " ,(date->string (current-date))))
+     (body
+      (h1  "Regraph evaluation for " ,(date->string (current-date)))
+      (table
+       (make-html-row (list "" "Rival" "MPFI" "Mathematica"))
+       (make-html-row (list "Samplable" (sum-benches bench-to-mdata mdata-rival-samplable)                                        
+                                        (sum-benches bench-to-idata idata-mpfi-samplable)
+                                        (sum-benches bench-to-mdata mdata-mathematica-samplable)) #:good 'max)
+       (make-html-row
+        (list "Unsupported"
+              0
+		          (- total-points mpfi-supported)
+		          0))
+       (make-html-row
+        (list "Total Invalid"
+        	     (+ rival-invalid-guarantee rival-invalid-unsure)
+		           mpfi-invalid
+		           mathematica-invalid-guarantee) #:good 'none)
 
-  (displayln (make-html-row
-		(list "Total Stuck"
+       (make-html-row
+               (list "Invalid $[\u22a5, \u22a5]$"
+	       	     rival-invalid-guarantee
+		     0
+		     mathematica-invalid-guarantee) #:good 'max)
+
+       (make-html-row
+                (list "Invalid $[\u2284, \u22a5]$"
+		      rival-invalid-unsure
+		      mpfi-invalid
+		      0) #:good 'min)
+
+      (make-html-row
+       		(list "Total Stuck"
 		      (+ rival-movability-stuck rival-unsamplable-possible)
 		      mpfi-unsamplable
-		      mathematica-unsamplable) #:good 'none) output-port)
+		      mathematica-unsamplable) #:good 'none)
 
-  (displayln (make-html-row
-		(list "Stuck $[\\top, \\top]$"
-		      rival-movability-stuck
-		      0
-		      0) #:good 'max) output-port)
+      (make-html-row
+       		(list "Stuck $[\\top, \\top]$"
+               		      rival-movability-stuck
+                       		      0
+                               		      0) #:good 'max)
 
-  (displayln (make-html-row
-		(list "Stuck $[\\bot, \\top]$"
-		      rival-unsamplable-possible
-		      mpfi-unsamplable
-		      mathematica-unsamplable) #:good 'min) output-port)
+      (make-html-row
+       		(list "Stuck $[\\bot, \\top]$"
+                               rival-unsamplable-possible
+                               mpfi-unsamplable
+                               mathematica-unsamplable) #:good 'min)
+
+      )
+     ))
+  output-port
+  )
 
   
 
@@ -172,11 +180,10 @@
                 (list "No Error"
 		(sum-benches bench-to-mdata (lambda (d) (hash-ref (mdata-rival-error-hash d) 'f)))
 		(sum-benches bench-to-idata (lambda (d) (hash-ref (idata-mpfi-error-hash d) 'f)))	
-		(sum-benches bench-to-mdata mdata-mathematica-samplable))) output-port)	     	      
+		(sum-benches bench-to-mdata mdata-mathematica-samplable))) output-port)	     	
+)
 
   ;(displayln "\\end{tabular}" output-port)
-  (displayln "</table>" output-port))
-
 (define (is-nan? bigfloat)
   (equal? bigfloat '+nan.bf))
 
