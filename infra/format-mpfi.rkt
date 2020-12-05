@@ -124,46 +124,46 @@
      (body
       (h1  "Regraph evaluation for " ,(date->string (current-date)))
       (table
-       (make-html-row (list "" "Rival" "MPFI" "Mathematica"))
-       (make-html-row (list "Samplable" (sum-benches bench-to-mdata mdata-rival-samplable)                                        
+       ,(make-html-row (list "" "Rival" "MPFI" "Mathematica"))
+       ,(make-html-row (list "Samplable" (sum-benches bench-to-mdata mdata-rival-samplable)                                        
                                         (sum-benches bench-to-idata idata-mpfi-samplable)
                                         (sum-benches bench-to-mdata mdata-mathematica-samplable)) #:good 'max)
-       (make-html-row
+       ,(make-html-row
         (list "Unsupported"
               0
 		          (- total-points mpfi-supported)
 		          0))
-       (make-html-row
+       ,(make-html-row
         (list "Total Invalid"
         	     (+ rival-invalid-guarantee rival-invalid-unsure)
 		           mpfi-invalid
 		           mathematica-invalid-guarantee) #:good 'none)
 
-       (make-html-row
+       ,(make-html-row
                (list "Invalid $[\u22a5, \u22a5]$"
 	       	     rival-invalid-guarantee
 		     0
 		     mathematica-invalid-guarantee) #:good 'max)
 
-       (make-html-row
+       ,(make-html-row
                 (list "Invalid $[\u2284, \u22a5]$"
 		      rival-invalid-unsure
 		      mpfi-invalid
 		      0) #:good 'min)
 
-      (make-html-row
+      ,(make-html-row
        		(list "Total Stuck"
 		      (+ rival-movability-stuck rival-unsamplable-possible)
 		      mpfi-unsamplable
 		      mathematica-unsamplable) #:good 'none)
 
-      (make-html-row
+      ,(make-html-row
        		(list "Stuck $[\\top, \\top]$"
                		      rival-movability-stuck
                        		      0
                                		      0) #:good 'max)
 
-      (make-html-row
+      ,(make-html-row
        		(list "Stuck $[\\bot, \\top]$"
                                rival-unsamplable-possible
                                mpfi-unsamplable
