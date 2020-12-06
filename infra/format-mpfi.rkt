@@ -139,13 +139,13 @@
 		           mathematica-invalid-guarantee) #:good 'none)
 
        ,(make-html-row
-               (list "Invalid $[\u22a6, \u22a6]$"
+               (list "Invalid $[\u22a4, \u22a4]$"
 	       	     rival-invalid-guarantee
 		     0
 		     mathematica-invalid-guarantee) #:good 'max)
 
        ,(make-html-row
-                (list "Invalid $[\u22a5, \u22a6]$"
+                (list "Invalid $[\u22a5, \u22a4]$"
 		      rival-invalid-unsure
 		      mpfi-invalid
 		      0) #:good 'min)
@@ -157,13 +157,13 @@
 		      mathematica-unsamplable) #:good 'none)
 
       ,(make-html-row
-       		(list "Stuck $[\u22a6, \u22a6]$"
+       		(list "Stuck $[\u22a4, \u22a4]$"
                		      rival-movability-stuck
                        		      0
                                		      0) #:good 'max)
 
       ,(make-html-row
-       		(list "Stuck $[\u22a5, \u22a6]$"
+       		(list "Stuck $[\u22a5, \u22a4]$"
                                rival-unsamplable-possible
                                mpfi-unsamplable
                                mathematica-unsamplable) #:good 'min)
