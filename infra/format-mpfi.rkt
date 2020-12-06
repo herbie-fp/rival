@@ -91,8 +91,7 @@
   (string-append (string-join (bold-correct-item data good) " & ") " \\\\\n"))
 
 (define (make-html-row data #:good [good 'none])
-  `(tr
-    ,(map (lambda (element) `(td ,element)) (map html-format-item data))))
+  (cons 'tr (map (lambda (element) `(td ,element)) (map html-format-item data))))
   
 
 (define (output-data bench-to-mdata bench-to-idata output-port)
@@ -140,13 +139,13 @@
 		           mathematica-invalid-guarantee) #:good 'none)
 
        ,(make-html-row
-               (list "Invalid $[\u22a5, \u22a5]$"
+               (list "Invalid $[\u22a6, \u22a6]$"
 	       	     rival-invalid-guarantee
 		     0
 		     mathematica-invalid-guarantee) #:good 'max)
 
        ,(make-html-row
-                (list "Invalid $[\u2284, \u22a5]$"
+                (list "Invalid $[\u22a5, \u22a6]$"
 		      rival-invalid-unsure
 		      mpfi-invalid
 		      0) #:good 'min)
@@ -158,13 +157,13 @@
 		      mathematica-unsamplable) #:good 'none)
 
       ,(make-html-row
-       		(list "Stuck $[\\top, \\top]$"
+       		(list "Stuck $[\u22a6, \u22a6]$"
                		      rival-movability-stuck
                        		      0
                                		      0) #:good 'max)
 
       ,(make-html-row
-       		(list "Stuck $[\\bot, \\top]$"
+       		(list "Stuck $[\u22a5, \u22a6]$"
                                rival-unsamplable-possible
                                mpfi-unsamplable
                                mathematica-unsamplable) #:good 'min)
