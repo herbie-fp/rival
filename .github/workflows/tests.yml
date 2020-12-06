@@ -13,4 +13,6 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: raco pkg install --name rival --no-cache --auto
+      - name: "Install nightly dependency on biginterval"
+        run: raco pkg install --name biginterval --no-cache --auto
       - run: raco test *.rkt
