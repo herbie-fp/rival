@@ -33,6 +33,14 @@ function generate-points {
 
 REPORTDIR="report"
 
+function clean {
+  if [ -d "$REPORTDIR" ]
+  then
+    rm -r "$REPORTDIR"
+  fi
+    mkdir "$REPORTDIR"
+}
+
 function run-mpfi {
   echo "running mpfi on generated points"
   racket "infra/run-mpfi.rkt" "infra/all-points.txt" "$REPORTDIR/mpfi-results.txt"
@@ -49,12 +57,15 @@ function run-mathematica {
   racket "infra/run-mathematica.rkt" "infra/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$REPORTDIR/mathematica-output.txt" "$REPORTDIR/rival-output.txt"
 }
 
-if [ -d "$REPORTDIR" ]
-then
-  rm -r "$REPORTDIR"
-fi
-mkdir "$REPORTDIR"
+function all {
+  clean
+  run-mpfi
+  run-mathematica
+  format-data
+}
 
-run-mpfi
-run-mathematica
-format-data
+
+for cmd in $@; do
+    echo "Running $cmd"
+    $cmd
+done
