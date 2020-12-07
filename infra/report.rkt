@@ -48,7 +48,7 @@
     [else (format "~a" item)]))
 
 (define (html-format-number item)
-  (insert-thinspaces (~a item) "&thinsp;"))
+  (insert-thinspaces (~a item) "\u2009"))
 
 (define (latex-format-label label)
   (string-replace 
