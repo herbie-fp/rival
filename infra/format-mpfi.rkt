@@ -47,11 +47,18 @@
      (insert-thinspaces (format "~a" item) "\\thinspace")]
     [else (format "~a" item)]))
 
-(define (html-format-item item)
-  (cond
-    [(exact-integer? item)
-     (insert-thinspaces (format "~a" item) " ")]
-    [else (format "~a" item)]))
+(define (html-format-number item)
+  (insert-thinspaces (~a item) "&thinsp;"))
+
+(define (latex-format-label label)
+  (string-replace 
+   (string-replace label "MAYBE" "$[\\bot, \\top]$")
+   "YES" "[\\top, \\top]"))
+
+(define (html-format-label label)
+  (string-replace 
+   (string-replace label "MAYBE" "[\u22a5, \u22a4]")
+   "YES" "[\u22a4, \u22a4]"))
 
 (define (max-num data)
   (apply max
@@ -88,11 +95,14 @@
   (append before modified-after))
 
 (define (make-latex-row data #:good [good 'none])
-  (string-append (string-join (bold-correct-item data good) " & ") " \\\\\n"))
+  (match-define (list label elts ...) data)
+  (format "~a & ~a \\\\\n"
+          (latex-format-label label)
+          (string-join (bold-correct-item elts good) " & ")))
 
 (define (make-html-row data #:good [good 'none])
-  (cons 'tr (map (lambda (element) `(td ,element)) (map html-format-item data))))
-  
+  (match-define (list label elts ...) data)
+  `(tr (th ,(html-format-label label)) ,@(for/list ([elt elts]) `(td ,(html-format-number elt)))))
 
 (define (output-data bench-to-mdata bench-to-idata output-port)
   ;;(displayln "\\begin{tabular}{r|rrrr}" output-port)
@@ -119,11 +129,11 @@
      (head
       (meta ([charset "utf-8"]))
       (link ([rel "stylesheet"] [href "index.css"]))
-      (title "Rival evaluation for " ,(date->string (current-date))))
+      (title "Rival data for " ,(date->string (current-date))))
      (body
-      (h1  "Regraph evaluation for " ,(date->string (current-date)))
+      (h1  "Rival data for " ,(date->string (current-date)))
       (table
-       ,(make-html-row (list "" "Rival" "MPFI" "Mathematica"))
+       (tr (th) (th "Rival") (th "MPFI") (th "Mathematica"))
        ,(make-html-row (list "Samplable" (sum-benches bench-to-mdata mdata-rival-samplable)                                        
                                         (sum-benches bench-to-idata idata-mpfi-samplable)
                                         (sum-benches bench-to-mdata mdata-mathematica-samplable)) #:good 'max)
@@ -139,13 +149,13 @@
 		           mathematica-invalid-guarantee) #:good 'none)
 
        ,(make-html-row
-               (list "Invalid $[\u22a4, \u22a4]$"
+               (list "Invalid YES"
 	       	     rival-invalid-guarantee
 		     0
 		     mathematica-invalid-guarantee) #:good 'max)
 
        ,(make-html-row
-                (list "Invalid $[\u22a5, \u22a4]$"
+                (list "Invalid MAYBE"
 		      rival-invalid-unsure
 		      mpfi-invalid
 		      0) #:good 'min)
@@ -157,13 +167,13 @@
 		      mathematica-unsamplable) #:good 'none)
 
       ,(make-html-row
-       		(list "Stuck $[\u22a4, \u22a4]$"
+       		(list "Stuck YES"
                		      rival-movability-stuck
                        		      0
                                		      0) #:good 'max)
 
       ,(make-html-row
-       		(list "Stuck $[\u22a5, \u22a4]$"
+       		(list "Stuck MAYBE"
                                rival-unsamplable-possible
                                mpfi-unsamplable
                                mathematica-unsamplable) #:good 'min)
