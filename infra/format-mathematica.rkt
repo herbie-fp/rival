@@ -46,23 +46,6 @@
     [else
      (bf (second bf-list))]))
 
-
-
-(define (output-data bench-to-mdata output-port)
-  (displayln "\\begin{tabular}{c|ccc|cc|}" output-port)
-  (displayln " & \\multicolumn{3}{c}{Rival} & \\multicolumn{2}{|c|}{Mathematica} \\\\" output-port)
-  (displayln "Benchmarks & Samplable & Guaranteed Unsamplable & Possibly Unsamplable & Samplable & Unsamplable \\\\  \\hline" output-port)
-  (for ([suite (hash-keys bench-to-mdata)])
-    (fprintf output-port
-             "~a & ~a & ~a & ~a & ~a & ~a  \\\\\n"
-             suite
-             (mdata-rival-samplable (hash-ref bench-to-mdata suite))
-	     (mdata-rival-movability (hash-ref bench-to-mdata suite))
-	     (mdata-rival-possible (hash-ref bench-to-mdata suite))
-	     (mdata-mathematica-samplable (hash-ref bench-to-mdata suite))
-	     (mdata-mathematica-unsamplable (hash-ref bench-to-mdata suite))))
-  (displayln "\\end{tabular}" output-port))
-
 (define (mathematica-domain-error? point-str)
   (equal? point-str "\ndomain-error\n"))
 
