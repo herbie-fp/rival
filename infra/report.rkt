@@ -260,7 +260,7 @@
 
 (module+ main
   (command-line #:program "run-mpfi"
-    #:args (mathematica-results-file rival-results-file mpfi-results-file output-file)
+    #:args (mpfi-results-file mathematica-results-file rival-results-file output-file)
     (output-data (collect-mathematica (open-input-file mathematica-results-file) (open-input-file rival-results-file) (make-hash) 0)
                  (run-on-points (open-input-file mpfi-results-file) (make-hash) 0)
 		 (open-output-file output-file #:exists 'replace))))

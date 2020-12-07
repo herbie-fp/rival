@@ -1,8 +1,5 @@
 #!/bin/bash
 
-
-
-
 function run {
     bench="$1"; shift
     name="$1"; shift
@@ -32,36 +29,38 @@ function generate-points {
 }
 
 REPORTDIR="report"
+MPFI_DATA="$REPORTDIR/mpfi-results.txt"
+MATH_DATA="$REPORTDIR/mathematica-output.txt"
+RIVAL_DATA="$REPORTDIR/rival-output.txt"
 
 function clean {
-  if [ -d "$REPORTDIR" ]
-  then
+  if [ -d "$REPORTDIR" ]; then
     rm -r "$REPORTDIR"
   fi
-    mkdir "$REPORTDIR"
+  mkdir -p "$REPORTDIR"
 }
 
 function run-mpfi {
   echo "running mpfi on generated points"
-  racket "infra/run-mpfi.rkt" "infra/all-points.txt" "$REPORTDIR/mpfi-results.txt"
-}
-
-function format-data {
-  echo "Formatting the mpfi and mathematica data into latex table"
-  racket "infra/format-mpfi.rkt" "$REPORTDIR/mathematica-output.txt" "$REPORTDIR/rival-output.txt" "$REPORTDIR/mpfi-results.txt" "$REPORTDIR/index.html"
-  cp "infra/index.css" "$REPORTDIR"
+  racket "infra/run-mpfi.rkt" "infra/all-points.txt" "$1"
 }
 
 function run-mathematica {
   echo "Converting points to mathematica script"
-  racket "infra/run-mathematica.rkt" "infra/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$REPORTDIR/mathematica-output.txt" "$REPORTDIR/rival-output.txt"
+  racket "infra/run-mathematica.rkt" "infra/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$1" "$2"
+}
+
+function format-data {
+  echo "Formatting the mpfi and mathematica data into latex table"
+  racket "infra/report.rkt" "$1" "$2" "$3" "$4"
+  cp "infra/index.css" "$REPORTDIR"
 }
 
 function all {
   clean
-  run-mpfi
-  run-mathematica
-  format-data
+  run-mpfi "$MPFI_DATA"
+  run-mathematica "$MATH_DATA" "$RIVAL_DATA"
+  format-data "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html"
 }
 
 
