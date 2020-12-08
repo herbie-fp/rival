@@ -123,6 +123,19 @@
   (define rival-movability-stuck (sum-benches bench-to-mdata mdata-rival-movability))
   (define rival-unsamplable-possible (sum-benches bench-to-mdata mdata-rival-possible))
   (define mpfi-unsamplable (- mpfi-supported (sum-benches bench-to-idata idata-mpfi-samplable) mpfi-invalid))
+
+  (define rival-samplable (sum-benches bench-to-mdata mdata-rival-samplable))
+  (define mathematica-samplable (sum-benches bench-to-mdata mdata-mathematica-samplable))
+  (define-values (nightly-slack-process _in _out _err)
+    (subprocess #f #f #f (find-executable-path "nightly-results") "best"
+                (cond
+                  [(> rival-samplable mathematica-samplable)
+                   "Rival"]
+                  [(< rival-samplable mathematica-samplable)
+                   "Mathematica"]
+                  [else "Tied"])))
+  (subprocess-wait nightly-slack-process)
+  
   
   (write-xexpr
    `(html
@@ -134,9 +147,9 @@
       (h1  "Rival data for " ,(date->string (current-date)))
       (table
        (tr (th) (th "Rival") (th "MPFI") (th "Mathematica"))
-       ,(make-html-row (list "Samplable" (sum-benches bench-to-mdata mdata-rival-samplable)                                        
+       ,(make-html-row (list "Samplable" rival-samplable
                                         (sum-benches bench-to-idata idata-mpfi-samplable)
-                                        (sum-benches bench-to-mdata mdata-mathematica-samplable)) #:good 'max)
+                                        mathematica-samplable) #:good 'max)
        ,(make-html-row
         (list "Unsupported"
               0
