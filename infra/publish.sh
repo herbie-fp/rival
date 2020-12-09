@@ -10,7 +10,7 @@ upload () {
     RDIR="$(date +%s):$(hostname):$B:$C"
     rsync --perms --chmod 755 --recursive report/ "$RHOST:$RHOSTDIR/$RDIR"
     if command -v nightly-results &>/dev/null; then
-        nightly-results url "rival.uwplse.org/$RDIR"
+        nightly-results url "http://rival.uwplse.org/$RDIR"
     fi
 }
 
