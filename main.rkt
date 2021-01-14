@@ -18,6 +18,7 @@
 
 (struct endpoint (val immovable?) #:transparent)
 (struct ival (lo hi err? err) #:transparent)
+(define ival-list? (listof ival?))
 (define value? (or/c bigfloat? boolean?))
 
 (define (ival-hi-val ival)
@@ -29,7 +30,7 @@
 (define (ival-hi-fixed? ival)
   (endpoint-immovable? (ival-hi ival)))
 
-(provide ival? ival-err? ival-err ival-lo-fixed? ival-hi-fixed?
+(provide ival? ival-list? ival-err? ival-err ival-lo-fixed? ival-hi-fixed?
          (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
          (contract-out
           [mk-ival (-> value? ival?)]
@@ -91,7 +92,8 @@
           [ival-fmin (-> ival? ival? ival?)]
           [ival-fmax (-> ival? ival? ival?)]
           [ival-copysign (-> ival? ival? ival?)]
-          [ival-fdim (-> ival? ival? ival?)]))
+          [ival-fdim (-> ival? ival? ival?)]
+          [ival-sort (-> ival-list? (-> value? value? boolean?) ival-list?)]))
 
 (define (mk-ival x)
   (match x
@@ -743,6 +745,16 @@
 (define (ival-fdim x y)
   (ival-fmax (ival-sub x y) (mk-ival 0.bf)))
 
+(define (ival-sort ivs cmp)
+  (define upper (sort (map ival-hi-val ivs) cmp))
+  (define lower (sort (map ival-lo-val ivs) cmp))
+  (define err? (ormap (lambda (iv) (ival-err? iv)) ivs))
+  (define err (ormap (lambda (iv) (ival-err iv)) ivs))
+  (define hi! (andmap (lambda (iv) (ival-hi-fixed? iv)) ivs))
+  (define lo! (andmap (lambda (iv) (ival-lo-fixed? iv)) ivs))
+  (for/list ([u upper] [l lower])
+            (ival (endpoint l lo!) (endpoint u hi!) err? err)))
+
 (module+ test
   (require racket/math racket/dict racket/format math/base math/flonum racket/list)
   
@@ -985,6 +997,23 @@
       (check-ival-contains? (ival-error? res2) #t)
       (check-ival-contains? (ival-error? res3) #f)
       (check-ival-contains? (ival-error? res3) #t)))
+
+  (define (sorted? list cmp)
+    (cond
+      [(<= (length list) 1) #t]
+      [else
+       (and (cmp (first list) (second list))
+            (sorted? (rest list) cmp))]))
+  
+  (test-case "ival-sort"
+    (for ([n (in-range num-tests)])
+         (let* ([input (for/list ([n (in-range (random 0 30))])
+                                 (sample-interval 'real))]
+                [output (ival-sort input bflt?)])
+           (check-true (sorted? (map ival-lo-val output) bflte?))
+           (check-true (sorted? (map ival-hi-val output) bflte?)))))
+           
+               
 
   (for ([entry (in-list function-table)])
     (match-define (list ival-fn fn args _) entry)
