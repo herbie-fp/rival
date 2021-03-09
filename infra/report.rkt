@@ -4,7 +4,7 @@
 
 
 (require biginterval)
-(require rival)
+(require "../main.rkt")
 (require "format-mathematica.rkt")
 
 (struct idata (mpfi-error-hash rival-error-hash may-error-mpfi-good rival-samplable mpfi-samplable))

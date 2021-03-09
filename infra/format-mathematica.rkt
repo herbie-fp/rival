@@ -1,11 +1,10 @@
 #lang racket
 
 (require biginterval)
-(require rival)
 
 
 (require math/bigfloat)
-(require rival)
+(require "../main.rkt")
 
 (provide (struct-out mdata) collect-mathematica)
 (provide samplable? get-low get-hi bf-list->bf)

@@ -2,6 +2,45 @@
 (require (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require math/base math/flonum)
 
+(define (replace-vars dict expr)
+  (cond
+    [(dict-has-key? dict expr) (dict-ref dict expr)]
+    [(list? expr)
+     (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
+    [#t expr]))
+
+(define (unfold-let expr)
+  (match expr
+    [`(let ([,vars ,vals] ...) ,body)
+     (define bindings (map cons vars (map unfold-let vals)))
+     (replace-vars bindings (unfold-let body))]
+    [`(let* () ,body)
+     (unfold-let body)]
+    [`(let* ([,var ,val] ,rest ...) ,body)
+     (replace-vars (list (cons var (unfold-let val))) (unfold-let `(let* ,rest ,body)))]
+    [`(,head ,args ...)
+     (cons head (map unfold-let args))]
+    [x x]))
+
+(define (expand-associativity expr)
+  (match expr
+    [(list (and (or '+ '- '* '/) op) a ..2 b)
+     (list op
+           (expand-associativity (cons op a))
+           (expand-associativity b))]
+    [(list (or '+ '*) a) (expand-associativity a)]
+    [(list '- a) (list '- (expand-associativity a))]
+    [(list '/ a) (list '/ 1 (expand-associativity a))]
+    [(list (or '+ '-)) 0]
+    [(list (or '* '/)) 1]
+    [(list op a ...)
+     (cons op (map expand-associativity a))]
+    [_
+     expr]))
+
+(define (desugar expr)
+  (expand-associativity (unfold-let expr)))
+
 (define (parse-test stx)
   (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
   
@@ -11,7 +50,7 @@
         ['() '()]
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
-  (list (dict-ref prop-dict ':pre 'TRUE) `(λ ,args ,body)))
+  (list (dict-ref prop-dict ':pre 'TRUE) `(λ ,args ,(desugar body))))
 
 
 (define (load-file file)
