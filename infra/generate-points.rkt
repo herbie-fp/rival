@@ -29,7 +29,7 @@
            (expand-associativity (cons op a))
            (expand-associativity b))]
     [(list (or '+ '*) a) (expand-associativity a)]
-    [(list '- a) (list '- (expand-associativity a))]
+    [(list '- a) (list 'neg (expand-associativity a))]
     [(list '/ a) (list '/ 1 (expand-associativity a))]
     [(list (or '+ '-)) 0]
     [(list (or '* '/)) 1]

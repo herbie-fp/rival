@@ -103,7 +103,6 @@
   (if use-mpfi? (iv expression) (mk-ival (bf expression))))
 
 (define (interval-evaluate expression variables point use-mpfi?)
-  (println expression)
   (cond
     [(list? expression)
      (define children (map (lambda (exp) (interval-evaluate exp variables point use-mpfi?))
