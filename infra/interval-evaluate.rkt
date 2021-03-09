@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat)
-(require "../src/main.rkt" biginterval)
+(require "../main.rkt" biginterval)
 
 (provide interval-evaluate)
 
