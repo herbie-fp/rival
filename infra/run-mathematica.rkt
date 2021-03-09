@@ -62,10 +62,9 @@
 ;; exp2, expm1, 
 
 (define (transform-function func)
-  (define beginning (string->symbol (first (string-split (symbol->string func) "."))))
   (cond
-    [(hash-has-key? to-mathematica-function beginning)
-     (hash-ref to-mathematica-function beginning)]
+    [(hash-has-key? to-mathematica-function func)
+     (hash-ref to-mathematica-function func)]
     [else 
       #f]))
 

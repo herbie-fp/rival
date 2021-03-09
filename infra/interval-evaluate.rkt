@@ -85,8 +85,7 @@
 (define (convert-symbol unprocessed-symbol)
   (string->symbol (first (string-split (symbol->string unprocessed-symbol) "."))))
 
-(define (get-ival-from-table table unprocessed-symbol use-mpfi?)
-  (define symbol (convert-symbol unprocessed-symbol))
+(define (get-ival-from-table table symbol use-mpfi?)
   (cond
     [(not (hash-has-key? table symbol))
      (error (format "Didn't find in table ~a" symbol))]
