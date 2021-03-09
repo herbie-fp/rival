@@ -61,6 +61,7 @@ function all {
   run-mpfi "$MPFI_DATA"
   run-mathematica "$MATH_DATA" "$RIVAL_DATA"
   format-data "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html"
+  gzip -9 "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA"
 }
 
 
