@@ -34,7 +34,9 @@
 (define (load-tests path)
   (define path* (if (string? path) (string->path path) path))
   (apply append
-         (for/list ([fname (directory-list path* #:build? true)])
+         (for/list ([fname (directory-list path* #:build? true)]
+                    #:when (or (directory-exists? fname)
+                               (equal? (filename-extension fname) #"fpcore")))
             (cond
                 [(directory-exists? fname)
                     (load-directory fname)]
