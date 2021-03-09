@@ -91,7 +91,7 @@
      (hash-ref hash expr)]
     [(number? expr)
      (number->wolfram expr)]
-    [(equal? expr 'PI.f64)
+    [(equal? expr 'PI)
      "Pi"]
     [else
      (error (string-append "found constant or something " (~a expr)))]))
