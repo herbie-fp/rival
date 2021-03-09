@@ -10,5 +10,5 @@
   '("Pavel Panchekha" "Oliver Flatt"))
 
 ;; Dependencies
-(define deps '(("base" #:version "7.0") "math-lib" "rackunit-lib" "biginterval"))
+(define deps '(("base" #:version "7.0") "math-lib" "rackunit-lib"))
 (define build-deps '("rackunit-lib"))

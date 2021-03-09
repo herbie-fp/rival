@@ -1,31 +1,14 @@
 #!/bin/bash
 
-function run {
-    bench="$1"; shift
-    name="$1"; shift
-    
-    echo "Running herbie sampling on $name"
-    seed=$(date "+%Y%j")
-    racket "src/herbie.rkt" report  \
-	   --num-iters 0 \
-	   --note "mpfi" \
-	   --debug \
-	   --seed "$seed" \
-     --suite "$name" \
-     --timeout 60000 \
-	   "$bench" "mpfi-reports/$name"
+function setup {
+  raco pkg install --auto biginterval
+  raco pkg install --auto fpbench
+  rm -rf ./herbie
+  git clone https://github.com/uwplse/herbie
 }
 
 function generate-points {
-  echo "clearing reports"
-  report=$(git rev-parse --abbrev-ref HEAD)-$(date "+%Y-%m-%d")
-  rm -rf mpfi-reports
-  mkdir -p mpfi-reports
-
-  for bench in bench/*; do
-    name=$(basename "$bench" .fpcore)
-    run "$bench" "$name" "$@"
-  done
+  racket "infra/generate-points.rkt" "./herbie/bench" "./infra/all-points.txt"
 }
 
 REPORTDIR="report"
@@ -58,12 +41,13 @@ function format-data {
 
 function all {
   clean
+  setup
+  generate-points
   run-mpfi "$MPFI_DATA"
   run-mathematica "$MATH_DATA" "$RIVAL_DATA"
   format-data "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html"
   gzip -9 "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA"
 }
-
 
 for cmd in $@; do
     echo "Running $cmd"
