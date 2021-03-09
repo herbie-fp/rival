@@ -39,14 +39,18 @@ function format-data {
   cp "infra/index.css" "$REPORTDIR"
 }
 
-function all {
+function rerun {
   clean
-  setup
   generate-points
   run-mpfi "$MPFI_DATA"
   run-mathematica "$MATH_DATA" "$RIVAL_DATA"
   format-data "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html"
   gzip -9 "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA"
+}
+
+function all {
+  setup
+  rerun
 }
 
 for cmd in $@; do
