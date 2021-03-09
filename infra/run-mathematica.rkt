@@ -94,7 +94,7 @@
     [(equal? expr 'PI.f64)
      "Pi"]
     [else
-     (error "found constant or something")]))
+     (error (string-append "found constant or something " (~a expr)))]))
 
 (define (prog->wolfram prog point)
   (define hash (make-hash (map cons (program-variables prog) (map number->wolfram point))))

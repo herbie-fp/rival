@@ -264,6 +264,6 @@
     (output-data (collect-mathematica (open-input-file mathematica-results-file)
                                       (open-input-file rival-results-file)
                                       (make-hash) 0
-                                      (open-output-file example-file #:exists 'replace))
+                                      (open-output-file examples-file #:exists 'replace))
                  (run-on-points (open-input-file mpfi-results-file) (make-hash) 0)
 		 (open-output-file output-file #:exists 'replace))))

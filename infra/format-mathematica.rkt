@@ -96,7 +96,7 @@
      (define m-samplable? (mathematica-samplable? mathematica-point))
      (define m-error? (mathematica-domain-error? mathematica-point))
 
-     (when (xor m-samplable? is-samplable?)
+     (when (xor m-samplable? is-samplable)
            (writeln (list suite prog pt rival-res mathematica-point) examples-port))
 	   
      (define new-data
