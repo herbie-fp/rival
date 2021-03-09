@@ -61,7 +61,7 @@
   (or (and left-i right-i) (and (bfinfinite? left-val) left-i) (and (bfinfinite? right-val) right-i)))
   
 
-(define (collect-mathematica port rival-port bench-to-mdata sofar)
+(define (collect-mathematica port rival-port bench-to-mdata sofar examples-port)
   (define read-res (read port))
 
   (when (equal? (modulo sofar 1000) 0)
@@ -95,6 +95,9 @@
 
      (define m-samplable? (mathematica-samplable? mathematica-point))
      (define m-error? (mathematica-domain-error? mathematica-point))
+
+     (when (xor m-samplable? is-samplable?)
+           (writeln (list suite prog pt rival-res mathematica-point) examples-port))
 	   
      (define new-data
        (struct-copy mdata data
@@ -107,11 +110,12 @@
 			  [mathematica-unsamplable (if (not m-samplable?)
 			                               (+ mathematica-unsamplable 1)
 						       mathematica-unsamplable)]
-		          [mathematica-error (if m-error? (+ mathematica-error 1) mathematica-error)]))
+		    [mathematica-error (if m-error? (+ mathematica-error 1) mathematica-error)]))
      (hash-set! bench-to-mdata suite new-data)
      (collect-mathematica port
 		    rival-port
-                    bench-to-mdata
-                    (+ sofar 1))]
+        bench-to-mdata
+        (+ sofar 1)
+        examples-port)]
     [else
      bench-to-mdata]))

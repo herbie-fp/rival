@@ -259,8 +259,11 @@
      bench-to-idata]))
 
 (module+ main
-  (command-line #:program "run-mpfi"
-    #:args (mpfi-results-file mathematica-results-file rival-results-file output-file)
-    (output-data (collect-mathematica (open-input-file mathematica-results-file) (open-input-file rival-results-file) (make-hash) 0)
+  (command-line #:program "report"
+    #:args (mpfi-results-file mathematica-results-file rival-results-file output-file examples-file)
+    (output-data (collect-mathematica (open-input-file mathematica-results-file)
+                                      (open-input-file rival-results-file)
+                                      (make-hash) 0
+                                      (open-output-file example-file #:exists 'replace))
                  (run-on-points (open-input-file mpfi-results-file) (make-hash) 0)
 		 (open-output-file output-file #:exists 'replace))))

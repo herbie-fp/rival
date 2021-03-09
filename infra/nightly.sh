@@ -35,7 +35,7 @@ function run-mathematica {
 
 function format-data {
   echo "Formatting the mpfi and mathematica data into latex table"
-  racket "infra/report.rkt" "$1" "$2" "$3" "$4"
+  racket "infra/report.rkt" "$1" "$2" "$3" "$4" "$5"
   cp "infra/index.css" "$REPORTDIR"
 }
 
@@ -44,7 +44,7 @@ function rerun {
   generate-points
   run-mpfi "$MPFI_DATA"
   run-mathematica "$MATH_DATA" "$RIVAL_DATA"
-  format-data "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html"
+  format-data "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html" "$REPORTDIR/examples.txt"
   gzip -9 "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA"
 }
 
