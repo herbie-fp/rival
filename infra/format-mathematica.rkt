@@ -97,7 +97,8 @@
      (define m-error? (mathematica-domain-error? mathematica-point))
 
      (when (xor m-samplable? is-samplable)
-           (writeln (list suite prog pt rival-res mathematica-point) examples-port))
+           (writeln (list suite prog pt (list "rival" "samplable:" is-samplable "error:" (not rival-no-error) "immovable:" is-immovable)
+                                        (list "mathematica:" "samplable:" m-samplable? "error:" m-error?)) examples-port))
 	   
      (define new-data
        (struct-copy mdata data
