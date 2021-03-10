@@ -53,5 +53,7 @@ function all {
   rerun
 }
 
-echo "Running $@"
-$($@)
+for cmd in $@; do
+    echo "Running $cmd"
+    $cmd
+done

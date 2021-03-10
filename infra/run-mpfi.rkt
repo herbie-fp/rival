@@ -21,6 +21,7 @@
                       (display "Ran on ")
                       (display point-count)
                       (displayln " points"))
+		(flush-output)
   
                 (when (not (equal? read-res eof))
                       (match-define (list suite prog pt) read-res)
