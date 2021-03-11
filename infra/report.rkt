@@ -196,7 +196,31 @@
 (define (is-nan? bigfloat)
   (equal? bigfloat '+nan.bf))
 
+(define (output-var name val port [comment ""])
+  (define comment-string
+    (if (equal? comment "")
+        ""
+        (format "% ~a" comment)))
+  (fprintf port "\\newcommand{\\~a}{~a\\xspace}~a\n" name val comment-string))
 
+
+(define (round1 num)
+  (~r num #:precision `(= 1)))
+
+(define (output-percent proportion)
+  (format "~a\\%"
+          (round1 (* 100 proportion))))
+
+(define (output-examples-data examples output)
+  (define total-count 0)
+  (define error-count 0)
+  (for ([syntax (in-port (curry read-syntax file) examples)])
+       (set! total-count (+ 1 total-count))
+       (when (list-ref (list-ref syntax 3) 4)
+        (set! error-count (+ 1 error-count))))
+  (output-var "total-mathematica-samplable-rival-unsamplable" total-count output)
+  (output-var "total-mathematica-samplable-rival-error" error-count output)
+  (output-var "percent-mathematica-samplable-rival-error" (/ error-count total-count) output))
 
 (define (run-on-points port bench-to-idata sofar)
   (define read-res (read port))
@@ -260,10 +284,11 @@
 
 (module+ main
   (command-line #:program "report"
-    #:args (mpfi-results-file mathematica-results-file rival-results-file output-file examples-file)
+    #:args (mpfi-results-file mathematica-results-file rival-results-file output-file examples-file macros-file)
     (output-data (collect-mathematica (open-input-file mathematica-results-file)
                                       (open-input-file rival-results-file)
                                       (make-hash) 0
                                       (open-output-file examples-file #:exists 'replace))
                  (run-on-points (open-input-file mpfi-results-file) (make-hash) 0)
-		 (open-output-file output-file #:exists 'replace))))
+		 (open-output-file output-file #:exists 'replace))
+    (output-examples-data (open-input-file examples-file) macros-file)))
