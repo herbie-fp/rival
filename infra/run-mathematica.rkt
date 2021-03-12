@@ -64,7 +64,7 @@
 (define (transform-function func)
   (cond
     [(hash-has-key? to-mathematica-function func)
-     (string-append (hash-ref to-mathematica-function func) "Wrapped")]
+     (string->symbol (string-append (symbol->string (hash-ref to-mathematica-function func)) "Wrapped"))]
     [else 
       #f]))
 

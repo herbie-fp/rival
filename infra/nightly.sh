@@ -30,7 +30,7 @@ function run-mpfi {
 
 function run-mathematica {
   echo "Converting points to mathematica script"
-  racket "infra/run-mathematica.rkt" "infra/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$1" "$2"
+  racket "infra/run-mathematica.rkt" "infra/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$MATH_DATA" "$RIVAL_DATA"
 }
 
 function format-data {
@@ -43,7 +43,7 @@ function rerun {
   clean
   generate-points
   run-mpfi "$MPFI_DATA"
-  run-mathematica "$MATH_DATA" "$RIVAL_DATA"
+  run-mathematica
   format-data
   gzip -9 "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA"
 }
