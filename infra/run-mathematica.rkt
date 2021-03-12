@@ -14,7 +14,7 @@
       (+ . Plus)
       (- . Subtract)
       (/ . Divide)
-      (sqrt . Sqrt)
+      (sqrt . Surd)
       (* . Times)
       (exp . Exp)
       (log . Log)
@@ -64,7 +64,7 @@
 (define (transform-function func)
   (cond
     [(hash-has-key? to-mathematica-function func)
-     (hash-ref to-mathematica-function func)]
+     (string-append (hash-ref to-mathematica-function func) "Wrapped")]
     [else 
       #f]))
 
@@ -130,7 +130,10 @@
     (fprintf output "V := Catch[N[~a, 16], _SystemException],\n" item)
     (fprintf output "Print[ReturnIfReal[V]],\n")
     (fprintf output "Print[\"\\\"\"],\n"))
-    
+
+(define (make-wrapped-functions port)
+  (for ([(key funcname) (in-hash to-mathematica-function)])
+    (fprintf port "~aWrapped := Function[a, ReturnIfReal[~a[a]]],\n" funcname funcname)))
 
 (define (run-mathematica script-file output-port)
   (define-values (process in out err) (subprocess output-port #f #f (find-executable-path "wolframscript") "-file" (build-path script-file)))
@@ -144,6 +147,7 @@
     (displayln "#!/usr/bin/env wolframscript" script-port)
     (displayln "Block[{$MaxExtraPrecision = 500},{" script-port)
     (displayln "ReturnIfReal := Function[a, If[NumericQ[a], If[Internal`RealValuedNumericQ[a], a, \"domain-error\"], \"unsamplable\"]],\n" script-port)
+    (make-wrapped-functions script-port)
     
     (run-on-points (open-input-file points-file) script-port rival-port 0)
     (displayln "}]" script-port)
