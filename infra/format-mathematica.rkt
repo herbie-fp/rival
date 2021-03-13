@@ -48,8 +48,24 @@
 (define (mathematica-domain-error? point-str)
   (equal? point-str "\ndomain-error\n"))
 
+(define (mathematica-number? point-str)
+  (define strings (string-split point-str "\n"))
+  (cond [(equal? (length strings) 1)
+         (define parts (string-split (first strings) (regexp "(\\*\\^)|(`+)")))
+	 (and (< (length parts) 4)
+	      (andmap string->number parts))]
+	[else #f]))
+      
+
 (define (mathematica-samplable? point-str)
-  (not (or (mathematica-domain-error? point-str) (equal? point-str "\nunsamplable\n"))))
+	(cond
+		[(or (mathematica-domain-error? point-str) (equal? point-str "\nunsamplable\n") (equal? point-str "\nOverflow[]\n") (equal? point-str "\nUnderflow[]\n"))
+		 #f]
+		[(mathematica-number? point-str)
+		 #t]
+		[else
+		 (error 'unrecognized-mathematica-output point-str)]))		
+
 
 (define (is-immovable? rival-res)
   (define left-e (vector-ref rival-res 1))

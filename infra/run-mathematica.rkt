@@ -14,7 +14,7 @@
       (+ . Plus)
       (- . Subtract)
       (/ . Divide)
-      (sqrt . Surd)
+      (sqrt . Sqrt)
       (* . Times)
       (exp . Exp)
       (log . Log)
@@ -127,13 +127,13 @@
 
 (define (write-todo item output)
     (fprintf output "Print[\"\\\"\"],\n")
-    (fprintf output "V := Catch[N[~a, 16], _SystemException],\n" item)
+    (fprintf output "V := Quiet[Catch[N[~a, 16], _SystemException]],\n" item)
     (fprintf output "Print[ReturnIfReal[V]],\n")
     (fprintf output "Print[\"\\\"\"],\n"))
 
 (define (make-wrapped-functions port)
   (for ([(key funcname) (in-hash to-mathematica-function)])
-    (fprintf port "~aWrapped := Function[a, ReturnIfReal[~a[a]]],\n" funcname funcname)))
+       (fprintf port "~aWrapped[xs___] := If[MemberQ[{xs}, \"domain-error\"], \"domain-error\", ReturnIfReal[~a[xs]]],\n" funcname funcname)))
 
 (define (run-mathematica script-file output-port)
   (define-values (process in out err) (subprocess output-port #f #f (find-executable-path "wolframscript") "-file" (build-path script-file)))
