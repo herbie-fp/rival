@@ -104,6 +104,10 @@
   (match-define (list label elts ...) data)
   `(tr (th ,(html-format-label label)) ,@(for/list ([elt elts]) `(td ,(html-format-number elt)))))
 
+(define (make-both-row port data #:good [good 'none])
+  (displayln (make-latex-row data #:good good) port)
+  (make-html-row data #:good good))
+
 (define (output-data bench-to-mdata bench-to-idata output-port)
   ;;(displayln "\\begin{tabular}{r|rrrr}" output-port)
 

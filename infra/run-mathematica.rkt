@@ -70,10 +70,13 @@
 
 (define (number->wolfram num)
   (define split (string-split (number->string num) "e"))
-  (if
-    (equal? (length split) 1)
-    (first split)
-    (string-append (first split) "*^" (string-replace (second split) "+" ""))))
+  (string-join
+   "SetPrecision["
+    (if
+      (equal? (length split) 1)
+      (first split)
+      (string-append (first split) "*^" (string-replace (second split) "+" "")))
+    ", 30]"))
     
 
 (define (transform-wolfram expr hash)
@@ -127,15 +130,15 @@
 
 (define (write-todo item output)
     (fprintf output "Print[\"\\\"\"],\n")
-    (fprintf output "V := Quiet[Catch[N[~a, 16], _SystemException]],\n" item)
+    (fprintf output "V := Quiet[Check[Catch[N[~a, 16], _SystemException], \"warning\"]],\n" item)
     (fprintf output "Print[ReturnIfReal[V]],\n")
     (fprintf output "Print[\"\\\"\"],\n"))
 
 (define (make-wrapped-functions port)
   (for ([(key funcname) (in-hash to-mathematica-function)])
        (if (equal? key 'sqrt)
-           (fprintf port "~aWrapped[xs___] := If[MemberQ[{xs}, \"domain-error\"], \"domain-error\", If[MemberQ[{xs}, \"unsamplable\"], \"unsamplable\", ReturnIfReal[~a[xs, 2]]]],\n" funcname funcname)
-	   (fprintf port "~aWrapped[xs___] := If[MemberQ[{xs}, \"domain-error\"], \"domain-error\", If[MemberQ[{xs}, \"unsamplable\"], \"unsamplable\", ReturnIfReal[~a[xs]]]],\n" funcname funcname))))
+           (fprintf port "~aWrapped[xs___] := If[MemberQ[{xs}, Underflow[]], Underflow[], If[MemberQ[{xs}, Overflow[]], Overflow[], If[MemberQ[{xs}, \"domain-error\"], \"domain-error\", If[MemberQ[{xs}, \"unsamplable\"], \"unsamplable\", ReturnIfReal[~a[xs, 2]]]]]],\n" funcname funcname)
+	   (fprintf port "~aWrapped[xs___] := If[MemberQ[{xs}, Underflow[]], Underflow[], If[MemberQ[{xs}, Overflow[]], Overflow[], If[MemberQ[{xs}, \"domain-error\"], \"domain-error\", If[MemberQ[{xs}, \"unsamplable\"], \"unsamplable\", ReturnIfReal[~a[xs]]]]]],\n" funcname funcname))))
 
 (define (run-mathematica script-file output-port)
   (define-values (process in out err) (subprocess output-port #f #f (find-executable-path "wolframscript") "-file" (build-path script-file)))
@@ -148,7 +151,7 @@
     (define script-port (open-output-file script-file #:exists 'replace))
     (displayln "#!/usr/bin/env wolframscript" script-port)
     (displayln "Block[{$MaxExtraPrecision = 500},{" script-port)
-    (displayln "ReturnIfReal := Function[a, If[StringQ[a], a, If[NumericQ[a], If[Internal`RealValuedNumericQ[a], a, \"domain-error\"], \"unsamplable\"]]],\n" script-port)
+    (displayln "ReturnIfReal := Function[a, If[SameQ[a, Underflow[]], Underflow[], If[SameQ[a, Overflow[]], Overflow[], If[StringQ[a], a, If[NumericQ[a], If[Internal`RealValuedNumericQ[a], a, \"domain-error\"], \"unsamplable\"]]]]],\n" script-port)
     (make-wrapped-functions script-port)
     
     (run-on-points (open-input-file points-file) script-port rival-port 0)

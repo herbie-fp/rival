@@ -59,7 +59,11 @@
 
 (define (mathematica-samplable? point-str)
 	(cond
-		[(or (mathematica-domain-error? point-str) (equal? point-str "\nunsamplable\n") (equal? point-str "\nOverflow[]\n") (equal? point-str "\nUnderflow[]\n"))
+		[(or (mathematica-domain-error? point-str)
+       (equal? point-str "\nwarning\n")
+       (equal? point-str "\nunsamplable\n")
+       (equal? point-str "\nOverflow[]\n")
+       (equal? point-str "\nUnderflow[]\n"))
 		 #f]
 		[(mathematica-number? point-str)
 		 #t]
