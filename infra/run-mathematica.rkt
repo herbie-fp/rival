@@ -144,13 +144,13 @@
     (displayln "Block[{$MaxExtraPrecision = 500, $HistoryLength=0},{" script-port)
     (displayln "PropagateSet := {True, False, Underflow[], Overflow[], \"domain-error\", \"warning\", Indeterminate, ComplexInfinity},\n" script-port)
     (displayln "ReturnIfReal := Function[a, If[Greater[Length[Intersection[{a}, PropagateSet]], 0], First[Intersection[{a}, PropagateSet]], If[NumericQ[a], If[Internal`RealValuedNumericQ[a], a, \"domain-error\"], Block[{}, {Print[\"Bad value \"], Print[a], Exit[]}]]]],\n" script-port)
-    (displayln "}]" script-port)
     (make-wrapped-functions script-port)
-    
     (run-on-points (open-input-file points-file) script-port rival-port 0)
+    (displayln "Null\n" script-port)
+    (displayln "}]" script-port)
     (flush-output script-port)
     (close-output-port script-port)
-
+    
     (println "Running mathematica on converted points")
     (define output-port (open-output-file output-file #:exists 'replace))
     (run-mathematica script-file output-port)))
