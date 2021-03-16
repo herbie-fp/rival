@@ -57,15 +57,16 @@
 	[else #f]))
       
 
+(define unsamplable-set
+	(set "Underflow[]" "Overflow[]" "domain-error" "warning" "Indeterminate" "ComplexInfinity"))
+(define samplable-set
+	(set "True" "False"))
+
 (define (mathematica-samplable? point-str)
 	(cond
-		[(or (mathematica-domain-error? point-str)
-       (equal? point-str "\nwarning\n")
-       (equal? point-str "\nunsamplable\n")
-       (equal? point-str "\nOverflow[]\n")
-       (equal? point-str "\nUnderflow[]\n"))
+		[(set-member? unsamplable-set (string-trim point-str))
 		 #f]
-		[(mathematica-number? point-str)
+		[(or (set-member? samplable-set (string-trim point-str)) (mathematica-number? point-str))
 		 #t]
 		[else
 		 (error 'unrecognized-mathematica-output point-str)]))		

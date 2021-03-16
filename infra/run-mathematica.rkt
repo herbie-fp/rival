@@ -69,15 +69,8 @@
       #f]))
 
 (define (number->wolfram num)
-  (define split (string-split (number->string num) "e"))
-  (string-join
-   "SetPrecision["
-    (if
-      (equal? (length split) 1)
-      (first split)
-      (string-append (first split) "*^" (string-replace (second split) "+" "")))
-    ", 30]"))
-    
+  (define exact-num (inexact->exact num))
+  (format "Divide[~a, ~a]" (number->string (numerator exact-num)) (number->string (denominator exact-num))))
 
 (define (transform-wolfram expr hash)
   (cond
@@ -110,11 +103,7 @@
   (when (equal? (modulo point-count 1000) 0)
       (display "Converted ")
       (display point-count)
-      (displayln " points")
-      )
-
-  (when (equal? read-res eof)
-    (fprintf output "Null\n"))
+      (displayln " points"))
   
   (when (not (equal? read-res eof))
     (match-define (list suite prog pt) read-res)
@@ -129,16 +118,18 @@
     (run-on-points port output rival-port (+ point-count 1))))
 
 (define (write-todo item output)
-    (fprintf output "Print[\"\\\"\"],\n")
-    (fprintf output "V := Quiet[Check[Catch[N[~a, 16], _SystemException], \"warning\"]],\n" item)
-    (fprintf output "Print[ReturnIfReal[V]],\n")
-    (fprintf output "Print[\"\\\"\"],\n"))
+    (when item
+      (fprintf output "Print[\"\\\"\"],\n")
+      (fprintf output "V := Quiet[Catch[N[~a, 16], _SystemException]],\n" item)
+      (fprintf output "Print[ReturnIfReal[V]],\n")
+      (fprintf output "Print[\"\\\"\"],\n")
+      (fprintf output "ClearSystemCache[],\n")))
 
 (define (make-wrapped-functions port)
   (for ([(key funcname) (in-hash to-mathematica-function)])
        (if (equal? key 'sqrt)
-           (fprintf port "~aWrapped[xs___] := If[MemberQ[{xs}, Underflow[]], Underflow[], If[MemberQ[{xs}, Overflow[]], Overflow[], If[MemberQ[{xs}, \"domain-error\"], \"domain-error\", If[MemberQ[{xs}, \"unsamplable\"], \"unsamplable\", ReturnIfReal[~a[xs, 2]]]]]],\n" funcname funcname)
-	   (fprintf port "~aWrapped[xs___] := If[MemberQ[{xs}, Underflow[]], Underflow[], If[MemberQ[{xs}, Overflow[]], Overflow[], If[MemberQ[{xs}, \"domain-error\"], \"domain-error\", If[MemberQ[{xs}, \"unsamplable\"], \"unsamplable\", ReturnIfReal[~a[xs]]]]]],\n" funcname funcname))))
+           (fprintf port "~aWrapped[xs___] := If[Greater[Length[Intersection[{xs}, PropagateSet]], 0], First[Intersection[{xs}, PropagateSet]], ReturnIfReal[~a[xs, 2]]],\n" funcname funcname)
+	   (fprintf port "~aWrapped[xs___] := If[Greater[Length[Intersection[{xs}, PropagateSet]], 0], First[Intersection[{xs}, PropagateSet]], ReturnIfReal[~a[xs]]],\n" funcname funcname))))
 
 (define (run-mathematica script-file output-port)
   (define-values (process in out err) (subprocess output-port #f #f (find-executable-path "wolframscript") "-file" (build-path script-file)))
@@ -150,12 +141,13 @@
     (define rival-port (open-output-file rival-file #:exists 'replace))
     (define script-port (open-output-file script-file #:exists 'replace))
     (displayln "#!/usr/bin/env wolframscript" script-port)
-    (displayln "Block[{$MaxExtraPrecision = 500},{" script-port)
-    (displayln "ReturnIfReal := Function[a, If[SameQ[a, Underflow[]], Underflow[], If[SameQ[a, Overflow[]], Overflow[], If[StringQ[a], a, If[NumericQ[a], If[Internal`RealValuedNumericQ[a], a, \"domain-error\"], \"unsamplable\"]]]]],\n" script-port)
+    (displayln "Block[{$MaxExtraPrecision = 500, $HistoryLength=0},{" script-port)
+    (displayln "PropagateSet := {True, False, Underflow[], Overflow[], \"domain-error\", \"warning\", Indeterminate, ComplexInfinity},\n" script-port)
+    (displayln "ReturnIfReal := Function[a, If[Greater[Length[Intersection[{a}, PropagateSet]], 0], First[Intersection[{a}, PropagateSet]], If[NumericQ[a], If[Internal`RealValuedNumericQ[a], a, \"domain-error\"], Block[{}, {Print[\"Bad value \"], Print[a], Exit[]}]]]],\n" script-port)
+    (displayln "}]" script-port)
     (make-wrapped-functions script-port)
     
     (run-on-points (open-input-file points-file) script-port rival-port 0)
-    (displayln "}]" script-port)
     (flush-output script-port)
     (close-output-port script-port)
 
