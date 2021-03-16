@@ -68,9 +68,15 @@
     [else 
       #f]))
 
+
 (define (number->wolfram num)
-  (define exact-num (inexact->exact num))
-  (format "Divide[~a, ~a]" (number->string (numerator exact-num)) (number->string (denominator exact-num))))
+  (define split (string-split (number->string num) "e"))
+  (format "flconst[~a]"
+          (if
+           (equal? (length split) 1)
+           (first split)
+           (string-append (first split) "*^" (string-replace (second split) "+" "")))))
+  #;(format "Divide[~a, ~a]" (number->string (numerator exact-num)) (number->string (denominator exact-num)))
 
 (define (transform-wolfram expr hash)
   (cond
@@ -98,24 +104,33 @@
 
 (define todo empty)
 
-(define (run-on-points port output rival-port point-count)
-  (define read-res (read port))
-  (when (equal? (modulo point-count 1000) 0)
+(define maxtime 0)
+
+(define (run-on-points port output rival-port point-count)  
+  (define all
+    (for/vector ([read-res (in-port read port)])
+      read-res))
+  (define all-random
+    (for/vector ([i (in-range 1000)])
+      (vector-ref all (random (vector-length all)))))
+  (for ([read-res all] [i (in-range (vector-length all))])
+    (when (equal? (modulo i 1000) 0)
       (display "Converted ")
       (display point-count)
       (displayln " points"))
   
-  (when (not (equal? read-res eof))
-    (match-define (list suite prog pt) read-res)
-    (define str (prog->wolfram prog pt))
-    (define rival-res
-          	  (parameterize ([bf-precision 10000])
-                  	       (interval-evaluate (program-body prog) (program-variables prog) pt #f)))
-    (when rival-res
-	  (writeln (list suite prog pt rival-res) rival-port)
-	  (write-todo str output))
-
-    (run-on-points port output rival-port (+ point-count 1))))
+      (match-define (list suite prog pt) read-res)
+      (define str (prog->wolfram prog pt))
+      (define before (current-inexact-milliseconds))
+      (define rival-res
+        (parameterize ([bf-precision 10000])
+          (interval-evaluate (program-body prog) (program-variables prog) pt #f)))
+      (define after (- (current-inexact-milliseconds) before))
+      (when (> after maxtime) (set! maxtime after))
+      
+      (when rival-res
+        (writeln (list suite prog pt rival-res) rival-port)
+        (write-todo str output))))
 
 (define (write-todo item output)
     (when item
@@ -142,6 +157,7 @@
     (define script-port (open-output-file script-file #:exists 'replace))
     (displayln "#!/usr/bin/env wolframscript" script-port)
     (displayln "Block[{$MaxExtraPrecision = 500, $HistoryLength=0},{" script-port)
+    (displayln "flconst[x_] := SetPrecision[x, 3082]," script-port)
     (displayln "PropagateSet := {True, False, Underflow[], Overflow[], \"domain-error\", \"warning\", Indeterminate, ComplexInfinity},\n" script-port)
     (displayln "ReturnIfReal := Function[a, If[Greater[Length[Intersection[{a}, PropagateSet]], 0], First[Intersection[{a}, PropagateSet]], If[NumericQ[a], If[Internal`RealValuedNumericQ[a], a, \"domain-error\"], Block[{}, {Print[\"Bad value \"], Print[a], Exit[]}]]]],\n" script-port)
     (make-wrapped-functions script-port)
@@ -150,7 +166,11 @@
     (displayln "}]" script-port)
     (flush-output script-port)
     (close-output-port script-port)
-    
+    (println "max time")
+    (println maxtime)
     (println "Running mathematica on converted points")
     (define output-port (open-output-file output-file #:exists 'replace))
-    (run-mathematica script-file output-port)))
+    (define before (current-inexact-milliseconds))
+    (run-mathematica script-file output-port)
+    (define after (current-inexact-milliseconds))
+    (displayln (format "~a milliseconds mathematica" (- after before)))))
