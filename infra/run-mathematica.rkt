@@ -1,9 +1,7 @@
 #lang racket
-
-; Issues at 32000 with (λ (B x) ...)
-
+(require racket/engine)
 (require math/bigfloat)
-(require math/bigfloat)
+
 
 (require "./interval-evaluate.rkt")
 (require "./run-mpfi.rkt")
@@ -99,68 +97,73 @@
   (define-values (process m-out m-in m-err)
     (subprocess #f #f #f math-path))
 
-  (define buffer (make-bytes 65536 0))
+  (define (m-run fmt . args)
+    (define nonce (random 1 65536))
+    (define str
+      (format "Print[\"<\" <> \"~a>\"]; ~a\nPrint[\"</\" <> \"~a>\"]\n"
+              nonce (apply format fmt args) nonce))
+    (fprintf m-in "~a" str)
+    (when backup
+      (fprintf backup "~a" str)
+      (flush-output backup))
+    (flush-output m-in)
 
-  (define (ffprintf fmt . vs)
-    (apply fprintf m-in fmt vs)
-    (when backup (apply fprintf backup fmt vs))
-    (flush-output m-in))
+    (define rx (regexp (format "<~a>(.*)</~a>" nonce nonce)))
 
-  (ffprintf "~a\n" (call-with-input-file "headers.wls" port->string))
-  (ffprintf "~a\n" (program->wolfram prog))
-  (ffprintf "Print[\"Rival\" <> \"Ready\"]\n")
-  (let loop ([i 0])
-    (define step (read-bytes-avail! buffer m-out i))
-    (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
-    (if (regexp-match #rx".*RivalReady.*In\\[[0-9]+\\].*" s)
-        (eprintf "Mathematica started for ~a\n" prog)
-        (loop (+ i step))))
+    (define buffer (make-bytes 65536 0))
+    (let loop ([i 0])
+      (define step (read-bytes-avail!* buffer m-out i))
+      (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
+      (match (regexp-match rx s)
+        [(list _ lines)
+         (string-split lines "\n" #:repeat? #t)]
+        [#f
+         (loop (+ i step))])))
 
-  (values process m-out m-in m-err))
+  (m-run "RELAX\n~a\n~a\nOK" (call-with-input-file "headers.wls" port->string) (program->wolfram prog))
+  (values process m-run))
 
-(define (run-mathematica prog pts #:backup [backup #f])
-  (define-values (process m-out m-in m-err)
+(define (result->icon x)
+  (match x
+    ['invalid "*"]
+    ['memory "M"]
+    ['timeout "T"]
+    ['unsamplable "!"]
+    ['unknown "?"]
+    [(? number?) "."]))
+
+(define (run-mathematica prog pts #:backup [backup #f] #:timeout [timeout 2000])
+  (define-values (process m-run)
     (make-mathematica prog #:backup backup))
-
-  (define buffer (make-bytes 65536 0))
-  (define (ffprintf fmt . vs)
-    (apply fprintf m-in fmt vs)
-    (when backup (apply fprintf backup fmt vs))
-    (flush-output m-in))
+  (eprintf "Mathematica started for ~a\n" prog)
 
   (define out
     (for/list ([pt (in-list pts)])
+      (define eng
+        (engine
+         (λ (_)
+           (m-run "Print[TimeConstrained[FullForm[N[f[~a], 20]], 1]]"
+                  (string-join (map number->wolfram pt) ", ")))))
       (define start (current-inexact-milliseconds))
-      (ffprintf "TimeConstrained[FullForm[N[f[~a], 20]], 1]\n"
-                (string-join (map number->wolfram pt) ", "))
-      (let loop ([i 0])
-        (define step (read-bytes-avail!* buffer m-out i))
-        (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
-        (cond
-         [(> (- (current-inexact-milliseconds) start) 2000.0)
-          (eprintf "Killing and restarting Mathematica\n")
-          (eprintf "~s\n" s)
-          (define-values (process2 m-out2 m-in2 m-err2)
-            (make-mathematica prog #:backup backup))
-          (subprocess-kill process true)
-          (set! process process2)
-          (set! m-out m-out2)
-          (set! m-in m-in2)
-          (set! m-err m-err2)
-          (cons 10000.0 'timeout)]
-         [(string-contains? s "\nIn")
-          (let ([dt (- (current-inexact-milliseconds) start)])
-            (printf ".")
-            (flush-output)
-            (cons dt (parse-output s)))]
-         [else
-          (loop (+ i step))]))))
-  (ffprintf "Exit[]\n")
-  (subprocess-wait process)
-  (cons (subprocess-status process) out))
+      (cond
+       [(engine-run timeout eng) 
+        (define res (parse-output (engine-result eng)))
+        (printf (result->icon res))
+        (flush-output)
+        (cons (- (current-inexact-milliseconds) start)
+              res)]
+       [else
+        (printf "T")
+        (flush-output)
+        (subprocess-kill process true)
+        (define-values (process2 m-run2) (make-mathematica prog #:backup backup))
+        (set! process process2)
+        (set! m-run m-run2)
+        (cons timeout 'timeout)])))
+  (subprocess-kill process false)
+  out)
 
-(define (parse-output s)
-  (define lines (string-split s "\n" #:repeat? #t))
+(define (parse-output lines)
   (with-handlers ([exn:misc:match? (λ (e)
     (newline)
     (printf "Could not parse results:\n")
@@ -171,23 +174,18 @@
 
 (define (match-lines lines)
   (match lines
-    [(list
-      (regexp #rx"In\\[[0-9]+\\]:= ")
-      rest ...)
+    [(list (regexp #rx"In\\[[0-9]+\\]:= ") rest ...)
      (match-lines rest)]
-    [(list
-      rest ...
-      (regexp #rx"In\\[[0-9]+\\]:= "))
+    [(list rest ... (regexp #rx"In\\[[0-9]+\\]:= "))
      (match-lines rest)]
-    [(list (regexp #rx"Out\\[[0-9]+\\]= \\$Aborted"))
+    [(list (regexp #rx"\\$Aborted"))
      'timeout]
-    [(list (regexp #rx"Out\\[[0-9]+\\]//FullForm= (.+)" (list _ x)))
-     x]
-    [(list
-      (regexp #rx"Out\\[[0-9]+\\]//FullForm= ")
-      " "
-      (regexp #rx"> +[0-9-](.+)" (list _ x)))
-     x]
+    [(list (regexp #rx"([0-9]+(\\.[0-9]*)?)(`[0-9]*\\.?)?(\\*\\^(-?[0-9]+))?" (list x m _ _ _ e)))
+     (define s (if e (format "~ae~a" m e) m))
+     (unless (string->number s)
+       (eprintf "Invalid number ~a\n" s)
+       (exit))
+     (string->number s)]
     [(list
       "Throw::nocatch: Uncaught Throw[domain-error, BadValue] returned to top level."
       _ ...)
@@ -249,6 +247,10 @@
       _ ...)
      'unsamplable]
     [(list
+      "Throw::sysexc: Uncaught SystemException returned to top level."
+      _ ...)
+     'memory]
+    [(list
       "N::meprec: Internal precision limit $MaxExtraPrecision = 3100."
       _ ...)
      'unknown]
@@ -275,7 +277,7 @@
        (set! unsamplable (add1 unsamplable))]
       ['unknown
        (set! unknown (add1 unknown))]
-      [(regexp #rx"[0-9]+(\\.[0-9]+)?(`[0-9]*)?(\\*\\^-?[0-9]+)?")
+      [(? number?)
        (set! sampled (add1 sampled))]
       ))
   (list sampled invalid unsamplable unknown crash timeout))
@@ -297,15 +299,9 @@
         (set! skip (- skip to-drop))
         (define pts (drop pts* to-drop))
 
-        (match-define (cons status out) (run-mathematica prog pts #:backup p))
-        (match status
-          [0
-           (set! results (add-results results (count-results out)))
-           (print-results results)]
-          [_
-           (printf "Status: ~a\n" status)
-           (pretty-print out)
-           (exit status)]))))
+        (define out (run-mathematica prog pts #:backup p))
+        (set! results (add-results results (count-results out)))
+        (print-results results))))
     results)
 
 (module+ main
@@ -317,4 +313,5 @@
     (set! skip (or (string->number n) skip))]
    #:args (points-file)
    (define points (call-with-input-file points-file load-points))
+   (printf "Loaded ~a points\n" (apply + (map length (hash-values points))))
    (go points skip)))
