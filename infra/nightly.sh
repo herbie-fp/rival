@@ -14,6 +14,7 @@ function generate-points {
 REPORTDIR="report"
 MPFI_DATA="$REPORTDIR/mpfi-results.txt"
 MATH_DATA="$REPORTDIR/mathematica-output.txt"
+MATH_HEADERS="infra/headers.wls"
 RIVAL_DATA="$REPORTDIR/rival-output.txt"
 POINTS="infra/all-points.txt"
 
@@ -26,13 +27,13 @@ function clean {
 
 function run-mpfi {
   echo "running mpfi on generated points"
-  racket "infra/run-mpfi.rkt" "infra/all-points.txt" "$1"
+  racket "infra/run-mpfi.rkt" "infra/all-points.txt" "$MPFI_DATA"
 }
 
 function run-mathematica {
   echo "Converting points to mathematica script"
   rm "report/mathematica-output.txt"  
-  racket "infra/run-mathematica.rkt" "$POINTS" "$REPORTDIR/mathematica-input.txt" "$MATH_DATA" "$RIVAL_DATA"
+  racket "infra/run-mathematica.rkt" "$POINTS" "$MATH_HEADERS" "$MATH_DATA"
 }
 
 function run-rival {
@@ -49,7 +50,8 @@ function format-data {
 function rerun {
   clean
   generate-points
-  run-mpfi "$MPFI_DATA"
+  run-mpfi
+  run-rival
   run-mathematica
   format-data
   gzip -9 "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA"

@@ -8,6 +8,8 @@
 (require "./interval-evaluate.rkt")
 (require "./run-mpfi.rkt")
 
+(provide count-mathematica-results)
+
 (define function->wolfram
   (make-hash
     `((pow . Power)
@@ -95,7 +97,7 @@
 
 (define math-path (find-executable-path "math"))
 
-(define (make-mathematica prog #:backup [backup #f])
+(define (make-mathematica prog headers-string #:backup [backup #f])
   (define-values (process m-out m-in m-err)
     (subprocess #f #f #f math-path))
 
@@ -106,7 +108,7 @@
     (when backup (apply fprintf backup fmt vs))
     (flush-output m-in))
 
-  (ffprintf "~a\n" (call-with-input-file "headers.wls" port->string))
+  (ffprintf "~a\n" headers-string)
   (ffprintf "~a\n" (program->wolfram prog))
   (ffprintf "Print[\"Rival\" <> \"Ready\"]\n")
   (let loop ([i 0])
@@ -118,9 +120,9 @@
 
   (values process m-out m-in m-err))
 
-(define (run-mathematica prog pts #:backup [backup #f])
+(define (run-mathematica prog pts headers-string #:backup [backup #f])
   (define-values (process m-out m-in m-err)
-    (make-mathematica prog #:backup backup))
+    (make-mathematica prog headers-string #:backup backup))
 
   (define buffer (make-bytes 65536 0))
   (define (ffprintf fmt . vs)
@@ -141,8 +143,11 @@
           (eprintf "Killing and restarting Mathematica\n")
           (eprintf "~s\n" s)
           (define-values (process2 m-out2 m-in2 m-err2)
-            (make-mathematica prog #:backup backup))
+            (make-mathematica prog headers-string #:backup backup))
           (subprocess-kill process true)
+          (close-input-port m-out)
+          (close-output-port m-in)
+          (close-input-port m-err)
           (set! process process2)
           (set! m-out m-out2)
           (set! m-in m-in2)
@@ -157,6 +162,9 @@
           (loop (+ i step))]))))
   (ffprintf "Exit[]\n")
   (subprocess-wait process)
+  (close-input-port m-out)
+  (close-output-port m-in)
+  (close-input-port m-err)
   (cons (subprocess-status process) out))
 
 (define (parse-output s)
@@ -192,6 +200,12 @@
       "Throw::nocatch: Uncaught Throw[domain-error, BadValue] returned to top level."
       _ ...)
      'invalid]
+    [(list
+      (regexp #rx"Throw::sysexc: Uncaught SystemException returned to top level.*")
+      _ ...
+      (regexp #rx".*SystemException\\[MemoryAllocationFailure\\].*")
+      _ ...)
+     'memory]
     [(list
       "General::ovfl: Overflow occurred in computation."
       _ ...)
@@ -254,7 +268,7 @@
      'unknown]
     ))
 
-(define (count-results out)
+(define (count-mathematica-results out out-port)
   (define sampled 0)
   (define invalid 0)
   (define unsamplable 0)
@@ -262,6 +276,7 @@
   (define crash 0)
   (define timeout 0)
   (for ([val out])
+    (writeln val out-port)
     (match (cdr val)
       ['invalid
        (set! invalid (add1 invalid))]
@@ -285,12 +300,14 @@
 
 (module+ main
   (command-line #:program "run-mathematica"
-    #:args (points-file . skip-cmd)
+    #:args (points-file headers-file output-file . skip-cmd)
     (define skip
       (if (> (length skip-cmd) 0)
           (string->number (first skip-cmd))
           0))
     (define points (call-with-input-file points-file load-points))
+    (define out-port (open-output-file output-file #:exists 'replace))
+    (define headers-string (call-with-input-file headers-file port->string))
     (define results (list 0 0 0 0 0 0))
     (for ([(prog pts) (in-hash points)] [n (in-naturals)])
       (cond
@@ -299,10 +316,10 @@
         (set! skip (- skip (length pts)))]
        [else
         (match-define (cons status out)
-                      (run-mathematica prog pts #:backup (open-output-file "mathematica.log" #:exists 'replace)))
+                      (run-mathematica prog pts headers-string #:backup (open-output-file "mathematica.log" #:exists 'replace)))
         (match status
           [0
-           (define r2 (count-results out))
+           (define r2 (count-mathematica-results out out-port))
            (set! results (add-results results r2))
            (match-define (list sampled invalid unsamplable unknown crash timeout) results)
            (eprintf "\nResults: ~a ok, ~a bad, ~a unsamplable, ~a unknown (~a crash, ~a timeout)\n"

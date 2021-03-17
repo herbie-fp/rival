@@ -1,5 +1,5 @@
 $MaxExtraPrecision=3100
-flConst[x_] := Rationalize[SetPrecision[x, 60]]
+flConst[x_] := x
 FMA[x_, y_, z_] := x * y + z
 Hypot[x_, y_] := Sqrt[x*x + y*y]
 checkReal[a_] :=

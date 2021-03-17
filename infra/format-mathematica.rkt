@@ -46,7 +46,7 @@
      (bf (second bf-list))]))
 
 (define (mathematica-domain-error? point-str)
-  (equal? point-str "\ndomain-error\n"))
+  (equal? point-str 'invalid))
 
 (define (mathematica-number? point-str)
   (define strings (string-split point-str "\n"))
@@ -63,14 +63,12 @@
 	(set "True" "False"))
 
 (define (mathematica-samplable? point-str)
-	(cond
-		[(set-member? unsamplable-set (string-trim point-str))
-		 #f]
-		[(or (set-member? samplable-set (string-trim point-str)) (mathematica-number? point-str))
-		 #t]
-		[else
-		 (error 'unrecognized-mathematica-output point-str)]))		
-
+  (cond
+    [(string? point)
+     (when (not (mathematica-number? point-str))
+       (error "unrecognized string " point-str))]
+    [else
+     false]))
 
 (define (is-immovable? rival-res)
   (define left-e (vector-ref rival-res 1))
