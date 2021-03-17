@@ -15,6 +15,7 @@ REPORTDIR="report"
 MPFI_DATA="$REPORTDIR/mpfi-results.txt"
 MATH_DATA="$REPORTDIR/mathematica-output.txt"
 RIVAL_DATA="$REPORTDIR/rival-output.txt"
+POINTS="infra/all-points.txt"
 
 function clean {
   if [ -d "$REPORTDIR" ]; then
@@ -31,7 +32,12 @@ function run-mpfi {
 function run-mathematica {
   echo "Converting points to mathematica script"
   rm "report/mathematica-output.txt"  
-  racket "infra/run-mathematica.rkt" "infra/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$MATH_DATA" "$RIVAL_DATA"
+  racket "infra/run-mathematica.rkt" "$POINTS" "$REPORTDIR/mathematica-input.txt" "$MATH_DATA" "$RIVAL_DATA"
+}
+
+function run-rival {
+  echo "Running Rival"
+  racket "infra/run-rival.rkt" "$POINTS" "$RIVAL_DATA"
 }
 
 function format-data {
