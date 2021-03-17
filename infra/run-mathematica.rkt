@@ -247,7 +247,7 @@
       _ ...)
      'unsamplable]
     [(list
-      "Throw::sysexc: Uncaught SystemException returned to top level."
+      "Throw::sysexc: Uncaught SystemException returned to top level. Can be caught"
       _ ...)
      'memory]
     [(list
