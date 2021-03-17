@@ -203,7 +203,6 @@
       "   The current computation was aborted because there was insufficient memory"
       "    available to complete the computation."
       _ ...)
-     (eprintf "Mathematica ran out of memory!\n")
      'memory]
     [(list
       _ ...
