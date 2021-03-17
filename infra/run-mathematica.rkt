@@ -283,31 +283,38 @@
 (define (add-results r1 r2)
   (map + r1 r2))
 
-(module+ main
-  (command-line #:program "run-mathematica"
-    #:args (points-file . skip-cmd)
-    (define skip
-      (if (> (length skip-cmd) 0)
-          (string->number (first skip-cmd))
-          0))
-    (define points (call-with-input-file points-file load-points))
-    (define results (list 0 0 0 0 0 0))
-    (for ([(prog pts) (in-hash points)] [n (in-naturals)])
-      (cond
-       [(> skip (length pts))
-        (set! results (list-set results 3 (+ (list-ref results 3) (length pts))))
-        (set! skip (- skip (length pts)))]
-       [else
-        (match-define (cons status out)
-                      (run-mathematica prog pts #:backup (open-output-file "mathematica.log" #:exists 'replace)))
+(define (print-results results)
+  (match-define (list sampled invalid unsamplable unknown crash timeout) results)
+  (eprintf "\nResults: ~a ok, ~a bad, ~a unsamplable, ~a unknown (~a crash, ~a timeout)\n"
+           sampled invalid unsamplable unknown crash timeout))
+
+(define (go points skip)
+  (define results (list 0 0 0 0 0 0))
+  (for ([(prog pts*) (in-hash points)])
+    (call-with-output-file "mathematica.log" #:exists 'replace
+      (λ (p)
+        (define to-drop (min skip (length pts*)))
+        (set! skip (- skip to-drop))
+        (define pts (drop pts* to-drop))
+
+        (match-define (cons status out) (run-mathematica prog pts #:backup p))
         (match status
           [0
-           (define r2 (count-results out))
-           (set! results (add-results results r2))
-           (match-define (list sampled invalid unsamplable unknown crash timeout) results)
-           (eprintf "\nResults: ~a ok, ~a bad, ~a unsamplable, ~a unknown (~a crash, ~a timeout)\n"
-                    sampled invalid unsamplable unknown crash timeout)]
+           (set! results (add-results results (count-results out)))
+           (print-results results)]
           [_
            (printf "Status: ~a\n" status)
            (pretty-print out)
-           (exit)])]))))
+           (exit status)]))))
+    results)
+
+(module+ main
+  (define skip 0)
+  (command-line
+   #:program "run-mathematica"
+   #:once-each
+   [("--skip") n "How many points to skip"
+    (set! skip (or (string->number n) skip))]
+   #:args (points-file)
+   (define points (call-with-input-file points-file load-points))
+   (go points skip)))
