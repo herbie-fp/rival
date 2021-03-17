@@ -4,7 +4,7 @@
 
 
 (require biginterval)
-(require rival)
+(require "../main.rkt")
 (require "format-mathematica.rkt")
 
 (struct idata (mpfi-error-hash rival-error-hash may-error-mpfi-good rival-samplable mpfi-samplable))
@@ -103,6 +103,10 @@
 (define (make-html-row data #:good [good 'none])
   (match-define (list label elts ...) data)
   `(tr (th ,(html-format-label label)) ,@(for/list ([elt elts]) `(td ,(html-format-number elt)))))
+
+(define (make-both-row port data #:good [good 'none])
+  (displayln (make-latex-row data #:good good) port)
+  (make-html-row data #:good good))
 
 (define (output-data bench-to-mdata bench-to-idata output-port)
   ;;(displayln "\\begin{tabular}{r|rrrr}" output-port)
@@ -209,7 +213,31 @@
 (define (is-nan? bigfloat)
   (equal? bigfloat '+nan.bf))
 
+(define (output-var name val port [comment ""])
+  (define comment-string
+    (if (equal? comment "")
+        ""
+        (format "% ~a" comment)))
+  (fprintf port "\\newcommand{\\~a}{~a\\xspace}~a\n" name val comment-string))
 
+
+(define (round1 num)
+  (~r num #:precision `(= 1)))
+
+(define (output-percent proportion)
+  (format "~a\\%"
+          (round1 (* 100 proportion))))
+
+(define (output-examples-data examples output)
+  (define total-count 0)
+  (define error-count 0)
+  (for ([syntax (in-port read examples)])
+       (set! total-count (+ 1 total-count))
+       (when (list-ref (list-ref syntax 3) 4)
+        (set! error-count (+ 1 error-count))))
+  (output-var "total-mathematica-samplable-rival-unsamplable" total-count output)
+  (output-var "total-mathematica-samplable-rival-error" error-count output)
+  (output-var "percent-mathematica-samplable-rival-error" (/ error-count total-count) output))
 
 (define (run-on-points port bench-to-idata sofar)
   (define read-res (read port))
@@ -272,8 +300,12 @@
      bench-to-idata]))
 
 (module+ main
-  (command-line #:program "run-mpfi"
-    #:args (mpfi-results-file mathematica-results-file rival-results-file output-file)
-    (output-data (collect-mathematica (open-input-file mathematica-results-file) (open-input-file rival-results-file) (make-hash) 0)
+  (command-line #:program "report"
+    #:args (mpfi-results-file mathematica-results-file rival-results-file output-file examples-file macros-file)
+    (output-data (collect-mathematica (open-input-file mathematica-results-file)
+                                      (open-input-file rival-results-file)
+                                      (make-hash) 0
+                                      (open-output-file examples-file #:exists 'replace))
                  (run-on-points (open-input-file mpfi-results-file) (make-hash) 0)
-		 (open-output-file output-file #:exists 'replace))))
+		 (open-output-file output-file #:exists 'replace))
+    (output-examples-data (open-input-file examples-file) (open-output-file macros-file #:exists 'replace))))

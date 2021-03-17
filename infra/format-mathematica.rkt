@@ -1,11 +1,10 @@
 #lang racket
 
 (require biginterval)
-(require rival)
 
 
 (require math/bigfloat)
-(require rival)
+(require "../main.rkt")
 
 (provide (struct-out mdata) collect-mathematica)
 (provide samplable? get-low get-hi bf-list->bf)
@@ -49,8 +48,29 @@
 (define (mathematica-domain-error? point-str)
   (equal? point-str "\ndomain-error\n"))
 
+(define (mathematica-number? point-str)
+  (define strings (string-split point-str "\n"))
+  (cond [(equal? (length strings) 1)
+         (define parts (string-split (first strings) (regexp "(\\*\\^)|(`+)")))
+	 (and (< (length parts) 4)
+	      (andmap string->number parts))]
+	[else #f]))
+      
+
+(define unsamplable-set
+	(set "Underflow[]" "Overflow[]" "domain-error" "warning" "Indeterminate" "ComplexInfinity"))
+(define samplable-set
+	(set "True" "False"))
+
 (define (mathematica-samplable? point-str)
-  (not (or (mathematica-domain-error? point-str) (equal? point-str "\nunsamplable\n"))))
+	(cond
+		[(set-member? unsamplable-set (string-trim point-str))
+		 #f]
+		[(or (set-member? samplable-set (string-trim point-str)) (mathematica-number? point-str))
+		 #t]
+		[else
+		 (error 'unrecognized-mathematica-output point-str)]))		
+
 
 (define (is-immovable? rival-res)
   (define left-e (vector-ref rival-res 1))
@@ -62,7 +82,7 @@
   (or (and left-i right-i) (and (bfinfinite? left-val) left-i) (and (bfinfinite? right-val) right-i)))
   
 
-(define (collect-mathematica port rival-port bench-to-mdata sofar)
+(define (collect-mathematica port rival-port bench-to-mdata sofar examples-port)
   (define read-res (read port))
 
   (when (equal? (modulo sofar 1000) 0)
@@ -96,6 +116,10 @@
 
      (define m-samplable? (mathematica-samplable? mathematica-point))
      (define m-error? (mathematica-domain-error? mathematica-point))
+
+     (when (and m-samplable? (not is-samplable))
+           (writeln (list suite prog pt (list "rival" "samplable:" is-samplable "error:" (not rival-no-error) "immovable:" is-immovable)
+                                        (list "mathematica:" "samplable:" m-samplable? "error:" m-error?)) examples-port))
 	   
      (define new-data
        (struct-copy mdata data
@@ -108,11 +132,12 @@
 			  [mathematica-unsamplable (if (not m-samplable?)
 			                               (+ mathematica-unsamplable 1)
 						       mathematica-unsamplable)]
-		          [mathematica-error (if m-error? (+ mathematica-error 1) mathematica-error)]))
+		    [mathematica-error (if m-error? (+ mathematica-error 1) mathematica-error)]))
      (hash-set! bench-to-mdata suite new-data)
      (collect-mathematica port
 		    rival-port
-                    bench-to-mdata
-                    (+ sofar 1))]
+        bench-to-mdata
+        (+ sofar 1)
+        examples-port)]
     [else
      bench-to-mdata]))
