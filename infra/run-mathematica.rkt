@@ -90,8 +90,8 @@
   (define points
     (for/list ([read-res (in-port read port)])
       read-res))
-  (for/hash ([group (group-by second points)])
-    (values (second (car group)) (map third group))))
+  (for/list ([group (group-by second points)])
+    (list (second (car group)) (map third group))))
 
 (define math-path (find-executable-path "math"))
 
@@ -123,7 +123,7 @@
          (loop (+ i step))])))
 
   (m-run "RELAX\n~a\n~a\nOK" headers-string (program->wolfram prog))
-  (values process m-run))
+  (values process m-out m-in m-err m-run))
 
 (define (result->icon x)
   (match x
@@ -136,8 +136,8 @@
 
 
 (define (run-mathematica prog headers-string pts #:backup [backup #f] #:timeout [timeout 2000])
-  (define-values (process m-run)
-    (make-mathematica prog #:backup backup))
+  (define-values (process m-out m-in m-err m-run)
+    (make-mathematica prog headers-string #:backup backup))
   (eprintf "Mathematica started for ~a\n" prog)
 
   (define out
@@ -159,11 +159,20 @@
         (printf "T")
         (flush-output)
         (subprocess-kill process true)
-        (define-values (process2 m-run2) (make-mathematica prog headers-string #:backup backup))
+        (close-output-port m-in)
+        (close-input-port m-out)
+        (close-input-port m-err)
+        (define-values (process2 m-out2 m-in2 m-err2 m-run2) (make-mathematica prog headers-string #:backup backup))
         (set! process process2)
         (set! m-run m-run2)
+        (set! m-in m-in2)
+        (set! m-out m-out2)
+        (set! m-err m-err2)
         (cons timeout 'timeout)])))
   (subprocess-kill process false)
+  (close-output-port m-in)
+  (close-input-port m-out)
+  (close-input-port m-err)
   out)
 
 
@@ -302,7 +311,9 @@
 
 (define (go points headers-string output-port skip)
   (define results (list 0 0 0 0 0 0))
-  (for ([(prog pts*) (in-hash points)])
+  (for ([prog-and-pts (in-list points)])
+    (define prog (first prog-and-pts))
+    (define pts* (second prog-and-pts))
     (call-with-output-file "mathematica.log" #:exists 'replace
       (λ (p)
         (define to-drop (min skip (length pts*)))
@@ -324,5 +335,4 @@
    #:args (points-file headers-file output-file)
    (define points (call-with-input-file points-file load-points))
    (define headers-string (call-with-input-file headers-file port->string))
-   (printf "Loaded ~a points\n" (apply + (map length (hash-values points))))
    (go points headers-string (open-output-file output-file #:exists 'replace) skip)))

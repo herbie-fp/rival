@@ -16,7 +16,16 @@
   (define <-bf bigfloat->flonum)
   (define lo (<-bf left))
   (define hi (<-bf right))
-  (or (equal? lo hi) (and (number? lo) (= lo hi))))
+  (if (or (equal? lo hi) (and (number? lo) (= lo hi)))
+      lo
+      false))
+
+(define (within-one-ulp? left right)
+  (define left-bf (bf left))
+  (define right-bf (bf right))
+  (define l-ordinal (flonum->ordinal (bigfloat->flonum left-bf)))
+  (define r-ordinal (flonum->ordinal (bigfloat->flonum right-bf)))
+  (<= (abs (- l-ordinal r-ordinal)) 1))
 
 (define (get-endpoint-val endpoint)
   (bf-list->bf (vector-ref endpoint 1)))
@@ -48,7 +57,8 @@
 (define (mathematica-domain-error? point-str)
   (equal? point-str 'invalid))
 
-(define (mathematica-number? point-str)
+
+#;(define (mathematica-number? point-str)
   (define strings (string-split point-str "\n"))
   (cond [(equal? (length strings) 1)
          (define parts (string-split (first strings) (regexp "(\\*\\^)|(`+)")))
@@ -56,19 +66,23 @@
 	      (andmap string->number parts))]
 	[else #f]))
       
-
-(define unsamplable-set
-	(set "Underflow[]" "Overflow[]" "domain-error" "warning" "Indeterminate" "ComplexInfinity"))
-(define samplable-set
-	(set "True" "False"))
-
 (define (mathematica-samplable? point-str)
   (cond
-    [(string? point)
-     (when (not (mathematica-number? point-str))
-       (error "unrecognized string " point-str))]
+    [(number? point)
+     true
     [else
-     false]))
+     false])))
+
+;; mathematica-result is one of ('invalid 'memory 'unsamplable 'unknown) or a number
+(define (results-match? mathematica-result rival-val rival-samplable? rival-no-error? rival-immovable?)
+  (cond
+    [(and rival-samplable? (number? mathematica-result))
+     (within-one-ulp? mathematica-result rival-val)]
+    [(and rival-samplable? (not (number? mathematica-result)))
+     false]
+    [else
+     (not (number? mathematica-result))]))
+     
 
 (define (is-immovable? rival-res)
   (define left-e (vector-ref rival-res 1))
@@ -108,21 +122,22 @@
      (define rival-no-error (equal? (vector-ref rival-res 3) #f))
      
      (define is-samplable (and rival-no-error (samplable? (get-low rival-res) (get-hi rival-res))))
-     (define is-immovable (and (not is-samplable) (is-immovable? rival-res)))
+     (define rival-val (samplable? (get-low rival-res) (get-hi rival-res)))
+     (define is-immovable (and (not is-samplable) rival-no-error (is-immovable? rival-res)))
 
      (match-define (mdata rival-error-hash rival-samplable rival-movability rival-possible mathematica-samplable mathematica-unsamplable mathematica-error) data)
 
      (define m-samplable? (mathematica-samplable? mathematica-point))
      (define m-error? (mathematica-domain-error? mathematica-point))
 
-     (when (and m-samplable? (not is-samplable))
+     (when (not (results-match? mathematica-result rival-val is-samplable rival-no-error is-immovable))
            (writeln (list suite prog pt (list "rival" "samplable:" is-samplable "error:" (not rival-no-error) "immovable:" is-immovable)
                                         (list "mathematica:" "samplable:" m-samplable? "error:" m-error?)) examples-port))
 	   
      (define new-data
        (struct-copy mdata data
                           [rival-samplable (if is-samplable (+ rival-samplable 1) rival-samplable)]
-			  [rival-movability (if (and rival-no-error is-immovable) (+ rival-movability 1) rival-movability)]
+			  [rival-movability (if is-immovable (+ rival-movability 1) rival-movability)]
 			  [rival-possible (if (and rival-no-error (not is-samplable) (not is-immovable))
 			                      (+ rival-possible 1) rival-possible)]
 			  [mathematica-samplable (if m-samplable?
