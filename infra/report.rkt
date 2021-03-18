@@ -230,14 +230,34 @@
 
 (define (output-examples-data examples output)
   (define total-count 0)
-  (define error-count 0)
-  (for ([syntax (in-port read examples)])
-       (set! total-count (+ 1 total-count))
-       (when (list-ref (list-ref syntax 3) 4)
-        (set! error-count (+ 1 error-count))))
-  (output-var "total-mathematica-samplable-rival-unsamplable" total-count output)
-  (output-var "total-mathematica-samplable-rival-error" error-count output)
-  (output-var "percent-mathematica-samplable-rival-error" (/ error-count total-count) output))
+  (define rival-differs 0)
+  (define rival-inf 0)
+  (define rival-unknown 0)
+  (define rival-errors 0)
+  (define rival-immovable 0)
+  
+  (for ([example (in-port read examples)])
+    (set! total-count (+ 1 total-count))
+    (when (number? (list-ref (list-ref example 4) 1))
+      (define rival-res (list-ref example 3))
+      (cond
+        [(and (number? (list-ref rival-res 1)) (infinite? (list-ref rival-res 1)))
+         (set! rival-inf (add1 rival-inf))]
+        [(number? (list-ref rival-res 1))
+         (set! rival-differs (add1 rival-differs))]
+        [(list-ref rival-res 3)
+         (set! rival-errors (add1 rival-errors))]
+        [(list-ref rival-res 5)
+         (set! rival-immovable (add1 rival-immovable))]
+        [else
+         (set! rival-unknown (add1 rival-unknown))])))
+      
+  (output-var "total-mathematica-rival-mismatch" total-count output)
+  (output-var "total-different-numbers" rival-differs output)
+  (output-var "total-mathematica-samplable-rival-infinite" rival-inf output)
+  (output-var "total-mathematica-samplable-rival-unknown" rival-unknown output)
+  (output-var "total-mathematica-samplable-rival-errors" rival-errors output)
+  (output-var "total-mathematica-samplable-rival-unsamplable" rival-immovable output))
 
 (define (run-on-points port bench-to-idata sofar)
   (define read-res (read port))

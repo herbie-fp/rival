@@ -71,7 +71,9 @@
   (match expr
     [(list op (app expr->wolfram args) ...)
      (define fn (hash-ref function->wolfram op))
-     (format "checkReal[~a[~a]]" fn (string-join args ", "))]
+     (if (equal? op 'atan2)
+         (format "checkReal[~a[~a]]" fn (string-join (reverse args) ", "))
+         (format "checkReal[~a[~a]]" fn (string-join args ", ")))]
     ['PI
      "Pi"]
     ['E

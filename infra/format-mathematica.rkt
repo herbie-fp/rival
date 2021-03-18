@@ -20,6 +20,9 @@
       lo
       false))
 
+(define (equal-double? left right)
+  (equal? (bigfloat->flonum (bf left)) (bigfloat->flonum (bf right))))
+
 (define (within-one-ulp? left right)
   (define left-bf (bf left))
   (define right-bf (bf right))
@@ -75,7 +78,8 @@
     [(not (or (symbol? mathematica-result) (number? mathematica-result)))
      (error "weird mathematica output " mathematica-result)]
     [(and rival-samplable? (number? mathematica-result))
-     (within-one-ulp? mathematica-result rival-val)]
+     (define within? (within-one-ulp? mathematica-result rival-val))
+     within?]
     [(and rival-samplable? (not (number? mathematica-result)))
      false]
     [else
@@ -131,8 +135,11 @@
      (define m-error? (mathematica-domain-error? mathematica-result))
 
      (when (not (results-match? mathematica-result rival-val is-samplable rival-no-error is-immovable))
-           (writeln (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
-                                        (list "mathematica:" mathematica-result)) examples-port))
+       (when (and (number? rival-val) (number? mathematica-result))
+         (writeln (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
+                                        (list "mathematica:" mathematica-result))))
+       (writeln (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
+                      (list "mathematica:" mathematica-result)) examples-port))
 	   
      (define new-data
        (struct-copy mdata data
