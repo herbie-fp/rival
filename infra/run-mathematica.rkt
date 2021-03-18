@@ -86,11 +86,22 @@
           (string-join (map (compose (curry format "~a_") expr->wolfram) (program-variables prog)) ", ")
           (expr->wolfram (program-body prog))))
 
+(define (local-group-by acc func points)
+  (cond
+    [(empty? points)
+     (if (empty? acc) empty (list (reverse acc)))]
+    [(empty? acc)
+     (local-group-by (list (first points)) func (rest points))]
+    [(equal? (func (first acc)) (func (first points)))
+     (local-group-by (cons (first points) acc) func (rest points))]
+    [else
+     (cons (reverse acc) (local-group-by empty func points))]))
+
 (define (load-points port)
   (define points
     (for/list ([read-res (in-port read port)])
       read-res))
-  (for/list ([group (group-by second points)])
+  (for/list ([group (local-group-by empty (lambda (p) (cons (first p) (second p))) points)])
     (list (second (car group)) (map third group))))
 
 (define math-path (find-executable-path "math"))
@@ -153,7 +164,7 @@
         (define res (parse-output (engine-result eng)))
         (printf (result->icon res))
         (flush-output)
-        (cons (- (current-inexact-milliseconds) start)
+        (list prog pt (- (current-inexact-milliseconds) start)
               res)]
        [else
         (printf "T")
@@ -168,7 +179,7 @@
         (set! m-in m-in2)
         (set! m-out m-out2)
         (set! m-err m-err2)
-        (cons timeout 'timeout)])))
+        (list prog pt timeout 'timeout)])))
   (subprocess-kill process false)
   (close-output-port m-in)
   (close-input-port m-out)
@@ -193,7 +204,7 @@
      (match-lines rest)]
     [(list (regexp #rx"\\$Aborted"))
      'timeout]
-    [(list (regexp #rx"([0-9]+(\\.[0-9]*)?)(`[0-9]*\\.?)?(\\*\\^(-?[0-9]+))?" (list x m _ _ _ e)))
+    [(list (regexp #rx"(-?[0-9]+(\\.[0-9]*)?)(`[0-9]*\\.?)?(\\*\\^(-?[0-9]+))?" (list x m _ _ _ e)))
      (define s (if e (format "~ae~a" m e) m))
      (unless (string->number s)
        (eprintf "Invalid number ~a\n" s)
@@ -283,7 +294,7 @@
   (define timeout 0)
   (for ([val out])
     (writeln val out-port)
-    (match (cdr val)
+    (match (last val)
       ['invalid
        (set! invalid (add1 invalid))]
       ['memory

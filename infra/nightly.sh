@@ -33,7 +33,7 @@ function run-mpfi {
 
 function run-mathematica {
   echo "Converting points to mathematica script"
-  rm "report/mathematica-output.txt"  
+  rm "report/mathematica-output.txt" || true
   racket "infra/run-mathematica.rkt" "$POINTS" "$MATH_HEADERS" "$MATH_DATA"
 }
 

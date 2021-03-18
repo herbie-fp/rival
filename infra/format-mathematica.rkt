@@ -3,7 +3,7 @@
 (require biginterval)
 
 
-(require math/bigfloat)
+(require math/bigfloat math/flonum)
 (require "../main.rkt")
 
 (provide (struct-out mdata) collect-mathematica)
@@ -66,16 +66,14 @@
 	      (andmap string->number parts))]
 	[else #f]))
       
-(define (mathematica-samplable? point-str)
-  (cond
-    [(number? point)
-     true
-    [else
-     false])))
+(define (mathematica-samplable? point)
+  (number? point))
 
 ;; mathematica-result is one of ('invalid 'memory 'unsamplable 'unknown) or a number
 (define (results-match? mathematica-result rival-val rival-samplable? rival-no-error? rival-immovable?)
   (cond
+    [(not (or (symbol? mathematica-result) (number? mathematica-result)))
+     (error "weird mathematica output " mathematica-result)]
     [(and rival-samplable? (number? mathematica-result))
      (within-one-ulp? mathematica-result rival-val)]
     [(and rival-samplable? (not (number? mathematica-result)))
@@ -102,8 +100,10 @@
   
   (cond
     [(not (equal? read-res eof))
+     (match-define (list mprog mpt mathematica-time mathematica-result) read-res)
      (match-define (list suite prog pt rival-res) (read rival-port))
-     (define mathematica-point read-res)
+     (when (not (and (equal? prog mprog) (equal? pt mpt)))
+       (error "Mathematica and Rival results not parallel" prog mprog pt mpt))
 
      (when (not (hash-has-key? bench-to-mdata suite))
            (hash-set! bench-to-mdata suite (mdata (make-hash (list (cons 't 0) (cons 'f 0) (cons 'o 0)))
@@ -127,12 +127,12 @@
 
      (match-define (mdata rival-error-hash rival-samplable rival-movability rival-possible mathematica-samplable mathematica-unsamplable mathematica-error) data)
 
-     (define m-samplable? (mathematica-samplable? mathematica-point))
-     (define m-error? (mathematica-domain-error? mathematica-point))
+     (define m-samplable? (mathematica-samplable? mathematica-result))
+     (define m-error? (mathematica-domain-error? mathematica-result))
 
      (when (not (results-match? mathematica-result rival-val is-samplable rival-no-error is-immovable))
-           (writeln (list suite prog pt (list "rival" "samplable:" is-samplable "error:" (not rival-no-error) "immovable:" is-immovable)
-                                        (list "mathematica:" "samplable:" m-samplable? "error:" m-error?)) examples-port))
+           (writeln (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
+                                        (list "mathematica:" mathematica-result)) examples-port))
 	   
      (define new-data
        (struct-copy mdata data
