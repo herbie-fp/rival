@@ -239,13 +239,23 @@
   (define mathematica-domain-error 0)
   (define mathematica-memory 0)
   (define mathematica-unknown 0)
+
+  (define total-rival-errors 0)
+  (define total-rival-sampled 0)
+  (define total-mathematica-sampled 0)
   
   (for ([example (in-port read examples)])
+    (define rival-res (list-ref example 3))
     (set! total-count (+ 1 total-count))
     (define mathematica-res (list-ref (list-ref example 4) 1))
+    (when (number? mathematica-res)
+      (set! total-mathematica-sampled (add1 total-mathemtaica-sampled)))
+    (when (number? (list-ref rival-res 1))
+      (set! total-rival-sampled (add1 total-rival-samples)))
+    (when (list-ref rival-res 3)
+      (set! total-rival-errors (add1 total-rival-errors)))
     (cond
       [(number? mathematica-res)
-       (define rival-res (list-ref example 3))
        (cond
          [(and (number? (list-ref rival-res 1)) (infinite? (list-ref rival-res 1)))
           (set! rival-inf (add1 rival-inf))]
