@@ -235,29 +235,48 @@
   (define rival-unknown 0)
   (define rival-errors 0)
   (define rival-immovable 0)
+  (define mathematica-unsamplable 0)
+  (define mathematica-domain-error 0)
+  (define mathematica-memory 0)
+  (define mathematica-unknown 0)
   
   (for ([example (in-port read examples)])
     (set! total-count (+ 1 total-count))
-    (when (number? (list-ref (list-ref example 4) 1))
-      (define rival-res (list-ref example 3))
-      (cond
-        [(and (number? (list-ref rival-res 1)) (infinite? (list-ref rival-res 1)))
-         (set! rival-inf (add1 rival-inf))]
-        [(number? (list-ref rival-res 1))
-         (set! rival-differs (add1 rival-differs))]
-        [(list-ref rival-res 3)
-         (set! rival-errors (add1 rival-errors))]
-        [(list-ref rival-res 5)
-         (set! rival-immovable (add1 rival-immovable))]
-        [else
-         (set! rival-unknown (add1 rival-unknown))])))
+    (define mathematica-res (list-ref (list-ref example 4) 1))
+    (cond
+      [(number? mathematica-res)
+       (define rival-res (list-ref example 3))
+       (cond
+         [(and (number? (list-ref rival-res 1)) (infinite? (list-ref rival-res 1)))
+          (set! rival-inf (add1 rival-inf))]
+         [(number? (list-ref rival-res 1))
+          (set! rival-differs (add1 rival-differs))]
+         [(list-ref rival-res 3)
+          (set! rival-errors (add1 rival-errors))]
+         [(list-ref rival-res 5)
+          (set! rival-immovable (add1 rival-immovable))]
+         [else
+          (set! rival-unknown (add1 rival-unknown))])]
+      [(equal? mathematica-res 'invalid)
+       (set! mathematica-domain-error (add1 mathematica-domain-error))]
+      [(equal? mathematica-res 'unsamplable)
+       (set! mathematica-unsamplable (add1 mathematica-unsamplable))]
+      [(equal? mathematica-res 'unknown)
+       (set! mathematica-unknown (add1 mathematica-unknown))]
+      [(equal? mathematica-res 'memory)
+       (set! mathematica-memory (add1 mathematica-memory))]))
       
   (output-var "total-mathematica-rival-mismatch" total-count output)
   (output-var "total-different-numbers" rival-differs output)
   (output-var "total-mathematica-samplable-rival-infinite" rival-inf output)
   (output-var "total-mathematica-samplable-rival-unknown" rival-unknown output)
   (output-var "total-mathematica-samplable-rival-errors" rival-errors output)
-  (output-var "total-mathematica-samplable-rival-unsamplable" rival-immovable output))
+  (output-var "total-mathematica-samplable-rival-unsamplable" rival-immovable output)
+
+  (output-var "total-rival-samplable-mathematica-unsamplable" mathematica-unsamplable output)
+  (output-var "total-rival-samplable-mathematica-domain-error" mathematica-domain-error output)
+  (output-var "total-rival-samplable-mathematica-memory" mathematica-memory output)
+  (output-var "total-rival-samplable-mathematica-unknown" mathematica-unknown output))
 
 (define (run-on-points port bench-to-idata sofar)
   (define read-res (read port))

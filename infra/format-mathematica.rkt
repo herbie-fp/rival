@@ -135,7 +135,7 @@
      (define m-error? (mathematica-domain-error? mathematica-result))
 
      (when (not (results-match? mathematica-result rival-val is-samplable rival-no-error is-immovable))
-       (when (and (number? rival-val) (number? mathematica-result))
+       (when (number? mathematica-result)
          (writeln (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
                                         (list "mathematica:" mathematica-result))))
        (writeln (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
