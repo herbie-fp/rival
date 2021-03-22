@@ -44,7 +44,9 @@ function run-rival {
 
 function format-data {
   echo "Formatting the mpfi and mathematica data into latex table"
-  racket "infra/report.rkt" "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html" "$REPORTDIR/examples.txt" "$REPORTDIR/macros.txt"
+  racket "infra/report.rkt" "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html" \
+         "$REPORTDIR/examples.txt" "$REPORTDIR/macros.txt" "$REPORTDIR/sampled-plot.png" \
+         "$REPORTDIR/bad-result-plot.png"
   cp "infra/index.css" "$REPORTDIR"
 }
 

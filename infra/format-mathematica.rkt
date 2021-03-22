@@ -96,7 +96,7 @@
   (or (and left-i right-i) (and (bfinfinite? left-val) left-i) (and (bfinfinite? right-val) right-i)))
   
 
-(define (collect-mathematica port rival-port bench-to-mdata sofar examples-port)
+(define (collect-mathematica port rival-port bench-to-mdata sofar examples-port one-fails-port)
   (define read-res (read port))
 
   (when (equal? (modulo sofar 1000) 0)
@@ -135,11 +135,13 @@
      (define m-error? (mathematica-domain-error? mathematica-result))
 
      (when (not (results-match? mathematica-result rival-val is-samplable rival-no-error is-immovable))
-       (when (number? mathematica-result)
-         (writeln (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
-                                        (list "mathematica:" mathematica-result))))
        (writeln (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
                       (list "mathematica:" mathematica-result)) examples-port))
+
+     (when (or (not is-samplable) (not (number? mathematica-result)))
+       (writeln (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
+                      (list "mathematica:" mathematica-result)) one-fails-port))
+
 	   
      (define new-data
        (struct-copy mdata data

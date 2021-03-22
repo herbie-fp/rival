@@ -1,6 +1,8 @@
 #lang racket
 
-(require plot/no-gui)
+(require plot/no-gui pict)
+
+(provide draw-sampled-chart draw-bad-result-chart)
 
 (define global-plot-scale 4)
 (define standard-width 500)
@@ -56,20 +58,37 @@
   (send (pict->bitmap res) save-file output-file 'png))
 
 
-(define (draw-sampled-chart mathematica-sampled mathematica-error rival-error rival-sampled output)
+(define (draw-sampled-chart mathematica-sampled mathematica-error rival-sampled rival-error output)
   (parameterize-plot-size
-   standard-width
-   scale
+   300
+   0.5
+   "Resolved Points"
    ""
-   ""
-   ""
-   output-file
+   "Number of Points"
+   output
    (lambda ()
      (plot-pict
       (list (stacked-histogram (list
                                 (vector 'rival (list rival-sampled rival-error))
                                 (vector 'mathematica (list mathematica-sampled mathematica-error)))
-                               #:colors `('green 'orange)
-                               #:line-colors `(2 3)))
-      #:y-max 100))))
+                               #:colors `("Green" "Orange")
+                               #:line-colors `("Green" "Orange")))))))
+
+
+(define (draw-bad-result-chart mathematica-list rival-list output)
+  (parameterize-plot-size
+   300
+   0.5
+   "Failure to Sample Results"
+   ""
+   "Number of Points"
+   output
+   (lambda ()
+     (plot-pict
+      (list (stacked-histogram (list
+                                (vector 'rival rival-list)
+                                (vector 'mathematica mathematica-list))
+                               #:labels `("Unsamplable" "Unknown" "Out-of-memory")
+                               #:colors `("Blue" "Orange" "Red")
+                               #:line-colors `("Blue" "Orange" "Red")))))))
 

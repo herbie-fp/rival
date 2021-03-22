@@ -6,6 +6,7 @@
 (require biginterval)
 (require "../main.rkt")
 (require "format-mathematica.rkt")
+(require "plot-example-cases.rkt")
 
 (struct idata (mpfi-error-hash rival-error-hash may-error-mpfi-good rival-samplable mpfi-samplable))
 
@@ -228,7 +229,7 @@
   (format "~a\\%"
           (round1 (* 100 proportion))))
 
-(define (output-examples-data examples output)
+(define (output-examples-data examples output sampled-chart-file bad-result-chart-file)
   (define total-count 0)
   (define rival-differs 0)
   (define rival-inf 0)
@@ -249,9 +250,9 @@
     (set! total-count (+ 1 total-count))
     (define mathematica-res (list-ref (list-ref example 4) 1))
     (when (number? mathematica-res)
-      (set! total-mathematica-sampled (add1 total-mathemtaica-sampled)))
+      (set! total-mathematica-sampled (add1 total-mathematica-sampled)))
     (when (number? (list-ref rival-res 1))
-      (set! total-rival-sampled (add1 total-rival-samples)))
+      (set! total-rival-sampled (add1 total-rival-sampled)))
     (when (list-ref rival-res 3)
       (set! total-rival-errors (add1 total-rival-errors)))
     (cond
@@ -286,7 +287,11 @@
   (output-var "total-rival-samplable-mathematica-unsamplable" mathematica-unsamplable output)
   (output-var "total-rival-samplable-mathematica-domain-error" mathematica-domain-error output)
   (output-var "total-rival-samplable-mathematica-memory" mathematica-memory output)
-  (output-var "total-rival-samplable-mathematica-unknown" mathematica-unknown output))
+  (output-var "total-rival-samplable-mathematica-unknown" mathematica-unknown output)
+
+  (draw-sampled-chart total-mathematica-sampled mathematica-domain-error total-rival-sampled total-rival-errors sampled-chart-file)
+  (draw-bad-result-chart (list mathematica-unsamplable mathematica-unknown mathematica-memory)
+                         (list rival-immovable rival-unknown) bad-result-chart-file))
 
 (define (run-on-points port bench-to-idata sofar)
   (define read-res (read port))
@@ -350,11 +355,14 @@
 
 (module+ main
   (command-line #:program "report"
-    #:args (mpfi-results-file mathematica-results-file rival-results-file output-file examples-file macros-file)
+    #:args (mpfi-results-file mathematica-results-file rival-results-file
+            output-file examples-file macros-file sampled-plot-file bad-result-chart-file)
     (output-data (collect-mathematica (open-input-file mathematica-results-file)
                                       (open-input-file rival-results-file)
                                       (make-hash) 0
-                                      (open-output-file examples-file #:exists 'replace))
+                                      (open-output-file examples-file #:exists 'replace)
+                                      (open-output-file one-fails-file #:exists 'replace))
                  (run-on-points (open-input-file mpfi-results-file) (make-hash) 0)
 		 (open-output-file output-file #:exists 'replace))
-    (output-examples-data (open-input-file examples-file) (open-output-file macros-file #:exists 'replace))))
+    (output-examples-data (open-input-file examples-file) (open-output-file macros-file #:exists 'replace)
+                          sampled-plot-file bad-result-chart-file)))
