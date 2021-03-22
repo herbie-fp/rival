@@ -109,7 +109,7 @@
   (displayln (make-latex-row data #:good good) port)
   (make-html-row data #:good good))
 
-(define (output-data bench-to-mdata bench-to-idata output-port)
+#;(define (output-data bench-to-mdata bench-to-idata output-port)
   ;;(displayln "\\begin{tabular}{r|rrrr}" output-port)
 
   (define total-points
@@ -229,7 +229,7 @@
   (format "~a\\%"
           (round1 (* 100 proportion))))
 
-(define (output-examples-data examples output sampled-chart-file bad-result-chart-file)
+(define (output-data tag points output sampled-chart-file bad-result-chart-file)
   (define total-count 0)
   (define rival-differs 0)
   (define rival-inf 0)
@@ -243,31 +243,32 @@
 
   (define total-rival-errors 0)
   (define total-rival-sampled 0)
+  (define total-rival-immovable 0)
+  (define total-rival-unknown 0)
   (define total-mathematica-sampled 0)
   
-  (for ([example (in-port read examples)])
+  (for ([example points] #:when (member tag (list-ref example 5)))
     (define rival-res (list-ref example 3))
     (set! total-count (+ 1 total-count))
     (define mathematica-res (list-ref (list-ref example 4) 1))
     (when (number? mathematica-res)
       (set! total-mathematica-sampled (add1 total-mathematica-sampled)))
-    (when (number? (list-ref rival-res 1))
-      (set! total-rival-sampled (add1 total-rival-sampled)))
-    (when (list-ref rival-res 3)
-      (set! total-rival-errors (add1 total-rival-errors)))
+    (cond
+      [(number? (list-ref rival-res 1))
+       (set! total-rival-sampled (add1 total-rival-sampled))]
+      [(list-ref rival-res 3)
+       (set! total-rival-errors (add1 total-rival-errors))]
+      [(list-ref rival-res 5)
+       (set! total-rival-immovable (add1 total-rival-immovable))]
+      [else
+       (set! total-rival-unknown (add1 total-rival-unknown))])
     (cond
       [(number? mathematica-res)
        (cond
          [(and (number? (list-ref rival-res 1)) (infinite? (list-ref rival-res 1)))
           (set! rival-inf (add1 rival-inf))]
          [(number? (list-ref rival-res 1))
-          (set! rival-differs (add1 rival-differs))]
-         [(list-ref rival-res 3)
-          (set! rival-errors (add1 rival-errors))]
-         [(list-ref rival-res 5)
-          (set! rival-immovable (add1 rival-immovable))]
-         [else
-          (set! rival-unknown (add1 rival-unknown))])]
+          (set! rival-differs (add1 rival-differs))])]
       [(equal? mathematica-res 'invalid)
        (set! mathematica-domain-error (add1 mathematica-domain-error))]
       [(equal? mathematica-res 'unsamplable)
@@ -280,18 +281,22 @@
   (output-var "total-mathematica-rival-mismatch" total-count output)
   (output-var "total-different-numbers" rival-differs output)
   (output-var "total-mathematica-samplable-rival-infinite" rival-inf output)
-  (output-var "total-mathematica-samplable-rival-unknown" rival-unknown output)
-  (output-var "total-mathematica-samplable-rival-errors" rival-errors output)
-  (output-var "total-mathematica-samplable-rival-unsamplable" rival-immovable output)
+  (output-var "total-mathematica-samplable-rival-unknown" total-rival-unknown output)
+  (output-var "total-mathematica-samplable-rival-errors" total-rival-errors output)
+  (output-var "total-mathematica-samplable-rival-unsamplable" total-rival-immovable output)
 
   (output-var "total-rival-samplable-mathematica-unsamplable" mathematica-unsamplable output)
   (output-var "total-rival-samplable-mathematica-domain-error" mathematica-domain-error output)
   (output-var "total-rival-samplable-mathematica-memory" mathematica-memory output)
   (output-var "total-rival-samplable-mathematica-unknown" mathematica-unknown output)
 
-  (draw-sampled-chart total-mathematica-sampled mathematica-domain-error total-rival-sampled total-rival-errors sampled-chart-file)
-  (draw-bad-result-chart (list mathematica-unsamplable mathematica-unknown mathematica-memory)
-                         (list rival-immovable rival-unknown) bad-result-chart-file))
+  (when (not (equal? sampled-chart-file ""))
+        (draw-sampled-chart total-mathematica-sampled mathematica-domain-error
+                            total-rival-sampled total-rival-errors sampled-chart-file))
+
+  (when (not (equal? bad-result-chart-file ""))
+        (draw-bad-result-chart (list mathematica-unsamplable mathematica-unknown mathematica-memory)
+                               (list total-rival-immovable total-rival-unknown) bad-result-chart-file)))
 
 (define (run-on-points port bench-to-idata sofar)
   (define read-res (read port))
@@ -356,13 +361,19 @@
 (module+ main
   (command-line #:program "report"
     #:args (mpfi-results-file mathematica-results-file rival-results-file
-            output-file examples-file macros-file sampled-plot-file bad-result-chart-file)
-    (output-data (collect-mathematica (open-input-file mathematica-results-file)
+            output-file examples-file macros-file sampled-plot-file bad-result-plot-file)
+    (define results (collect-mathematica (open-input-file mathematica-results-file)
+                                         (open-input-file rival-results-file)
+                                         (open-output-file examples-file #:exists 'replace)
+                                         0))
+    #;(output-data (collect-mathematica (open-input-file mathematica-results-file)
                                       (open-input-file rival-results-file)
                                       (make-hash) 0
                                       (open-output-file examples-file #:exists 'replace)
                                       (open-output-file one-fails-file #:exists 'replace))
                  (run-on-points (open-input-file mpfi-results-file) (make-hash) 0)
 		 (open-output-file output-file #:exists 'replace))
-    (output-examples-data (open-input-file examples-file) (open-output-file macros-file #:exists 'replace)
-                          sampled-plot-file bad-result-chart-file)))
+    (output-data 'result-mismatch results (open-output-file macros-file #:exists 'replace)
+                                 "" "")
+    (output-data 'hard-point results (open-output-nowhere)
+                                 sampled-plot-file bad-result-plot-file)))
