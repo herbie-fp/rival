@@ -291,10 +291,11 @@
   (output-var "total-rival-samplable-mathematica-unknown" mathematica-unknown output)
 
   (when (not (equal? sampled-chart-file ""))
-        (draw-sampled-chart total-mathematica-sampled mathematica-domain-error
-                            total-rival-sampled total-rival-errors sampled-chart-file))
+        (draw-chart (list total-mathematica-sampled mathematica-domain-error mathematica-unsamplable mathematica-unknown mathematica-memory)
+                    (list total-rival-sampled total-rival-errors total-rival-immovable total-rival-unknown)
+                    sampled-chart-file))
 
-  (when (not (equal? bad-result-chart-file ""))
+  #;(when (not (equal? bad-result-chart-file ""))
         (draw-bad-result-chart (list mathematica-unsamplable mathematica-unknown mathematica-memory)
                                (list total-rival-immovable total-rival-unknown) bad-result-chart-file)))
 

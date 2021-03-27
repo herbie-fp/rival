@@ -2,9 +2,10 @@
 
 (require plot/no-gui pict)
 
-(provide draw-sampled-chart draw-bad-result-chart)
+(provide draw-chart)
 
-(define global-plot-scale 4)
+;; global scale changes the relative size of the axis
+(define global-plot-scale 0.5)
 (define standard-width 500)
 (define numbers-size 6)
 (define labels-size 8)
@@ -12,6 +13,7 @@
 (define (parameterize-plot-size width scale-width title bottom-axis left-axis output-file func)
   (define actual-w
     (inexact->exact (floor (* width global-plot-scale))))
+  ;; increase font size so that when it is scaled down into the latex pdf, it is the correct size
   (define f-size (inexact->exact (floor (* global-plot-scale numbers-size (/ width 400) (/ 1.0 scale-width)))))
   (define graph-pict
     (parameterize ([plot-width actual-w]
@@ -57,38 +59,22 @@
 
   (send (pict->bitmap res) save-file output-file 'png))
 
-
-(define (draw-sampled-chart mathematica-sampled mathematica-error rival-sampled rival-error output)
-  (parameterize-plot-size
-   300
-   0.5
-   "Resolved Points"
-   ""
-   "Number of Points"
-   output
-   (lambda ()
-     (plot-pict
-      (list (stacked-histogram (list
-                                (vector 'rival (list rival-sampled rival-error))
-                                (vector 'mathematica (list mathematica-sampled mathematica-error)))
-                               #:colors `("Green" "Orange")
-                               #:line-colors `("Green" "Orange")))))))
-
-
-(define (draw-bad-result-chart mathematica-list rival-list output)
-  (parameterize-plot-size
-   300
-   0.5
-   "Failure to Sample Results"
-   ""
-   "Number of Points"
-   output
-   (lambda ()
-     (plot-pict
-      (list (stacked-histogram (list
-                                (vector 'rival rival-list)
-                                (vector 'mathematica mathematica-list))
-                               #:labels `("Unsamplable" "Unknown" "Out-of-memory")
-                               #:colors `("Blue" "Orange" "Red")
-                               #:line-colors `("Blue" "Orange" "Red")))))))
-
+(define (draw-chart mathematica-list rival-list output)
+  (define colors `((3 97 17) "Green" "Orange" "Red" "Black" "Yellow"))
+  (parameterize ()
+                (parameterize-plot-size
+                 1500
+                 1
+                 ""
+                 ""
+                 ""
+                 output
+                 (lambda ()
+                   (plot-pict
+                    (stacked-histogram (list
+                                        (vector 'rival rival-list)
+                                        (vector 'math mathematica-list))
+                                       #:invert? #t
+                                       #:colors colors
+                                       #:line-colors colors))))))
+  
