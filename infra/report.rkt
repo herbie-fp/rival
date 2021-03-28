@@ -298,8 +298,8 @@
        (set! mathematica-crash (add1 mathematica-crash))]
       [else (error "unknown mathematica value")]))
 
-  (output-var "overall-mathematica-timeout-or-memory" (+ overall-mathematica-memory overall-mathematica-timeout) output)
-  (output-var "overall-mathematica-crash" (+ overall-mathematica-memory overall-mathematica-crash) output)  
+  (output-var "overall-mathematica-timeout-or-memory" (+ overall-mathematica-memory overall-mathematica-timeout overall-mathematica-crash) output)
+  (output-var "overall-mathematica-crash" overall-mathematica-crash output)  
   
   (output-var "total-all-points" (length points) output)
   (output-var "total-rival-mathematica-agree" (- (length points) total-count) output)
@@ -318,7 +318,8 @@
   (output-var "total-rival-samplable-mathematica-unknown" mathematica-unknown output)
 
   (when (not (equal? sampled-chart-file ""))
-        (draw-chart (list total-mathematica-sampled mathematica-domain-error mathematica-unsamplable mathematica-unknown (+ mathematica-memory mathematica-timeout))
+        (draw-chart (list total-mathematica-sampled mathematica-domain-error mathematica-unsamplable
+                          mathematica-unknown (+ mathematica-crash mathematica-memory mathematica-timeout))
                     (list total-rival-sampled total-rival-errors total-rival-immovable total-rival-unknown)
                     sampled-chart-file))
 
