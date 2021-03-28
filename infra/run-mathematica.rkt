@@ -320,12 +320,12 @@
   (map + r1 r2))
 
 (define (print-results results)
-  (match-define (list sampled invalid unsamplable unknown crash timeout) results)
-  (eprintf "\nResults: ~a ok, ~a bad, ~a unsamplable, ~a unknown (~a crash, ~a timeout)\n"
-           sampled invalid unsamplable unknown crash timeout))
+  (match-define (list sampled invalid memory unsamplable unknown crash timeout) results)
+  (eprintf "\nResults: ~a sampled, ~a invalid, ~a memory, ~a unsamplable, ~a unknown (~a crash, ~a timeout)\n"
+           sampled invalid memory unsamplable unknown crash timeout))
 
 (define (go points headers-string output-port skip)
-  (define results (list 0 0 0 0 0 0))
+  (define results (list 0 0 0 0 0 0 0))
   (for ([prog-and-pts (in-list points)])
     (define prog (first prog-and-pts))
     (define pts* (second prog-and-pts))
