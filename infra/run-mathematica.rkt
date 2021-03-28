@@ -145,6 +145,7 @@
     ['timeout "T"]
     ['unsamplable "!"]
     ['unknown "?"]
+    ['crash "C"]
     [(? number?) "."]))
 
 
@@ -158,7 +159,7 @@
       (define eng
         (engine
          (λ (_)
-           (m-run "Print[TimeConstrained[FullForm[N[f[~a], 20]], 1]]"
+           (m-run "Print[TimeConstrained[FullForm[N[f[~a], 16]], 1]]"
                   (string-join (map number->wolfram pt) ", ")))))
       (define start (current-inexact-milliseconds))
       (cond
@@ -181,7 +182,7 @@
         (set! m-in m-in2)
         (set! m-out m-out2)
         (set! m-err m-err2)
-        (list prog pt timeout 'timeout)])))
+        (list prog pt timeout 'crash)])))
   (subprocess-kill process false)
   (close-output-port m-in)
   (close-input-port m-out)
@@ -290,29 +291,30 @@
 (define (count-mathematica-results out out-port)
   (define sampled 0)
   (define invalid 0)
+  (define memory 0)
+  (define timeout 0)
   (define unsamplable 0)
   (define unknown 0)
   (define crash 0)
-  (define timeout 0)
   (for ([val out])
     (writeln val out-port)
     (match (last val)
       ['invalid
        (set! invalid (add1 invalid))]
       ['memory
-       (set! unknown (add1 unknown))
-       (set! crash (add1 crash))]
+       (set! memory (add1 memory))]
       ['timeout
-       (set! unknown (add1 unknown))
        (set! timeout (add1 timeout))]
       ['unsamplable
        (set! unsamplable (add1 unsamplable))]
       ['unknown
        (set! unknown (add1 unknown))]
+      ['crash
+       (set! crash (add1 crash))]
       [(? number?)
        (set! sampled (add1 sampled))]
       ))
-  (list sampled invalid unsamplable unknown crash timeout))
+  (list sampled invalid memory unsamplable unknown crash timeout))
 
 (define (add-results r1 r2)
   (map + r1 r2))

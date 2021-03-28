@@ -230,6 +230,10 @@
           (round1 (* 100 proportion))))
 
 (define (output-data tag points output sampled-chart-file bad-result-chart-file)
+  (define overall-mathematica-timeout 0)
+  (define overall-mathematica-memory 0)
+  (define overall-mathematica-crash 0)
+  
   (define total-count 0)
   (define rival-differs 0)
   (define rival-inf 0)
@@ -240,12 +244,23 @@
   (define mathematica-domain-error 0)
   (define mathematica-memory 0)
   (define mathematica-unknown 0)
+  (define mathematica-timeout 0)
+  (define mathematica-crash 0)
 
   (define total-rival-errors 0)
   (define total-rival-sampled 0)
   (define total-rival-immovable 0)
   (define total-rival-unknown 0)
   (define total-mathematica-sampled 0)
+
+  (for ([example points])
+    (define mathematica-res (list-ref (list-ref example 4) 1))
+    (cond [(equal? mathematica-res 'timeout)
+           (set! overall-mathematica-timeout (add1 overall-mathematica-timeout))]
+          [(equal? mathematica-res 'memory)
+           (set! overall-mathematica-memory (add1 overall-mathematica-memory))]
+          [(equal? mathematica-res 'crash)
+           (set! overall-mathematica-crash (add1 overall-mathematica-crash))]))
   
   (for ([example points] #:when (member tag (list-ref example 5)))
     (define rival-res (list-ref example 3))
@@ -276,8 +291,20 @@
       [(equal? mathematica-res 'unknown)
        (set! mathematica-unknown (add1 mathematica-unknown))]
       [(equal? mathematica-res 'memory)
-       (set! mathematica-memory (add1 mathematica-memory))]))
-      
+       (set! mathematica-memory (add1 mathematica-memory))]
+      [(equal? mathematica-res 'timeout)
+       (set! mathematica-timeout (add1 mathematica-timeout))]
+      [(equal? mathematica-res 'crash)
+       (set! mathematica-crash (add1 mathematica-crash))]
+      [else (error "unknown mathematica value")]))
+
+  (output-var "overall-mathematica-timeout-or-memory" (+ overall-mathematica-memory overall-mathematica-timeout) output)
+  (output-var "overall-mathematica-crash" (+ overall-mathematica-memory overall-mathematica-crash) output)  
+  
+  (output-var "total-all-points" (length points) output)
+  (output-var "total-rival-mathematica-agree" (- (length points) total-count) output)
+  (output-var "total-rival-samples-or-error" (+ total-rival-sampled total-rival-errors) output)
+  (output-var "total-mathematica-samples-or-error" (+ total-mathematica-sampled mathematica-domain-error) output)
   (output-var "total-mathematica-rival-mismatch" total-count output)
   (output-var "total-different-numbers" rival-differs output)
   (output-var "total-mathematica-samplable-rival-infinite" rival-inf output)
@@ -291,7 +318,7 @@
   (output-var "total-rival-samplable-mathematica-unknown" mathematica-unknown output)
 
   (when (not (equal? sampled-chart-file ""))
-        (draw-chart (list total-mathematica-sampled mathematica-domain-error mathematica-unsamplable mathematica-unknown mathematica-memory)
+        (draw-chart (list total-mathematica-sampled mathematica-domain-error mathematica-unsamplable mathematica-unknown (+ mathematica-memory mathematica-timeout))
                     (list total-rival-sampled total-rival-errors total-rival-immovable total-rival-unknown)
                     sampled-chart-file))
 
