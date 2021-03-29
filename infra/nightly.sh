@@ -2,9 +2,9 @@
 set -e
 
 function setup {
-  raco pkg install --auto biginterval
-  raco pkg install --auto fpbench
-  rm -rf ./herbie
+  raco pkg install --auto biginterval || true
+  raco pkg install --auto fpbench || true
+  rm -rf ./herbie || true
   git clone https://github.com/uwplse/herbie
 }
 
