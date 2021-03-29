@@ -233,6 +233,8 @@
   (define overall-mathematica-timeout 0)
   (define overall-mathematica-memory 0)
   (define overall-mathematica-crash 0)
+  (define overall-rival-unsamplable 0)
+  (define overall-mathematica-unsamplable 0)
   
   (define total-count 0)
   (define rival-differs 0)
@@ -255,12 +257,17 @@
 
   (for ([example points])
     (define mathematica-res (list-ref (list-ref example 4) 1))
+    (define rival-res (list-ref example 3))
+    (cond [(list-ref rival-res 5)
+           (set! overall-rival-unsamplable (add1 overall-rival-unsamplable))])
     (cond [(equal? mathematica-res 'timeout)
            (set! overall-mathematica-timeout (add1 overall-mathematica-timeout))]
           [(equal? mathematica-res 'memory)
            (set! overall-mathematica-memory (add1 overall-mathematica-memory))]
           [(equal? mathematica-res 'crash)
-           (set! overall-mathematica-crash (add1 overall-mathematica-crash))]))
+           (set! overall-mathematica-crash (add1 overall-mathematica-crash))]
+          [(equal? mathematica-res 'unsamplable)
+           (set! overall-mathematica-unsamplable (add1 overall-mathematica-unsamplable))]))
   
   (for ([example points] #:when (member tag (list-ref example 5)))
     (define rival-res (list-ref example 3))
@@ -302,6 +309,8 @@
   (output-var "overallmathematicacrash" overall-mathematica-crash output)  
   (output-var "overallallpoints" (length points) output)
   (output-var "overallrivalmathematicaagree" (- (length points) total-count) output)
+  (output-var "overallmathematicaunsamplable" overall-mathematica-unsamplable output)
+  (output-var "overallrivalunsamplable" overall-rival-unsamplable output)
   
   (output-var "totalrivalsamplesorerror" (+ total-rival-sampled total-rival-errors) output  "in all points where rival and mathematica disagree")
   (output-var "totalmathematicasamplesorerror" (+ total-mathematica-sampled mathematica-domain-error) output)
