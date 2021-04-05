@@ -130,7 +130,7 @@
        (list suite prog pt (list "rival:" rival-val "error:" (not rival-no-error) "immovable:" is-immovable)
                       (list "mathematica:" mathematica-result) tags))
 
-     (when (member 'result-mismatch tags)
+     (when (member 'hard-point tags)
            (writeln result examples-port))
      
      (cons result

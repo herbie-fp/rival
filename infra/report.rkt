@@ -8,6 +8,9 @@
 (require "format-mathematica.rkt")
 (require "plot-example-cases.rkt")
 
+;; from separate evaluation in test-search-saves branch
+(define POINTS_SEARCH_SAVES_RIVAL_DOMAIN_ERROR 9257)
+
 (struct idata (mpfi-error-hash rival-error-hash may-error-mpfi-good rival-samplable mpfi-samplable))
 
 (define (get-mpfi-left mpfi)
@@ -328,7 +331,6 @@
        (set! mathematica-crash (add1 mathematica-crash))]
       [else (error "unknown mathematica value")]))
 
-  (output-var "overallmathematicatimeoutormemory" (+ overall-mathematica-memory overall-mathematica-timeout overall-mathematica-crash) output)
   (output-var "overallmathematicacrash" overall-mathematica-crash output)
   (output-var "overallmathematicacrashtimeoutormemory"
               (+ overall-mathematica-memory overall-mathematica-timeout overall-mathematica-crash) output)  
@@ -365,7 +367,8 @@
   (output-var "totalrivalsamplablemathematicaunknown" mathematica-unknown output)
 
   (when (not (equal? sampled-chart-file ""))
-        (draw-chart (list total-mathematica-sampled mathematica-domain-error mathematica-unsamplable
+        (draw-chart POINTS_SEARCH_SAVES_RIVAL_DOMAIN_ERROR
+                    (list total-mathematica-sampled mathematica-domain-error mathematica-unsamplable
                           mathematica-unknown (+ mathematica-crash mathematica-memory mathematica-timeout))
                     (list total-rival-sampled total-rival-errors total-rival-immovable total-rival-unknown)
                     sampled-chart-file))

@@ -59,9 +59,13 @@
 
   (send (pict->bitmap res) save-file output-file 'png))
 
-(define (draw-chart mathematica-list rival-list output)
+(define (draw-chart points-search-saves mathematica-list rival-list output)
+  (println mathematica-list)
+  (println rival-list)
   (define colors `((3 97 17) "Green" "Orange" "Red" "Black" "Yellow"))
-  (parameterize ()
+  (define bar-height 0.3)
+  (define bar-thickness 3)
+  (parameterize ([plot-y-ticks no-ticks])
                 (parameterize-plot-size
                  1500
                  1
@@ -71,10 +75,15 @@
                  output
                  (lambda ()
                    (plot-pict
-                    (stacked-histogram (list
+                    #:y-min (- bar-height)
+                    (list
+                     (stacked-histogram (list
                                         (vector 'rival rival-list)
                                         (vector 'math mathematica-list))
                                        #:invert? #t
                                        #:colors colors
-                                       #:line-colors colors))))))
+                                       #:line-colors colors)
+                     (hrule (/ (- bar-height) 2) (first rival-list) (+ (first rival-list) points-search-saves) #:width bar-thickness)
+                     (vrule (first rival-list) (- bar-height) 0 #:width bar-thickness)
+                     (vrule (+ (first rival-list) points-search-saves) (- bar-height) 0 #:width bar-thickness)))))))
   
