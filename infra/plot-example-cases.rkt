@@ -63,9 +63,12 @@
   (println mathematica-list)
   (println rival-list)
   (define colors `((3 97 17) "Green" "Orange" "Red" "Black" "Yellow"))
-  (define bar-height 0.3)
-  (define bar-thickness 3)
-  (parameterize ([plot-y-ticks no-ticks])
+  (define interval-color `(38 107 255))
+  (define interval-height 0.3)
+  (define interval-thickness 3)
+  (define y-interval-pos 2)
+  (parameterize ([plot-y-ticks no-ticks]
+                 [plot-x-far-ticks no-ticks])
                 (parameterize-plot-size
                  1500
                  1
@@ -75,15 +78,17 @@
                  output
                  (lambda ()
                    (plot-pict
-                    #:y-min (- bar-height)
+                    #:y-max (+ y-interval-pos interval-height)
                     (list
+                     (hrule (+ y-interval-pos (/ interval-height 2)) (first rival-list) (+ (first rival-list) points-search-saves)
+                            #:width interval-thickness #:color interval-color)
+                     (vrule (first rival-list) y-interval-pos (+ y-interval-pos interval-height) #:width interval-thickness #:color interval-color)
+                     (vrule (+ (first rival-list) points-search-saves) y-interval-pos (+ y-interval-pos interval-height)
+                            #:width interval-thickness #:color interval-color)
                      (stacked-histogram (list
-                                        (vector 'rival rival-list)
-                                        (vector 'math mathematica-list))
+                                        (vector 'math mathematica-list)
+                                        (vector 'rival rival-list))
                                        #:invert? #t
                                        #:colors colors
-                                       #:line-colors colors)
-                     (hrule (/ (- bar-height) 2) (first rival-list) (+ (first rival-list) points-search-saves) #:width bar-thickness)
-                     (vrule (first rival-list) (- bar-height) 0 #:width bar-thickness)
-                     (vrule (+ (first rival-list) points-search-saves) (- bar-height) 0 #:width bar-thickness)))))))
+                                       #:line-colors colors)))))))
   

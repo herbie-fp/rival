@@ -114,7 +114,8 @@
      (define rival-no-error (equal? (vector-ref rival-res 3) #f))
      
      (define is-samplable (and rival-no-error (samplable? (get-low rival-res) (get-hi rival-res))))
-     (define rival-val (samplable? (get-low rival-res) (get-hi rival-res)))
+     (define rival-val
+       (if is-samplable (samplable? (get-low rival-res) (get-hi rival-res)) #f))
      (define is-immovable (and (not is-samplable) rival-no-error (is-immovable? rival-res)))
 
      (define m-samplable? (mathematica-samplable? mathematica-result))

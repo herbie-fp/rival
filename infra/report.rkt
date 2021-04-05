@@ -10,6 +10,7 @@
 
 ;; from separate evaluation in test-search-saves branch
 (define POINTS_SEARCH_SAVES_RIVAL_DOMAIN_ERROR 9257)
+(define POINTS_SEARCH_SAVES_RIVAL_UNSAMPLABLE (- 11688 9257))
 
 (struct idata (mpfi-error-hash rival-error-hash may-error-mpfi-good rival-samplable mpfi-samplable))
 
@@ -268,6 +269,11 @@
   (define rival-hard-error 0)
   (define mathematica-hard-error 0)
 
+  (define overall-mathematica-error-rival-unsamplable 0)
+  (define overall-mathematica-error-rival-unknown 0)
+  (define rival-error-mathematica-unsamplable 0)
+  (define rival-error-mathematica-unknown 0)
+
   (for ([example points])
     (define mathematica-res (list-ref (list-ref example 4) 1))
     (define rival-res (list-ref example 3))
@@ -281,7 +287,7 @@
            (set! overall-mathematica-crash (add1 overall-mathematica-crash))]
           [(equal? mathematica-res 'unsamplable)
            (set! overall-mathematica-unsamplable (add1 overall-mathematica-unsamplable))]))
-
+  (define weird-rival-samplable-mathematica-error 0)
   (for ([example points] #:when (member 'hard-point (list-ref example 5)))
     (define rival-res (list-ref example 3))
     (define mathematica-res (list-ref (list-ref example 4) 1))
@@ -289,11 +295,26 @@
     (cond [(number? mathematica-res)
            (set! mathematica-hard-sampled (add1 mathematica-hard-sampled))]
           [(equal? mathematica-res 'invalid)
-           (set! mathematica-hard-error (add1 mathematica-hard-error))])
+           (set! mathematica-hard-error (add1 mathematica-hard-error))
+           (cond
+             [(number? (list-ref rival-res 1))
+              (println (list rival-res mathematica-res (list-ref example 5)))
+              (set! weird-rival-samplable-mathematica-error (add1 weird-rival-samplable-mathematica-error))]
+             [(list-ref rival-res 3)
+              void]
+             [(list-ref rival-res 5)
+              (set! overall-mathematica-error-rival-unsamplable (add1 overall-mathematica-error-rival-unsamplable))]
+             [else
+              (set! overall-mathematica-error-rival-unknown (add1 overall-mathematica-error-rival-unknown))])])
     (cond [(number? (list-ref rival-res 1))
            (set! rival-hard-sampled (add1 rival-hard-sampled))]
           [(list-ref rival-res 3)
-           (set! rival-hard-error (add1 rival-hard-error))]))
+           (set! rival-hard-error (add1 rival-hard-error))
+           (cond
+             [(equal? mathematica-res 'unsamplable)
+              (set! rival-error-mathematica-unsamplable (+ rival-error-mathematica-unsamplable 1))]
+             [(equal? mathematica-res 'unknown)
+              (set! rival-error-mathematica-unknown (+ rival-error-mathematica-unknown 1))])]))
   
   (for ([example points] #:when (member tag (list-ref example 5)))
     (define rival-res (list-ref example 3))
@@ -330,7 +351,11 @@
       [(equal? mathematica-res 'crash)
        (set! mathematica-crash (add1 mathematica-crash))]
       [else (error "unknown mathematica value")]))
-
+  
+  (output-var "pointssearchsavesfromrivaldomainerror" POINTS_SEARCH_SAVES_RIVAL_DOMAIN_ERROR output)
+  (output-var "pointssearchsavesfromrivalunsamplable" POINTS_SEARCH_SAVES_RIVAL_UNSAMPLABLE output)
+  (output-var "rivalerrormathematicaunknown" rival-error-mathematica-unknown output)
+  (output-var "rivalerrormathematicaunsamplable" rival-error-mathematica-unsamplable output)
   (output-var "overallmathematicacrash" overall-mathematica-crash output)
   (output-var "overallmathematicacrashtimeoutormemory"
               (+ overall-mathematica-memory overall-mathematica-timeout overall-mathematica-crash) output)  
@@ -338,6 +363,9 @@
   (output-var "overallrivalmathematicaagree" (- (length points) total-count) output)
   (output-var "overallmathematicaunsamplable" overall-mathematica-unsamplable output)
   (output-var "overallrivalunsamplable" overall-rival-unsamplable output)
+  (output-var "overallmathematicaerrorrivalunsamplable" overall-mathematica-error-rival-unsamplable output)
+  (output-var "overallmathematicaerrorrivalunknown" overall-mathematica-error-rival-unknown output)
+   
   (output-var "TotalHardPoints" total-hard-points output)
   (output-var "timesworsemathematicaoverallunsamplable"
               (output-times (/ overall-mathematica-unsamplable overall-rival-unsamplable)) output)
@@ -348,11 +376,15 @@
                                                            (+ rival-hard-sampled rival-hard-error)
                                                            (+ mathematica-hard-error mathematica-hard-sampled))
                                                           (+ mathematica-hard-error mathematica-hard-sampled))) output)
-  
+  (output-var "rivalhardsamples" rival-hard-sampled output)
+  (output-var "mathematicahardsamples" mathematica-hard-sampled output)
+  (output-var "rivalharderror" rival-hard-error output)
+  (output-var "mathematicaharderror" mathematica-hard-error output)
   
   (output-var "totalrivalsamplesorerror" (+ total-rival-sampled total-rival-errors) output  "in all points where rival and mathematica disagree")
   (output-var "totalmathematicasamplesorerror" (+ total-mathematica-sampled mathematica-domain-error) output)
   (output-var "totalmathematicarivalmismatch" total-count output)
+  (output-var "totalonlyoneresolves" (- (- (- total-count mathematica-domain-error) total-rival-errors) rival-differs) output)
   (output-var "totalmathematicasamples" total-mathematica-sampled output)
   (output-var "totalrivalsamples" total-rival-sampled output)
   (output-var "totaldifferentnumbers" rival-differs output)
