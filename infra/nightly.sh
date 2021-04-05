@@ -42,7 +42,7 @@ function run-rival {
   racket "infra/run-rival.rkt" "$POINTS" "$RIVAL_DATA"
 }
 
-function format-data {
+function report {
   echo "Formatting the mpfi and mathematica data into latex table"
   racket "infra/report.rkt" "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html" \
          "$REPORTDIR/examples.txt" "$REPORTDIR/macros.txt" "$REPORTDIR/sampled-plot.png" \
@@ -56,7 +56,7 @@ function rerun {
   run-mpfi
   run-rival
   run-mathematica
-  format-data
+  report
   gzip -9 "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA"
 }
 

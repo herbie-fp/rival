@@ -229,6 +229,10 @@
   (format "~a\\%"
           (round1 (* 100 proportion))))
 
+(define (output-times proportion)
+  (format "~a$\\times$"
+          (round1 proportion)))
+
 (define (output-data tag points output sampled-chart-file bad-result-chart-file)
   (define overall-mathematica-timeout 0)
   (define overall-mathematica-memory 0)
@@ -237,6 +241,7 @@
   (define overall-mathematica-unsamplable 0)
   
   (define total-count 0)
+  (define total-hard-points 0)
   (define rival-differs 0)
   (define rival-inf 0)
   (define rival-unknown 0)
@@ -255,6 +260,11 @@
   (define total-rival-unknown 0)
   (define total-mathematica-sampled 0)
 
+  (define rival-hard-sampled 0)
+  (define mathematica-hard-sampled 0)
+  (define rival-hard-error 0)
+  (define mathematica-hard-error 0)
+
   (for ([example points])
     (define mathematica-res (list-ref (list-ref example 4) 1))
     (define rival-res (list-ref example 3))
@@ -268,6 +278,19 @@
            (set! overall-mathematica-crash (add1 overall-mathematica-crash))]
           [(equal? mathematica-res 'unsamplable)
            (set! overall-mathematica-unsamplable (add1 overall-mathematica-unsamplable))]))
+
+  (for ([example points] #:when (member 'hard-point (list-ref example 5)))
+    (define rival-res (list-ref example 3))
+    (define mathematica-res (list-ref (list-ref example 4) 1))
+    (set! total-hard-points (+ 1 total-hard-points))
+    (cond [(number? mathematica-res)
+           (set! mathematica-hard-sampled (add1 mathematica-hard-sampled))]
+          [(equal? mathematica-res 'invalid)
+           (set! mathematica-hard-error (add1 mathematica-hard-error))])
+    (cond [(number? (list-ref rival-res 1))
+           (set! rival-hard-sampled (add1 rival-hard-sampled))]
+          [(list-ref rival-res 3)
+           (set! rival-hard-error (add1 rival-hard-error))]))
   
   (for ([example points] #:when (member tag (list-ref example 5)))
     (define rival-res (list-ref example 3))
@@ -306,11 +329,24 @@
       [else (error "unknown mathematica value")]))
 
   (output-var "overallmathematicatimeoutormemory" (+ overall-mathematica-memory overall-mathematica-timeout overall-mathematica-crash) output)
-  (output-var "overallmathematicacrash" overall-mathematica-crash output)  
+  (output-var "overallmathematicacrash" overall-mathematica-crash output)
+  (output-var "overallmathematicacrashtimeoutormemory"
+              (+ overall-mathematica-memory overall-mathematica-timeout overall-mathematica-crash) output)  
   (output-var "overallallpoints" (length points) output)
   (output-var "overallrivalmathematicaagree" (- (length points) total-count) output)
   (output-var "overallmathematicaunsamplable" overall-mathematica-unsamplable output)
   (output-var "overallrivalunsamplable" overall-rival-unsamplable output)
+  (output-var "TotalHardPoints" total-hard-points output)
+  (output-var "timesworsemathematicaoverallunsamplable"
+              (output-times (/ overall-mathematica-unsamplable overall-rival-unsamplable)) output)
+
+  (output-var "rivalhardsamplesorerror" (+ rival-hard-sampled rival-hard-error) output "Hard means at least one of mathematica or rival failed to sample")
+  (output-var "mathematicahardsamplesorerror" (+ mathematica-hard-error mathematica-hard-sampled) output)
+  (output-var "percentrivalhardbetter" (output-percent (/ (-
+                                                           (+ rival-hard-sampled rival-hard-error)
+                                                           (+ mathematica-hard-error mathematica-hard-sampled))
+                                                          (+ mathematica-hard-error mathematica-hard-sampled))) output)
+  
   
   (output-var "totalrivalsamplesorerror" (+ total-rival-sampled total-rival-errors) output  "in all points where rival and mathematica disagree")
   (output-var "totalmathematicasamplesorerror" (+ total-mathematica-sampled mathematica-domain-error) output)
