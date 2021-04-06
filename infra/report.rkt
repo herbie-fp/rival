@@ -380,6 +380,10 @@
   (output-var "mathematicahardsamples" mathematica-hard-sampled output)
   (output-var "rivalharderror" rival-hard-error output)
   (output-var "mathematicaharderror" mathematica-hard-error output)
+  (output-var "rivalhardunresolved" (- total-hard-points (+ rival-hard-sampled rival-hard-error)) output)
+  (output-var "mathematicahardunresolved" (- total-hard-points (+ mathematica-hard-sampled mathematica-hard-error)) output)
+
+  
   
   (output-var "totalrivalsamplesorerror" (+ total-rival-sampled total-rival-errors) output  "in all points where rival and mathematica disagree")
   (output-var "totalmathematicasamplesorerror" (+ total-mathematica-sampled mathematica-domain-error) output)
