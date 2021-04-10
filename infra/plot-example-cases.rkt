@@ -59,14 +59,23 @@
 
   (send (pict->bitmap res) save-file output-file 'png))
 
-(define (draw-chart points-search-saves mathematica-list rival-list output)
+(define (make-interval start-x end-x interval-color interval-height interval-thickness y-interval-pos)
+  (list
+   (hrule (+ y-interval-pos (/ interval-height 2)) start-x end-x
+                            #:width interval-thickness #:color interval-color)
+   (vrule start-x y-interval-pos (+ y-interval-pos interval-height) #:width interval-thickness #:color interval-color)
+   (vrule end-x y-interval-pos (+ y-interval-pos interval-height)
+          #:width interval-thickness #:color interval-color)))
+
+(define (draw-chart points-search-saves-domain points-search-saves-unsamplable mathematica-list rival-list output)
   (println mathematica-list)
   (println rival-list)
-  (define colors `((3 97 17) "Green" "Orange" "Red" "Black" "Yellow"))
+  (define colors `((3 97 17) (127 227 116) "Orange" "Red" "Black" "Yellow"))
   (define interval-color `(38 107 255))
   (define interval-height 0.3)
   (define interval-thickness 3)
   (define y-interval-pos 2)
+  (define unsamplable-pos (+ (first rival-list) (second rival-list)))
   (parameterize ([plot-y-ticks no-ticks]
                  [plot-x-far-ticks no-ticks])
                 (parameterize-plot-size
@@ -80,11 +89,10 @@
                    (plot-pict
                     #:y-max (+ y-interval-pos interval-height)
                     (list
-                     (hrule (+ y-interval-pos (/ interval-height 2)) (first rival-list) (+ (first rival-list) points-search-saves)
-                            #:width interval-thickness #:color interval-color)
-                     (vrule (first rival-list) y-interval-pos (+ y-interval-pos interval-height) #:width interval-thickness #:color interval-color)
-                     (vrule (+ (first rival-list) points-search-saves) y-interval-pos (+ y-interval-pos interval-height)
-                            #:width interval-thickness #:color interval-color)
+                     (make-interval (first rival-list) (+ (first rival-list) points-search-saves-domain)
+                                    interval-color interval-height interval-thickness y-interval-pos)
+                     (make-interval unsamplable-pos (+ unsamplable-pos points-search-saves-unsamplable)
+                                    interval-color interval-height interval-thickness y-interval-pos)
                      (stacked-histogram (list
                                         (vector 'math mathematica-list)
                                         (vector 'rival rival-list))

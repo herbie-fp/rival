@@ -57,7 +57,7 @@ function rerun {
   run-rival
   run-mathematica
   report
-  gzip -9 "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA"
+  gzip -9 "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/examples.txt"
 }
 
 function all {
