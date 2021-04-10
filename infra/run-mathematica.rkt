@@ -213,7 +213,11 @@
      (match-lines rest)]
     [(list (regexp #rx"\\$Aborted"))
      'timeout]
-    [(list (regexp #rx"(-?[0-9]+(\\.[0-9]*)?)(`[0-9]*\\.?)?(\\*\\^(-?[0-9]+))?" (list x m _ _ _ e)))
+    [(list "DirectedInfinity[1]")
+     +inf.0]
+    [(list "DirectedInfinity[-1]")
+     -inf.0]
+    [(list (regexp #rx"^(-?[0-9]+(\\.[0-9]*)?)(`[0-9]*\\.?)?(\\*\\^(-?[0-9]+))?$" (list x m _ _ _ e)))
      (define s (if e (format "~ae~a" m e) m))
      (unless (string->number s)
        (eprintf "Invalid number ~a\n" s)
