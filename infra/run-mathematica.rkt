@@ -84,7 +84,9 @@
      (number->wolfram expr)]))
 
 (define (wrap-infinite-check wolfram-program)
-  (format "With[{res = ~a}, If[res>1.7976931348623157*^308, Infinity, If[res<-1.7976931348623157*^308, -Infinity, res]]]"
+  (format "With[{res = ~a}, If[res>~a, Infinity, If[res<-~a, -Infinity, res]]]"
+          (number->wolfram 1.7976931348623157e+308)
+          (number->wolfram -1.7976931348623157e+308)
           wolfram-program))
 
 (define (program->wolfram prog)
