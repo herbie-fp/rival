@@ -83,10 +83,14 @@
     [(? number?)
      (number->wolfram expr)]))
 
+(define (wrap-infinite-check wolfram-program)
+  (format "With[{res = ~a}, If[res>1.7976931348623157*^308, Infinity, If[res<-1.7976931348623157*^308, -Infinity, res]]]"
+          wolfram-program))
+
 (define (program->wolfram prog)
   (format "f[~a] := ~a\n"
           (string-join (map (compose (curry format "~a_") expr->wolfram) (program-variables prog)) ", ")
-          (expr->wolfram (program-body prog))))
+          (wrap-infinite-check (expr->wolfram (program-body prog)))))
 
 (define (local-group-by acc func points)
   (cond
