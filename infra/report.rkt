@@ -9,8 +9,8 @@
 (require "plot-example-cases.rkt")
 
 ;; from separate evaluation in test-search-saves branch
-(define POINTS_SEARCH_SAVES_RIVAL_DOMAIN_ERROR 9257)
-(define POINTS_SEARCH_SAVES_RIVAL_UNSAMPLABLE 663)
+(define POINTS_SEARCH_SAVES_RIVAL_DOMAIN_ERROR 9142)
+(define POINTS_SEARCH_SAVES_RIVAL_UNSAMPLABLE 668)
 
 (struct idata (mpfi-error-hash rival-error-hash may-error-mpfi-good rival-samplable mpfi-samplable))
 
@@ -377,6 +377,8 @@
   (output-var "overallmathematicaerrorrivalunknown" overall-mathematica-error-rival-unknown output)
   (output-var "overallmathematicaunknown" overall-mathematica-unknown output)
   (output-var "overallrivalunknown" overall-rival-unknown output)
+  (output-var "overallmathematicatimesrivalunknown" (output-times (/ overall-mathematica-unknown
+                                                                     overall-rival-unknown)) output)
   (output-var "mathematicaunknownrivalunsamplable" mathematica-unknown-rival-unsamplable output)
   
   (output-var "TotalHardPoints" total-hard-points output)

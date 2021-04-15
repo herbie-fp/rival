@@ -77,7 +77,9 @@
   (define y-interval-pos 2)
   (define unsamplable-pos (+ (first rival-list) (second rival-list)))
   (parameterize ([plot-y-ticks no-ticks]
-                 [plot-x-far-ticks no-ticks])
+                 [plot-x-far-ticks no-ticks]
+                 [plot-x-far-axis? #f]
+                 [plot-y-axis? #f])
                 (parameterize-plot-size
                  1500
                  1
