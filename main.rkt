@@ -17,7 +17,11 @@
        #'(mk-big-ival lo hi)])))
 
 (struct endpoint (val immovable?) #:transparent)
-(struct ival (lo hi err? err) #:transparent)
+(struct ival (lo hi err? err) #:transparent
+ #:methods gen:custom-write
+ [(define (write-proc ival port mode)
+    (fprintf port "(ival ~s ~s)" (ival-lo-val ival) (ival-hi-val ival)))])
+
 (define ival-list? (listof ival?))
 (define value? (or/c bigfloat? boolean?))
 
