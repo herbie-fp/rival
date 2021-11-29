@@ -39,6 +39,7 @@
 (provide ival? ival-list? ival-err? ival-err ival-lo-fixed? ival-hi-fixed?
          (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
          (contract-out
+          [mk-ival (-> (or/c bigfloat? boolean?) ival?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
           [ival-bool (-> boolean? ival?)]
