@@ -98,7 +98,9 @@
           [ival-fmax (-> ival? ival? ival?)]
           [ival-copysign (-> ival? ival? ival?)]
           [ival-fdim (-> ival? ival? ival?)]
-          [ival-sort (-> ival-list? (-> value? value? boolean?) ival-list?)]))
+          [ival-sort (-> ival-list? (-> value? value? boolean?) ival-list?)]
+          [ival-fix-lo (-> ival? ival?)]
+          [ival-fix-hi (-> ival? ival?)]))
 
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))
@@ -656,6 +658,14 @@
 
 (define* ival-erf (monotonic bferf))
 (define* ival-erfc (comonotonic bferfc))
+
+(define (ival-fix-lo i)
+  (match-define (ival (endpoint lo lo!) hi err? err) i)
+  (ival (endpoint lo #t) hi err? err))
+
+(define (ival-fix-hi i)
+  (match-define (ival lo (endpoint hi hi!) err? err) i)
+  (ival lo (endpoint hi #t) err? err))
 
 (define (ival-cmp x y)
   (define can-< (epfn bflt? (ival-lo x) (ival-hi y)))
