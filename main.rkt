@@ -13,6 +13,8 @@
        #'(and name (ival (endpoint lo _) (endpoint hi _) _ _))]))
   (λ (stx)
     (syntax-case stx ()
+      [(_ lo)
+       #'(mk-big-ival lo lo)]
       [(_ lo hi)
        #'(mk-big-ival lo hi)])))
 
@@ -37,7 +39,6 @@
 (provide ival? ival-list? ival-err? ival-err ival-lo-fixed? ival-hi-fixed?
          (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
          (contract-out
-          [mk-ival (-> value? ival?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
           [ival-bool (-> boolean? ival?)]
@@ -99,16 +100,6 @@
           [ival-fdim (-> ival? ival? ival?)]
           [ival-sort (-> ival-list? (-> value? value? boolean?) ival-list?)]))
 
-(define (mk-ival x)
-  (match x
-    [(? bigfloat?)
-     (define err? (bfnan? x))
-     (ival (endpoint x #t) (endpoint x #t) err? err?)]
-    [(? boolean?)
-     (ival (endpoint x #t) (endpoint x #t) #f #f)]
-    [_
-     (error "Invalid exact value for interval arithmetic" x)]))
-
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))
 (define 0.bf (bf 0))
@@ -120,10 +111,18 @@
 
 (define (mk-big-ival x y)
   (cond
-   [(bigfloat? x)
-    (if (bf=? x y) (mk-ival x) (ival (endpoint x #f) (endpoint y #f) #f #f))]
-   [(boolean? x)
-    (if (equal? x y) (ival-bool x) (ival (endpoint x #f) (endpoint y #f) #f #f))]))
+   [(and (bigfloat? x) (bigfloat? y))
+    (define err? (or (bfnan? x) (bfnan? y)))
+    (define fix? (bf=? x y))
+    (ival (endpoint x fix?) (endpoint y fix?) err? err?)]
+   [(and (boolean? x) (boolean? y))
+    (define fix? (equal? x y))
+    (ival (endpoint x fix?) (endpoint y fix?) #f #f)]
+   [else
+    (error 'ival "Invalid interval endpoints" x y)]))
+
+(define (mk-ival x)
+  (mk-big-ival x x))
 
 (define (and-fn . as)
   (andmap identity as))
