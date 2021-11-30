@@ -38,6 +38,8 @@
 
 (provide ival? ival-list? ival-err? ival-err ival-lo-fixed? ival-hi-fixed?
          (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
+         (rename-out [monotonic monotonic->ival] [comonotonic comonotonic->ival])
+         close-enough->ival
          (contract-out
           [mk-ival (-> (or/c bigfloat? boolean?) ival?)]
           [ival-pi (-> ival?)]
@@ -99,9 +101,7 @@
           [ival-fmax (-> ival? ival? ival?)]
           [ival-copysign (-> ival? ival? ival?)]
           [ival-fdim (-> ival? ival? ival?)]
-          [ival-sort (-> ival-list? (-> value? value? boolean?) ival-list?)]
-          [ival-fix-lo (-> ival? ival?)]
-          [ival-fix-hi (-> ival? ival?)]))
+          [ival-sort (-> ival-list? (-> value? value? boolean?) ival-list?)]))
 
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))
@@ -332,11 +332,19 @@
 
 (define ((monotonic bffn) x)
   (match-define (ival lo hi err? err) x)
-  (ival  (rnd 'down epfn bffn lo) (rnd 'up   epfn bffn hi) err? err))
+  (ival (rnd 'down epfn bffn lo) (rnd 'up epfn bffn hi) err? err))
 
 (define ((comonotonic bffn) x)
   (match-define (ival lo hi err? err) x)
-  (ival  (rnd 'down epfn bffn hi) (rnd 'up   epfn bffn lo) err? err))
+  (ival (rnd 'down epfn bffn hi) (rnd 'up epfn bffn lo) err? err))
+
+(define ((close-enough->ival bffn) x)
+  (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) x)
+  (define close-enough? (bffn lo hi))
+  (ival (endpoint (or (not lo!) (not hi!) close-enough?) #f)
+        (endpoint close-enough?)
+        err?
+        err))
 
 (define ((clamp lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
@@ -659,14 +667,6 @@
 
 (define* ival-erf (monotonic bferf))
 (define* ival-erfc (comonotonic bferfc))
-
-(define (ival-fix-lo i)
-  (match-define (ival (endpoint lo lo!) hi err? err) i)
-  (ival (endpoint lo #t) hi err? err))
-
-(define (ival-fix-hi i)
-  (match-define (ival lo (endpoint hi hi!) err? err) i)
-  (ival lo (endpoint hi #t) err? err))
 
 (define (ival-cmp x y)
   (define can-< (epfn bflt? (ival-lo x) (ival-hi y)))
