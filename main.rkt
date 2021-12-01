@@ -342,7 +342,7 @@
   (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) x)
   (define close-enough? (bffn lo hi))
   (ival (endpoint (or (not lo!) (not hi!) close-enough?) #f)
-        (endpoint close-enough?)
+        (endpoint close-enough? #f)
         err?
         err))
 
