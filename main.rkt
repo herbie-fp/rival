@@ -109,7 +109,7 @@
           [ival-illegal ival?])
          close-enough->ival
          ; Deprecated
-         ival-lo-fixed? ival-hi-fixed? ival-err? ival-err
+         ival-lo-fixed? ival-hi-fixed? ival-err? ival-err mk-ival
          )
 
 (define -inf.bf (bf -inf.0))
