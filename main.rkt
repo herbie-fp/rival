@@ -183,8 +183,8 @@
 
 (define (split-ival i val)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) i)
-  (values (and (bflt? xlo val) (struct-copy ival i [hi (endpoint val xhi!)]))
-          (and (bfgt? xhi val) (struct-copy ival i [lo (endpoint val xlo!)]))))
+  (values (and (bflte? xlo val) (struct-copy ival i [hi (endpoint val xhi!)]))
+          (and (bfgte? xhi val) (struct-copy ival i [lo (endpoint val xlo!)]))))
 
 (define ival-split split-ival)
 
