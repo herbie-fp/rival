@@ -22,7 +22,9 @@
 (struct ival (lo hi err? err) #:transparent
  #:methods gen:custom-write
  [(define (write-proc ival port mode)
-    (fprintf port "(ival ~s ~s)" (ival-lo-val ival) (ival-hi-val ival)))])
+    (if (ival-err ival)
+        (fprintf port "ival-illegal")
+        (fprintf port "(ival ~s ~s)" (ival-lo-val ival) (ival-hi-val ival))))])
 
 (define ival-list? (listof ival?))
 (define value? (or/c bigfloat? boolean?))
@@ -36,12 +38,12 @@
 (define (ival-hi-fixed? ival)
   (endpoint-immovable? (ival-hi ival)))
 
-(provide ival? ival-list? ival-err? ival-err ival-lo-fixed? ival-hi-fixed?
-         (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
+(provide ival? (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
          (rename-out [monotonic monotonic->ival] [comonotonic comonotonic->ival])
-         close-enough->ival
          (contract-out
-          [mk-ival (-> (or/c bigfloat? boolean?) ival?)]
+          [ival-union (-> ival? ival? ival?)]
+          [ival-split (-> ival? bigfloat? (values (or/c ival? #f) (or/c ival? #f)))])
+         (contract-out
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
           [ival-bool (-> boolean? ival?)]
@@ -86,22 +88,29 @@
           [ival-ceil (-> ival? ival?)]
           [ival-floor (-> ival? ival?)]
           [ival-trunc (-> ival? ival?)]
-          [ival-and (->* () #:rest (listof ival?) ival?)]
-          [ival-or  (->* () #:rest (listof ival?) ival?)]
-          [ival-not (-> ival? ival?)]
+          [ival-fmin (-> ival? ival? ival?)]
+          [ival-fmax (-> ival? ival? ival?)]
+          [ival-copysign (-> ival? ival? ival?)]
+          [ival-fdim (-> ival? ival? ival?)]
+          [ival-sort (-> ival-list? (-> value? value? boolean?) ival-list?)])
+         (contract-out
           [ival-<  (->* () #:rest (listof ival?) ival?)]
           [ival-<= (->* () #:rest (listof ival?) ival?)]
           [ival->  (->* () #:rest (listof ival?) ival?)]
           [ival->= (->* () #:rest (listof ival?) ival?)]
           [ival-== (->* () #:rest (listof ival?) ival?)]
           [ival-!= (->* () #:rest (listof ival?) ival?)]
-          [ival-error? (-> ival? ival?)]
           [ival-if (-> ival? ival? ival? ival?)]
-          [ival-fmin (-> ival? ival? ival?)]
-          [ival-fmax (-> ival? ival? ival?)]
-          [ival-copysign (-> ival? ival? ival?)]
-          [ival-fdim (-> ival? ival? ival?)]
-          [ival-sort (-> ival-list? (-> value? value? boolean?) ival-list?)]))
+          [ival-and (->* () #:rest (listof ival?) ival?)]
+          [ival-or  (->* () #:rest (listof ival?) ival?)]
+          [ival-not (-> ival? ival?)])
+         (contract-out
+          [ival-error? (-> ival? ival?)]
+          [ival-illegal ival?])
+         close-enough->ival
+         ; Deprecated
+         ival-lo-fixed? ival-hi-fixed? ival-err? ival-err
+         )
 
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))
@@ -164,6 +173,9 @@
   (ival (endpoint b #t) (endpoint b #t) #f #f))
 
 (define ival-true (ival-bool #t))
+(define ival-false (ival-bool #f))
+(define ival-uncertain (ival (endpoint #f #f) (endpoint #t #f) #f #f))
+(define ival-illegal (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t))
 
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
@@ -171,8 +183,10 @@
 
 (define (split-ival i val)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) i)
-  (values (struct-copy ival i [hi (endpoint val xhi!)])
-          (struct-copy ival i [lo (endpoint val xlo!)])))
+  (values (and (bflt? xlo val) (struct-copy ival i [hi (endpoint val xhi!)]))
+          (and (bfgt? xhi val) (struct-copy ival i [lo (endpoint val xlo!)]))))
+
+(define ival-split split-ival)
 
 (define (classify-ival x [val 0.bf])
   (cond [(bfgt? (ival-lo-val x) val) 1] [(bflt? (ival-hi-val x) val) -1] [else 0]))
