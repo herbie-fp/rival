@@ -44,6 +44,10 @@ You can also use the @racket[ival] form for matches, as in:
 This is the preferred way to access interval endpoints.
 }
 
+@defproc[(ival? [obj any/c]) boolean?]{
+  Determines whether an object is an interval.
+}
+
 @defproc*[([(ival-lo [x ival?]) (or/c bigfloat? boolean?)]
           [(ival-hi [x ival?]) (or/c bigfloat? boolean?)])]{
 These accessor methods provide an alternative way of accessing the two
