@@ -42,7 +42,7 @@
   (expand-associativity (unfold-let expr)))
 
 (define (parse-test stx)
-  (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
+  (match-define (list 'FPCore (? symbol?) ... (list args ...) props ... body) (syntax->datum stx))
   
   (define prop-dict
     (let loop ([props props])
