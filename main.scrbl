@@ -1,11 +1,13 @@
 #lang scribble/manual
 @(require (for-label "main.rkt" racket/base math/bigfloat))
-@(require scribble/example racket/sandbox)
+@(require scribble/example racket/sandbox racket/pretty)
 @(define example-eval
    (parameterize ([sandbox-output 'string]
-                  [sandbox-error-output 'string]
-                  [sandbox-memory-limit 50])
-     (make-evaluator 'racket #:requires '(rival math/bigfloat))))
+                  [sandbox-error-output 'string])
+     (make-evaluator 'racket #:requires '(rival math/bigfloat racket/pretty))))
+@(call-in-sandbox-context example-eval
+             (lambda ()
+               (current-print (dynamic-require 'racket/pretty 'pretty-print-handler)))))
 
 @title{Rival: An Interval Arithmetic for Real Computation}
 @author{Pavel Panchekha}
@@ -25,7 +27,8 @@ for Robust Error Estimation"}.
 @section{Intervals}
 
 A standard Rival interval contains two @racket[bigfloat?] values and
-include both endpoints. Neither endpoint is allowed to be @racket[+nan.bf].
+includes both endpoints. Neither endpoint is allowed to be
+@racket[+nan.bf].
 
 @defproc[(ival [lo (or/c bigfloat? boolean?)]
              [hi (or/c bigfloat? boolean?) lo]) ival?]{
@@ -33,12 +36,16 @@ Constructs an interval given two endpoints @racket[lo] and
 @racket[hi]. If @racket[hi] isn't given, the interval contains a
 single point, @racket[lo]. Single-point intervals are considered immovable,
 while all other intervals are considered movable. If either endpoint
-is @racket[+nan.bf], a guaranteed error interval is returned.
+is @racket[+nan.bf], an illegal interval is returned.
 
-You can also use the @racket[ival] form for matches, as in:
+You can also use the @racket[ival] form for matches:
 
-@examples[#:eval example-eval
-(match-define (ival lo hi) (ival-sqrt (ival 0.bf 2.bf)))
+@examples[#:eval example-eval #:label #f
+(define x (ival 0.bf 2.bf))
+x
+(match-define (ival lo hi) (ival-sqrt x))
+lo
+hi
 ]
 
 This is the preferred way to access interval endpoints.
@@ -56,9 +63,9 @@ endpoints of an interval when a @racket[match] is not convenient.
 
 @defproc*[([(ival-pi) ival?]
            [(ival-e) ival?])]{
-Rival also provides two interval constants. Note that, since π and e
-are not exact @racket[bigfloat?] values, these constants are
-implemented a functions, which return different intervals at different
+Rival also provides two interval constants. Since π and e are not
+exact @racket[bigfloat?] values, these constants are implemented as
+functions, which return different intervals at different
 @racket[bf-precision]s.
 }
 
@@ -128,10 +135,10 @@ These operations have their output precision determined by
   complex functions aren't, including @racket[ival-pow],
   @racket[ival-fma], @racket[ival-fmod], and @racket[ival-atan2]. Even
   these fuctions still make a best-effort attempt to produce
-  relatively narrow intervals. For example, @racket[ival-fma] uses
-  the formula @code{(fma a b c) = (+ (* a b) c)}, meaning that it
-  accumulates multiple rounding errors leading the resulting interval
-  to not be maximally tight, but typically still pretty close.
+  relatively narrow intervals. For example, @racket[ival-fma] is
+  implemented via the formula @code{(fma a b c) = (+ (* a b) c)},
+  which that it accumulates multiple rounding errors. The result is
+  therefore not maximally tight, but typically still pretty close.
 }
 
 @defproc[(ival-sort [lst (listof ival?)]
@@ -142,8 +149,10 @@ These operations have their output precision determined by
   Sorts a list of intervals using a comparator function.
 }
 
-Additionally, Rival provides simple helper methods to define your own
-interval functions.
+@section{Interval Helper Functions}
+
+Rival provides simple helper methods to define your own interval
+functions.
 
 @deftogether[(
   @defproc[(monotonic->ival [fn (-> bigfloat? (or/c bigfloat? boolean?))])
@@ -157,7 +166,7 @@ interval functions.
   co-monotonic function is one where larger inputs produce smaller (or
   equal) outputs. For example:
 
-  @examples[#:eval example-eval
+  @examples[#:eval example-eval #:label #f
     (define ival-cube (monotonic->ival (lambda (x) (bf* x x x))))
     (ival-cube (ival -1.bf 3.bf))
   ]
@@ -178,7 +187,7 @@ interval functions.
   @racket[#f] instead. This can be used to define simple,
   non-monotonic interval functions. For example:
 
-  @examples[#:eval example-eval
+  @examples[#:eval example-eval #:label #f
   (define (ival-fabs x)
     (match/values (ival-split x 0.bf)
       [(#f hi) hi]
@@ -226,7 +235,7 @@ In a boolean interval, @racket[#f] is considered less than
   intervals do not overlap. However, in many cases
   @racket[ival-uncertain] is the only possible answer:
   
-  @examples[#:eval example-eval
+  @examples[#:eval example-eval #:label #f
   (ival-< (ival -1.bf 3.bf) (ival 1.bf 5.bf)) 
   ]
 
@@ -263,7 +272,7 @@ Boolean intervals can be combined logically.
   they are not flow-sensitive. For example, @racket[(if (< x 0) (- x)
   x)] is always non-negative, but:
 
-  @examples[#:eval example-eval
+  @examples[#:eval example-eval #:label #f
   (define (bad-ival-fabs x)
     (ival-if (ival-< x (ival 0.bf)) (ival-neg x) x))
   (bad-ival-fabs (ival -1.bf 1.bf))
@@ -281,14 +290,14 @@ Sometimes an interval will contain invalid inputs to some function.
 For example, @racket[sqrt] is undefined for negative inputs! In cases
 like this, Rival's output interval will only consider valid inputs:
 
-@examples[#:eval example-eval
+@examples[#:eval example-eval #:label #f
 (ival-sqrt (ival -1.bf 1.bf))
 ]
 
 If none of the values in the interval are valid, a special
 @racket[ival-illegal] value will be returned:
 
-@examples[#:eval example-eval
+@examples[#:eval example-eval #:label #f
 (ival-sqrt (ival (bf -4) (bf -2)))
 ]
 
@@ -296,7 +305,7 @@ Moreover, when an interval is computed by discarding invalid inputs,
 special error flags are set that can be retrieved with
 @racket[ival-error?]:
 
-@examples[#:eval example-eval
+@examples[#:eval example-eval #:label #f
 (ival-error? (ival-sqrt (ival 1.bf 4.bf)))
 (ival-error? (ival-sqrt (ival -1.bf 1.bf)))
 (ival-error? (ival-sqrt (ival (bf -4) (bf -2))))
@@ -324,7 +333,7 @@ example, due to the limitations of @racket[math/bigfloat]'s underlying
 MPFR library, it's impossible to compute @racket[(/ (exp x) (exp x))]
 for large enough values of @racket[x]:
 
-@examples[#:eval example-eval
+@examples[#:eval example-eval #:label #f
   (define x (ival (bf 1e100)))
   (ival-div (ival-exp x) (ival-exp x))
 ]
@@ -349,7 +358,7 @@ The only access to movability flags is via @racket[close-enough->ival].
   Rival can prove that no evaluation at a higher precision can yield a
   close enough interval:
   
-  @examples[#:eval example-eval
+  @examples[#:eval example-eval #:label #f
     (define (close-enough x y) (bf< (bf- y x) 1.bf))
     (define ival-close-enough? (close-enough->ival close-enough))
     (ival-close-enough? (ival 1.bf))
