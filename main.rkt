@@ -192,6 +192,9 @@
           (and (bflt? (ival-lo-val hi) (ival-hi-val hi)) hi)))
 
 (define (classify-ival x [val 0.bf])
+  (cond [(bfgte? (ival-lo-val x) val) 1] [(bflte? (ival-hi-val x) val) -1] [else 0]))
+
+(define (classify-ival-strict x [val 0.bf])
   (cond [(bfgt? (ival-lo-val x) val) 1] [(bflt? (ival-hi-val x) val) -1] [else 0]))
 
 (define (endpoint-min2 e1 e2)
@@ -325,8 +328,8 @@
   (match-define (ival ylo yhi yerr? yerr) y)
   (define err? (or xerr? yerr? (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
   (define err (or xerr yerr (and (bfzero? (ival-lo-val y)) (bfzero? (ival-hi-val y)))))
-  (define x-class (classify-ival x))
-  (define y-class (classify-ival y))
+  (define x-class (classify-ival-strict x))
+  (define y-class (classify-ival-strict y))
 
   (define (mkdiv a b c d)
     (ival (rnd 'down epdiv a b x-class) (rnd 'up epdiv c d x-class) err? err))
