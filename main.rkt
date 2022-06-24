@@ -1052,6 +1052,8 @@
              (bf-equals? (ival-hi-val ival1) (ival-hi-val ival2)))))
 
   (define num-tests 2500)
+  (define num-slow-tests 100)
+  (define slow-tests (list ival-lgamma ival-tgamma))
 
   (define (test-entry n ival-fn fn args)
     (define is (for/list ([arg args]) (sample-interval arg)))
@@ -1163,5 +1165,5 @@
   (for ([entry (in-list composed-function-table)])
     (match-define (list ival-fn fn args _) entry)
     (test-case (~a (object-name ival-fn))
-       (for ([n (in-range num-tests)])
+       (for ([n (in-range (if (set-member? slow-tests ival-fn) num-slow-tests num-tests))])
          (test-entry ival-fn fn args)))))
