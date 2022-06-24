@@ -117,6 +117,8 @@ These operations have their output precision determined by
   @defproc[(ival-atanh [a ival?]) ival?]
   @defproc[(ival-erf [a ival?]) ival?]
   @defproc[(ival-erfc [a ival?]) ival?]
+  @defproc[(ival-tgamma [a ival?]) ival?]
+  @defproc[(ival-lgamma [a ival?]) ival?]
   @defproc[(ival-fmod [a ival?] [b ival?]) ival?]
   @defproc[(ival-remainder [a ival?] [b ival?]) ival?]
   @defproc[(ival-rint [a ival?]) ival?]

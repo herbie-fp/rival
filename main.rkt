@@ -81,6 +81,8 @@
           [ival-atanh (-> ival? ival?)]
           [ival-erf (-> ival? ival?)]
           [ival-erfc (-> ival? ival?)]
+          [ival-lgamma (-> ival? ival?)]
+          [ival-tgamma (-> ival? ival?)]
           [ival-fmod (-> ival? ival? ival?)]
           [ival-remainder (-> ival? ival? ival?)]
           [ival-rint (-> ival? ival?)]
@@ -754,7 +756,7 @@
           #t
           (or xerr (and (bf=? xlo xhi) (bf=? xlo (bffloor xlo)))))]))
 
-(define (ival-gamma x)
+(define (ival-tgamma x)
   (define logy (ival-lgamma x))
   (define absy (ival-exp logy))
   (if (bfeven? (bffloor (ival-lo-val x)))
@@ -946,6 +948,8 @@
           (list ival-atan2 bfatan2    '(real real) 'real)
           (list ival-fmod  bffmod     '(real real) 'real)
           (list ival-remainder bfremainder '(real real) 'real)
+          (list ival-tgamma bfgamma   '(real) 'real)
+          (list ival-lgamma bflog-gamma '(real) 'real)
           (list ival-<     bflt?      '(real real) 'bool)
           (list ival-<=    bflte?     '(real real) 'bool)
           (list ival->     bfgt?      '(real real) 'bool)
