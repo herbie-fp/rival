@@ -753,13 +753,13 @@
     ((convex bflog-gamma xmin ymin) x)]
    [(bf=? (bfadd 2.bf (bffloor xlo)) (bfceiling xhi))
     (ival-union
-     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) err? err))
-     (ival-lgamma (ival (endpoint (bffloor xhi) (and xlo! xhi!)) (endpoint xhi xhi!) err? err)))]
+     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) xerr? xerr))
+     (ival-lgamma (ival (endpoint (bffloor xhi) (and xlo! xhi!)) (endpoint xhi xhi!) xerr? xerr)))]
    [else
     (ival-union
-     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) err? err))
+     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) xerr? xerr))
      (ival-lgamma (ival (endpoint (bfceiling xlo) (and xlo! xhi!))
-                        (endpoint (bfadd 1.bf (bfceiling xlo)) (and xlo! xhi!)) err? err)))]))
+                        (endpoint (bfadd 1.bf (bfceiling xlo)) (and xlo! xhi!)) xerr? xerr)))]))
 
 (define (ival-tgamma x)
   (define logy (ival-lgamma x))
