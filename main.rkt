@@ -759,9 +759,21 @@
 (define (ival-tgamma x)
   (define logy (ival-lgamma x))
   (define absy (ival-exp logy))
-  (if (bfeven? (bffloor (ival-lo-val x)))
-      absy
-      (ival-neg absy)))
+  (define lo (ival-lo-val x))
+  (define hi (ival-hi-val x))
+  (cond
+   [(bfpositive? lo)
+    absy]
+   [(not (bf=? (bffloor lo) (bffloor hi)))
+    (ival (endpoint -inf.bf (ival-lo-fixed? x))
+          (endpoint +inf.bf (ival-hi-fixed? x))
+          #t (ival-err x))]
+   [(and (not (bfpositive? lo)) (bf=? lo hi) (bfinteger? lo))
+    (ival-illegal)]
+   [(bfeven? (bffloor lo))
+    absy]
+   [else
+    (ival-neg absy)]))
 
 (define* ival-erf (monotonic bferf))
 (define* ival-erfc (comonotonic bferfc))
