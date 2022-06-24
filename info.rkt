@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "rival")
-(define version "1.4")
+(define version "1.7")
 
 ;; Packaging information
 

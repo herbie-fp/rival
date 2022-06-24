@@ -141,6 +141,8 @@ These operations have their output precision determined by
   implemented via the formula @code{(fma a b c) = (+ (* a b) c)},
   which that it accumulates multiple rounding errors. The result is
   therefore not maximally tight, but typically still pretty close.
+
+  @history[#:changed "1.7" @elem{Added @racket[ival-tgamma] and @racket[ival-lgamma]}]
 }
 
 @defproc[(ival-sort [lst (listof ival?)]
