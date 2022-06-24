@@ -769,7 +769,7 @@
           (endpoint +inf.bf (ival-hi-fixed? x))
           #t (ival-err x))]
    [(and (not (bfpositive? lo)) (bf=? lo hi) (bfinteger? lo))
-    (ival-illegal)]
+    ival-illegal]
    [(bfeven? (bffloor lo))
     absy]
    [else
