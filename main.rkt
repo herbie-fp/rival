@@ -691,12 +691,12 @@
 (define (bigfloat-midpoint lo hi)
   (bfstep lo (inexact->exact (floor (/ (bigfloats-between lo hi) 2)))))
 
-(define (ival-lgamma-find-min xlo xhi)
+(define (convex-find-min fn xlo xhi)
   ; lgamma is always convex in the same direction
   (let loop ([lo xlo] [mlo (bfdiv (bfadd (bfadd xlo xhi) xlo) 3.bf)]
              [mhi (bfdiv (bfadd (bfadd xlo xhi) xhi) 3.bf)] [hi xhi])
-    (let ([ylo (rnd 'up bflog-gamma lo)] [ymlo (rnd 'down bflog-gamma mlo)]
-          [yhi (rnd 'up bflog-gamma hi)] [ymhi (rnd 'down bflog-gamma mhi)])
+    (let ([ylo (rnd 'up fn lo)] [ymlo (rnd 'down fn mlo)]
+          [yhi (rnd 'up fn hi)] [ymhi (rnd 'down fn mhi)])
       ;; Invariant: ylo >= ymlo and yhi >= ymhi.
       ;; Base case: ylo and yhi = +inf.bf
       ;; Therefore lgamma decreasing from lo to mlo and increasing from mhi to hi
@@ -712,9 +712,9 @@
         (define x1 mlo)
         (define x2 (bfnext x1))
         (define x3 (bfnext x2))
-        (define y1 (rnd 'down bflog-gamma x1))
-        (define y2 (rnd 'down bflog-gamma x2))
-        (define y3 (rnd 'down bflog-gamma x3))
+        (define y1 (rnd 'down fn x1))
+        (define y2 (rnd 'down fn x2))
+        (define y3 (rnd 'down fn x3))
         (if (bflte? y1 y2)
             (values x1 y1)
             (if (bflte? y2 y3)
@@ -744,17 +744,22 @@
     ((monotonic bflog-gamma) x)]
    [(bfgte? xlo 0.bf)
     ; Gamma has a single minimum for positive inputs, which is about 1.46163
-    (define-values (xmin ymin) (ival-lgamma-find-min (bf 1.4) (bf 1.5)))
+    (define-values (xmin ymin) (convex-find-min bflog-gamma (bf 1.46163) (bf 1.46164)))
     ((convex bflog-gamma xmin ymin) x)]
-   [(bf=? (bffloor xlo) (bffloor xhi))
+   [(or (bf=? (bffloor xlo) (bffloor xhi))
+        (bf=? xhi (bfadd (bffloor xlo) 1.bf)))
     ;; Gamma is concave in some direction between xlo and xhi
-    (define-values (xmin ymin) (ival-lgamma-find-min (bffloor xlo) (bfceiling xhi)))
+    (define-values (xmin ymin) (convex-find-min bflog-gamma (bffloor xlo) (bfceiling xhi)))
     ((convex bflog-gamma xmin ymin) x)]
+   [(bf=? (bfadd 2.bf (bffloor xlo)) (bfceiling xhi))
+    (ival-union
+     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) err? err))
+     (ival-lgamma (ival (endpoint (bffloor xhi) (and xlo! xhi!)) (endpoint xhi xhi!) err? err)))]
    [else
-    (ival (endpoint -inf.bf (and xlo! xhi!))
-          (endpoint +inf.bf (and xlo! xhi!))
-          #t
-          (or xerr (and (bf=? xlo xhi) (bf=? xlo (bffloor xlo)))))]))
+    (ival-union
+     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) err? err))
+     (ival-lgamma (ival (endpoint (bfceiling xlo) (and xlo! xhi!))
+                        (endpoint (bfadd 1.bf (bfceiling xlo)) (and xlo! xhi!)) err? err)))]))
 
 (define (ival-tgamma x)
   (define logy (ival-lgamma x))
