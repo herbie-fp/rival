@@ -700,29 +700,23 @@
       ;; Invariant: ylo >= ymlo and yhi >= ymhi.
       ;; Base case: ylo and yhi = +inf.bf
       ;; Therefore lgamma decreasing from lo to mlo and increasing from mhi to hi
-      
       (cond
+       [(<= (bigfloats-between lo hi) 3)
+        (define dy1 (rnd 'up bfsub ymlo ylo))
+        (define dy2 (rnd 'up bfsub ymhi yhi))
+        ; Overcorrect for possible deviation downward
+        (define dy (rnd 'up bfdiv (bfmax2 dy1 dy2) 2.bf))
+        (values mlo (rnd 'down bfadd ymlo dy))]
+       [(<= (bigfloats-between mlo mhi) 1) ; Close enough to exit
+        (loop (bfprev mlo) mlo mhi (bfnext mhi))]
        [(bfgt? ymlo ymhi) ; If true, lgamma decreasing from mlo to mhi
         (loop mlo mhi (bigfloat-midpoint mhi hi) hi)]
-       [(bflt? ymlo ymhi)
-        (loop lo (bigfloat-midpoint lo mlo) mlo mhi)]
-       ; Now ymlo = ymhi so minimum is between them
-       [(bflte? mhi (bfstep mlo 2)) ; Close enough to exit
-        ; Very carefully test all possible points
-        (define x1 mlo)
-        (define x2 (bfnext x1))
-        (define x3 (bfnext x2))
-        (define y1 (rnd 'down fn x1))
-        (define y2 (rnd 'down fn x2))
-        (define y3 (rnd 'down fn x3))
-        (if (bflte? y1 y2)
-            (values x1 y1)
-            (if (bflte? y2 y3)
-                (values x2 y2)
-                (values x3 y3)))]
        [else
-        (loop mlo (bfdiv (bfadd (bfadd mlo mhi) mlo) 3.bf)
-               (bfdiv (bfadd (bfadd mlo mhi) mhi) 3.bf) mhi)]))))
+        (loop lo (bigfloat-midpoint lo mlo) mlo mhi)]))))
+
+(define lgamma-pos-xmin #f)
+(define lgamma-pos-ymin #f)
+(define lgamma-pos-prec #f)
 
 ;; These both assume that xmin and ymin are not immovable (they are computed with rounding)
 (define ((convex fn xmin ymin) i)
@@ -742,10 +736,17 @@
   (cond
    [(bfgte? xlo (bf 1.5)) ; Fast path, gamma is increasing here
     ((monotonic bflog-gamma) x)]
+   [(and (bfgte? xlo 0.bf) (bflte? xhi (bf 1.4))) ; Another fast path
+    ((comonotonic bflog-gamma) x)]
    [(bfgte? xlo 0.bf)
-    ; Gamma has a single minimum for positive inputs, which is about 1.46163
-    (define-values (xmin ymin) (convex-find-min bflog-gamma (bf 1.46163) (bf 1.46164)))
-    ((convex bflog-gamma xmin ymin) x)]
+    ;; Gamma has a single minimum for positive inputs, which is about 1.46163
+    ;; This computation is common enough that we cache it
+    (unless (and lgamma-pos-prec (<= (bf-precision) lgamma-pos-prec))
+      (define-values (xmin ymin) (convex-find-min bflog-gamma (bf 1.46163) (bf 1.46164)))
+      (set! lgamma-pos-xmin xmin)
+      (set! lgamma-pos-ymin ymin)
+      (set! lgamma-pos-prec (bf-precision)))
+    ((convex bflog-gamma lgamma-pos-xmin lgamma-pos-ymin) x)]
    [(or (bf=? (bffloor xlo) (bffloor xhi))
         (bf=? xhi (bfadd (bffloor xlo) 1.bf)))
     ;; Gamma is concave in some direction between xlo and xhi
@@ -1165,5 +1166,5 @@
   (for ([entry (in-list composed-function-table)])
     (match-define (list ival-fn fn args _) entry)
     (test-case (~a (object-name ival-fn))
-       (for ([n (in-range (if (set-member? slow-tests ival-fn) num-slow-tests num-tests))])
+       (for ([n (in-range (if (memq ival-fn slow-tests) num-slow-tests num-tests))])
          (test-entry ival-fn fn args)))))
