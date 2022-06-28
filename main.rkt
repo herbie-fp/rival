@@ -747,6 +747,9 @@
       (set! lgamma-pos-ymin ymin)
       (set! lgamma-pos-prec (bf-precision)))
     ((convex bflog-gamma lgamma-pos-xmin lgamma-pos-ymin) x)]
+   [(bf=? (bfadd xlo 1.bf) xlo)
+    ;; Gaps are too big for finding minima
+    (ival (endpoint 0.bf xlo!) (endpoint +inf.bf #t) #t (bf=? xlo xhi))]
    [(or (bf=? (bffloor xlo) (bffloor xhi))
         (bf=? xhi (bfadd (bffloor xlo) 1.bf)))
     ;; Gamma is concave in some direction between xlo and xhi
@@ -915,11 +918,13 @@
 (define (ival-refines? coarse fine)
   (and
    ((if (endpoint-immovable? (ival-lo coarse)) value-equals? value-lte?)
-    (ival-lo-val coarse) (ival-lo-val fine)))
-   ((if (endpoint-immovable? (ival-lo coarse)) value-equals? value-lte?)
-    (ival-hi-val fine) (ival-hi-val coarse)))
-   (if (endpoint-immovable (ival-lo coarse)) (endpoint-immovable (ival-lo fine)) true)
-   (if (endpoint-immovable (ival-hi coarse)) (endpoint-immovable (ival-hi fine)) true)
+    (ival-lo-val coarse) (ival-lo-val fine))
+   ((if (endpoint-immovable? (ival-hi coarse)) value-equals? value-lte?)
+    (ival-hi-val fine) (ival-hi-val coarse))
+   (if (endpoint-immovable? (ival-lo coarse)) (endpoint-immovable? (ival-lo fine)) #t)
+   (if (endpoint-immovable? (ival-hi coarse)) (endpoint-immovable? (ival-hi fine)) #t)
+   (if (ival-err? fine) (ival-err? coarse) #t)
+   (if (ival-err coarse) (ival-err fine) #t)))
 
 (module+ test
   (require racket/math racket/dict racket/format math/base math/flonum racket/list)
@@ -992,6 +997,8 @@
           (list ival-ceil  bfceiling  '(real) 'real)
           (list ival-floor bffloor    '(real) 'real)
           (list ival-trunc bftruncate '(real) 'real)
+          (list ival-tgamma bfgamma   '(real) 'real)
+          (list ival-lgamma bflog-gamma '(real) 'real)
           (list ival-add   bfadd      '(real real) 'real)
           (list ival-sub   bfsub      '(real real) 'real)
           (list ival-mult  bfmul      '(real real) 'real)
@@ -1002,8 +1009,6 @@
           (list ival-atan2 bfatan2    '(real real) 'real)
           (list ival-fmod  bffmod     '(real real) 'real)
           (list ival-remainder bfremainder '(real real) 'real)
-          (list ival-tgamma bfgamma   '(real) 'real)
-          (list ival-lgamma bflog-gamma '(real) 'real)
           (list ival-<     bflt?      '(real real) 'bool)
           (list ival-<=    bflte?     '(real real) 'bool)
           (list ival->     bfgt?      '(real real) 'bool)
@@ -1060,12 +1065,6 @@
   (define-simple-check (check-ival-valid? ival)
     (ival-valid? ival))
 
-  (define-simple-check (check-ival-contains? ival pt)
-    (ival-contains? ival pt))
-  
-  (define-binary-check (check-movability? coarse fine)
-    (ival-refines? coarse fine))
-
   (define-binary-check (check-ival-equals? ival1 ival2)
     (if (ival-err ival1)
         (ival-err ival2)
@@ -1084,7 +1083,7 @@
 
     (with-check-info (['fn ival-fn] ['intervals is] ['points xs] ['number n])
       (check-ival-valid? iy)
-      (check-ival-contains? iy y)
+      (check ival-contains? iy y)
       (for ([k (in-naturals)] [i is] [x xs])
         (define-values (ilo ihi) (split-ival i x))
         (with-check-info (['split-argument k])
@@ -1093,19 +1092,19 @@
                         (apply ival-fn (list-set is k ihi))))))
       (when (and (or (endpoint-immovable? (ival-lo iy)) (endpoint-immovable? (ival-hi iy)))
                  (not (ival-err iy)))
-        (define iy* (parameterize ([bf-precision 8000]) (apply ival-fn is)))
-        (check-movability? iy iy*))))
+        (define iy* (parameterize ([bf-precision 128]) (apply ival-fn is)))
+        (check ival-refines? iy iy*))))
 
-  (check-ival-contains? (ival-bool #f) #f)
-  (check-ival-contains? (ival-bool #t) #t)
-  (check-ival-contains? (ival-pi) (pi.bf))
-  (check-ival-contains? (ival-e) (bfexp 1.bf))
+  (check ival-contains? (ival-bool #f) #f)
+  (check ival-contains? (ival-bool #t) #t)
+  (check ival-contains? (ival-pi) (pi.bf))
+  (check ival-contains? (ival-e) (bfexp 1.bf))
   (test-case "mk-ival"
     (for ([i (in-range num-tests)])
       (define pt (sample-bigfloat))
       (with-check-info (['point pt])
         (check-ival-valid? (mk-ival pt))
-        (check-ival-contains? (mk-ival pt) pt))))
+        (check ival-contains? (mk-ival pt) pt))))
 
   (define (compose-nth f1 n1 f2 n2 k)
     (procedure-rename
@@ -1147,10 +1146,10 @@
       (check-ival-valid? (ival-error? res1))
       (check-ival-valid? (ival-error? res2))
       (check-ival-valid? (ival-error? res3))
-      (check-ival-contains? (ival-error? res1) #f)
-      (check-ival-contains? (ival-error? res2) #t)
-      (check-ival-contains? (ival-error? res3) #f)
-      (check-ival-contains? (ival-error? res3) #t)))
+      (check ival-contains? (ival-error? res1) #f)
+      (check ival-contains? (ival-error? res2) #t)
+      (check ival-contains? (ival-error? res3) #f)
+      (check ival-contains? (ival-error? res3) #t)))
 
   (define (sorted? list cmp)
     (cond
@@ -1171,20 +1170,12 @@
 
   (for ([entry (in-list function-table)])
     (match-define (list ival-fn fn args _) entry)
+    (define N (if (memq ival-fn slow-tests) num-slow-tests num-tests))
+    (eprintf "Testing ~a on ~a inputs: " (object-name ival-fn) N)
+    (flush-output (current-error-port))
     (test-case (~a (object-name ival-fn))
-       (for ([n (in-range num-tests)])
-         (test-entry n ival-fn fn args))))
-
-  ;; We also generate new functions by composing the above randomly
-  (define num-composed-tests 0)
-  (define composed-function-table
-    (filter
-     identity
-     (for/list ([i (in-range num-composed-tests)])
-       (compose-entries (random-choose function-table) (random-choose function-table)))))
-
-  (for ([entry (in-list composed-function-table)])
-    (match-define (list ival-fn fn args _) entry)
-    (test-case (~a (object-name ival-fn))
-       (for ([n (in-range (if (memq ival-fn slow-tests) num-slow-tests num-tests))])
-         (test-entry ival-fn fn args)))))
+       (for ([n (in-range N)])
+         (test-entry n ival-fn fn args)
+         (eprintf ".")
+         (flush-output (current-error-port))))
+    (eprintf "\n")))
