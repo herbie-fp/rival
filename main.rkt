@@ -885,6 +885,42 @@
   (for/list ([u upper] [l lower])
             (ival (endpoint l lo!) (endpoint u hi!) err? err)))
 
+(define (ival-valid? ival)
+  (if (ival-err ival)
+      (ival-err? ival)
+      (if (boolean? (ival-lo-val ival))
+          (or (not (ival-lo-val ival)) (ival-hi-val ival))
+          (bflte? (ival-lo-val ival) (ival-hi-val ival)))))
+
+(define (ival-contains? ival pt)
+  (if (bigfloat? pt)
+      (if (bfnan? pt)
+          (ival-err? ival)
+          (and (not (ival-err ival))
+               (bflte? (ival-lo-val ival) pt) (bflte? pt (ival-hi-val ival))))
+      (and (not (ival-err ival))
+           (or (equal? pt (ival-lo-val ival))
+               (equal? pt (ival-hi-val ival))))))
+
+(define (value-equals? bf1 bf2)
+  (if (boolean? bf1)
+      (equal? bf1 bf2)
+      (or (bf=? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
+
+(define (value-lte? bf1 bf2)
+  (if (boolean? bf1)
+      (or (not bf1) bf2)
+      (bflte? bf1 bf2)))
+
+(define (ival-refines? coarse fine)
+  (and
+   ((if (endpoint-immovable? (ival-lo coarse)) value-equals? value-lte?)
+    (ival-lo-val coarse) (ival-lo-val fine)))
+   ((if (endpoint-immovable? (ival-lo coarse)) value-equals? value-lte?)
+    (ival-hi-val fine) (ival-hi-val coarse)))
+   (if (endpoint-immovable (ival-lo coarse)) (endpoint-immovable (ival-lo fine)) true)
+   (if (endpoint-immovable (ival-hi coarse)) (endpoint-immovable (ival-hi fine)) true)
+
 (module+ test
   (require racket/math racket/dict racket/format math/base math/flonum racket/list)
   
@@ -1022,35 +1058,19 @@
           (if (= p 0) (ival-lo-val ival) (ival-hi-val ival)))))
 
   (define-simple-check (check-ival-valid? ival)
-    (if (ival-err ival)
-        (ival-err? ival)
-        (if (boolean? (ival-lo-val ival))
-            (or (not (ival-lo-val ival)) (ival-hi-val ival))
-            (bflte? (ival-lo-val ival) (ival-hi-val ival)))))
+    (ival-valid? ival))
 
   (define-simple-check (check-ival-contains? ival pt)
-    (if (bigfloat? pt)
-        (if (bfnan? pt)
-            (ival-err? ival)
-            (and (bflte? (ival-lo-val ival) pt) (bflte? pt (ival-hi-val ival))))
-        (or (equal? pt (ival-lo-val ival)) (equal? pt (ival-hi-val ival)))))
+    (ival-contains? ival pt))
   
   (define-binary-check (check-movability? coarse fine)
-    (and
-     (or (not (endpoint-immovable? (ival-lo coarse)))
-         (bf-equals? (ival-lo-val coarse) (ival-lo-val fine)))
-     (or (not (endpoint-immovable? (ival-hi coarse)))
-         (bf-equals? (ival-hi-val coarse) (ival-hi-val fine)))))
-
-  (define (bf-equals? bf1 bf2)
-    (if (boolean? bf1)
-        (equal? bf1 bf2)
-        (or (bf=? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
+    (ival-refines? coarse fine))
 
   (define-binary-check (check-ival-equals? ival1 ival2)
-    (or (ival-err? ival1)
-        (and (bf-equals? (ival-lo-val ival1) (ival-lo-val ival2))
-             (bf-equals? (ival-hi-val ival1) (ival-hi-val ival2)))))
+    (if (ival-err ival1)
+        (ival-err ival2)
+        (and (value-equals? (ival-lo-val ival1) (ival-lo-val ival2))
+             (value-equals? (ival-hi-val ival1) (ival-hi-val ival2)))))
 
   (define num-tests 2500)
   (define num-slow-tests 100)
