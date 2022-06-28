@@ -81,6 +81,8 @@
           [ival-atanh (-> ival? ival?)]
           [ival-erf (-> ival? ival?)]
           [ival-erfc (-> ival? ival?)]
+          [ival-lgamma (-> ival? ival?)]
+          [ival-tgamma (-> ival? ival?)]
           [ival-fmod (-> ival? ival? ival?)]
           [ival-remainder (-> ival? ival? ival?)]
           [ival-rint (-> ival? ival?)]
@@ -118,6 +120,7 @@
 (define half.bf (bf 0.5))
 (define 1.bf (bf 1))
 (define 2.bf (bf 2))
+(define 3.bf (bf 3))
 (define +inf.bf (bf +inf.0))
 (define +nan.bf (bf +nan.0))
 
@@ -685,6 +688,102 @@
     (ival-union (ival-remainder-pos pos y* err? err)
                 (ival-neg (ival-remainder-pos (ival-neg neg) y* err? err)))]))
 
+(define (bigfloat-midpoint lo hi)
+  (bfstep lo (inexact->exact (floor (/ (bigfloats-between lo hi) 2)))))
+
+(define (convex-find-min fn xlo xhi)
+  ; lgamma is always convex in the same direction
+  (let loop ([lo xlo] [mlo (bfdiv (bfadd (bfadd xlo xhi) xlo) 3.bf)]
+             [mhi (bfdiv (bfadd (bfadd xlo xhi) xhi) 3.bf)] [hi xhi])
+    (let ([ylo (rnd 'up fn lo)] [ymlo (rnd 'down fn mlo)]
+          [yhi (rnd 'up fn hi)] [ymhi (rnd 'down fn mhi)])
+      ;; Invariant: ylo >= ymlo and yhi >= ymhi.
+      ;; Base case: ylo and yhi = +inf.bf
+      ;; Therefore lgamma decreasing from lo to mlo and increasing from mhi to hi
+      (cond
+       [(<= (bigfloats-between lo hi) 3)
+        (define dy1 (rnd 'up bfsub ymlo ylo))
+        (define dy2 (rnd 'up bfsub ymhi yhi))
+        ; Overcorrect for possible deviation downward
+        (define dy (rnd 'up bfdiv (bfmax2 dy1 dy2) 2.bf))
+        (values mlo (rnd 'down bfadd ymlo dy))]
+       [(<= (bigfloats-between mlo mhi) 1) ; Close enough to exit
+        (loop (bfprev mlo) mlo mhi (bfnext mhi))]
+       [(bfgt? ymlo ymhi) ; If true, lgamma decreasing from mlo to mhi
+        (loop mlo mhi (bigfloat-midpoint mhi hi) hi)]
+       [else
+        (loop lo (bigfloat-midpoint lo mlo) mlo mhi)]))))
+
+(define lgamma-pos-xmin #f)
+(define lgamma-pos-ymin #f)
+(define lgamma-pos-prec #f)
+
+;; These both assume that xmin and ymin are not immovable (they are computed with rounding)
+(define ((convex fn xmin ymin) i)
+  (match-define (ival lo hi err? err) i)
+  (cond
+   [(bfgt? (endpoint-val lo) xmin) ; Purely increasing
+    ((monotonic fn) i)]
+   [(bflt? (endpoint-val hi) xmin) ; Purely decreasing
+    ((comonotonic fn) i)]
+   [else
+    (ival-union
+     (ival (endpoint ymin #f) (rnd 'up epfn fn lo) err? err)
+     (ival (endpoint ymin #f) (rnd 'up epfn fn hi) err? err))]))
+
+(define (ival-lgamma x)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (cond
+   [(bfgte? xlo (bf 1.5)) ; Fast path, gamma is increasing here
+    ((monotonic bflog-gamma) x)]
+   [(and (bfgte? xlo 0.bf) (bflte? xhi (bf 1.4))) ; Another fast path
+    ((comonotonic bflog-gamma) x)]
+   [(bfgte? xlo 0.bf)
+    ;; Gamma has a single minimum for positive inputs, which is about 1.46163
+    ;; This computation is common enough that we cache it
+    (unless (and lgamma-pos-prec (<= (bf-precision) lgamma-pos-prec))
+      (define-values (xmin ymin) (convex-find-min bflog-gamma (bf 1.46163) (bf 1.46164)))
+      (set! lgamma-pos-xmin xmin)
+      (set! lgamma-pos-ymin ymin)
+      (set! lgamma-pos-prec (bf-precision)))
+    ((convex bflog-gamma lgamma-pos-xmin lgamma-pos-ymin) x)]
+   [(bf=? (bfadd xlo 1.bf) xlo)
+    ;; Gaps are too big for finding minima
+    (ival (endpoint 0.bf xlo!) (endpoint +inf.bf #t) #t (bf=? xlo xhi))]
+   [(or (bf=? (bffloor xlo) (bffloor xhi))
+        (bf=? xhi (bfadd (bffloor xlo) 1.bf)))
+    ;; Gamma is concave in some direction between xlo and xhi
+    (define-values (xmin ymin) (convex-find-min bflog-gamma (bffloor xlo) (bfceiling xhi)))
+    ((convex bflog-gamma xmin ymin) x)]
+   [(bf=? (bfadd 2.bf (bffloor xlo)) (bfceiling xhi))
+    (ival-union
+     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) xerr? xerr))
+     (ival-lgamma (ival (endpoint (bffloor xhi) (and xlo! xhi!)) (endpoint xhi xhi!) xerr? xerr)))]
+   [else
+    (ival-union
+     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) xerr? xerr))
+     (ival-lgamma (ival (endpoint (bfceiling xlo) (and xlo! xhi!))
+                        (endpoint (bfadd 1.bf (bfceiling xlo)) (and xlo! xhi!)) xerr? xerr)))]))
+
+(define (ival-tgamma x)
+  (define logy (ival-lgamma x))
+  (define absy (ival-exp logy))
+  (define lo (ival-lo-val x))
+  (define hi (ival-hi-val x))
+  (cond
+   [(bfpositive? lo)
+    absy]
+   [(not (bf=? (bffloor lo) (bffloor hi)))
+    (ival (endpoint -inf.bf (ival-lo-fixed? x))
+          (endpoint +inf.bf (ival-hi-fixed? x))
+          #t (ival-err x))]
+   [(and (not (bfpositive? lo)) (bf=? lo hi) (bfinteger? lo))
+    ival-illegal]
+   [(bfeven? (bffloor lo))
+    absy]
+   [else
+    (ival-neg absy)]))
+
 (define* ival-erf (monotonic bferf))
 (define* ival-erfc (comonotonic bferfc))
 
@@ -789,6 +888,44 @@
   (for/list ([u upper] [l lower])
             (ival (endpoint l lo!) (endpoint u hi!) err? err)))
 
+(define (ival-valid? ival)
+  (if (ival-err ival)
+      (ival-err? ival)
+      (if (boolean? (ival-lo-val ival))
+          (or (not (ival-lo-val ival)) (ival-hi-val ival))
+          (bflte? (ival-lo-val ival) (ival-hi-val ival)))))
+
+(define (ival-contains? ival pt)
+  (if (bigfloat? pt)
+      (if (bfnan? pt)
+          (ival-err? ival)
+          (and (not (ival-err ival))
+               (bflte? (ival-lo-val ival) pt) (bflte? pt (ival-hi-val ival))))
+      (and (not (ival-err ival))
+           (or (equal? pt (ival-lo-val ival))
+               (equal? pt (ival-hi-val ival))))))
+
+(define (value-equals? bf1 bf2)
+  (if (boolean? bf1)
+      (equal? bf1 bf2)
+      (or (bf=? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
+
+(define (value-lte? bf1 bf2)
+  (if (boolean? bf1)
+      (or (not bf1) bf2)
+      (bflte? bf1 bf2)))
+
+(define (ival-refines? coarse fine)
+  (and
+   ((if (endpoint-immovable? (ival-lo coarse)) value-equals? value-lte?)
+    (ival-lo-val coarse) (ival-lo-val fine))
+   ((if (endpoint-immovable? (ival-hi coarse)) value-equals? value-lte?)
+    (ival-hi-val fine) (ival-hi-val coarse))
+   (if (endpoint-immovable? (ival-lo coarse)) (endpoint-immovable? (ival-lo fine)) #t)
+   (if (endpoint-immovable? (ival-hi coarse)) (endpoint-immovable? (ival-hi fine)) #t)
+   (if (ival-err? fine) (ival-err? coarse) #t)
+   (if (ival-err coarse) (ival-err fine) #t)))
+
 (module+ test
   (require racket/math racket/dict racket/format math/base math/flonum racket/list)
   
@@ -860,6 +997,8 @@
           (list ival-ceil  bfceiling  '(real) 'real)
           (list ival-floor bffloor    '(real) 'real)
           (list ival-trunc bftruncate '(real) 'real)
+          (list ival-tgamma bfgamma   '(real) 'real)
+          (list ival-lgamma bflog-gamma '(real) 'real)
           (list ival-add   bfadd      '(real real) 'real)
           (list ival-sub   bfsub      '(real real) 'real)
           (list ival-mult  bfmul      '(real real) 'real)
@@ -924,37 +1063,17 @@
           (if (= p 0) (ival-lo-val ival) (ival-hi-val ival)))))
 
   (define-simple-check (check-ival-valid? ival)
-    (if (ival-err ival)
-        (ival-err? ival)
-        (if (boolean? (ival-lo-val ival))
-            (or (not (ival-lo-val ival)) (ival-hi-val ival))
-            (bflte? (ival-lo-val ival) (ival-hi-val ival)))))
-
-  (define-simple-check (check-ival-contains? ival pt)
-    (if (bigfloat? pt)
-        (if (bfnan? pt)
-            (ival-err? ival)
-            (and (bflte? (ival-lo-val ival) pt) (bflte? pt (ival-hi-val ival))))
-        (or (equal? pt (ival-lo-val ival)) (equal? pt (ival-hi-val ival)))))
-  
-  (define-binary-check (check-movability? coarse fine)
-    (and
-     (or (not (endpoint-immovable? (ival-lo coarse)))
-         (bf-equals? (ival-lo-val coarse) (ival-lo-val fine)))
-     (or (not (endpoint-immovable? (ival-hi coarse)))
-         (bf-equals? (ival-hi-val coarse) (ival-hi-val fine)))))
-
-  (define (bf-equals? bf1 bf2)
-    (if (boolean? bf1)
-        (equal? bf1 bf2)
-        (or (bf=? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
+    (ival-valid? ival))
 
   (define-binary-check (check-ival-equals? ival1 ival2)
-    (or (ival-err? ival1)
-        (and (bf-equals? (ival-lo-val ival1) (ival-lo-val ival2))
-             (bf-equals? (ival-hi-val ival1) (ival-hi-val ival2)))))
+    (if (ival-err ival1)
+        (ival-err ival2)
+        (and (value-equals? (ival-lo-val ival1) (ival-lo-val ival2))
+             (value-equals? (ival-hi-val ival1) (ival-hi-val ival2)))))
 
   (define num-tests 2500)
+  (define num-slow-tests 100)
+  (define slow-tests (list ival-lgamma ival-tgamma))
 
   (define (test-entry n ival-fn fn args)
     (define is (for/list ([arg args]) (sample-interval arg)))
@@ -964,7 +1083,7 @@
 
     (with-check-info (['fn ival-fn] ['intervals is] ['points xs] ['number n])
       (check-ival-valid? iy)
-      (check-ival-contains? iy y)
+      (check ival-contains? iy y)
       (for ([k (in-naturals)] [i is] [x xs])
         (define-values (ilo ihi) (split-ival i x))
         (with-check-info (['split-argument k])
@@ -973,19 +1092,19 @@
                         (apply ival-fn (list-set is k ihi))))))
       (when (and (or (endpoint-immovable? (ival-lo iy)) (endpoint-immovable? (ival-hi iy)))
                  (not (ival-err iy)))
-        (define iy* (parameterize ([bf-precision 8000]) (apply ival-fn is)))
-        (check-movability? iy iy*))))
+        (define iy* (parameterize ([bf-precision 128]) (apply ival-fn is)))
+        (check ival-refines? iy iy*))))
 
-  (check-ival-contains? (ival-bool #f) #f)
-  (check-ival-contains? (ival-bool #t) #t)
-  (check-ival-contains? (ival-pi) (pi.bf))
-  (check-ival-contains? (ival-e) (bfexp 1.bf))
+  (check ival-contains? (ival-bool #f) #f)
+  (check ival-contains? (ival-bool #t) #t)
+  (check ival-contains? (ival-pi) (pi.bf))
+  (check ival-contains? (ival-e) (bfexp 1.bf))
   (test-case "mk-ival"
     (for ([i (in-range num-tests)])
       (define pt (sample-bigfloat))
       (with-check-info (['point pt])
         (check-ival-valid? (mk-ival pt))
-        (check-ival-contains? (mk-ival pt) pt))))
+        (check ival-contains? (mk-ival pt) pt))))
 
   (define (compose-nth f1 n1 f2 n2 k)
     (procedure-rename
@@ -1027,10 +1146,10 @@
       (check-ival-valid? (ival-error? res1))
       (check-ival-valid? (ival-error? res2))
       (check-ival-valid? (ival-error? res3))
-      (check-ival-contains? (ival-error? res1) #f)
-      (check-ival-contains? (ival-error? res2) #t)
-      (check-ival-contains? (ival-error? res3) #f)
-      (check-ival-contains? (ival-error? res3) #t)))
+      (check ival-contains? (ival-error? res1) #f)
+      (check ival-contains? (ival-error? res2) #t)
+      (check ival-contains? (ival-error? res3) #f)
+      (check ival-contains? (ival-error? res3) #t)))
 
   (define (sorted? list cmp)
     (cond
@@ -1051,20 +1170,12 @@
 
   (for ([entry (in-list function-table)])
     (match-define (list ival-fn fn args _) entry)
+    (define N (if (memq ival-fn slow-tests) num-slow-tests num-tests))
+    (eprintf "Testing ~a on ~a inputs: " (object-name ival-fn) N)
+    (flush-output (current-error-port))
     (test-case (~a (object-name ival-fn))
-       (for ([n (in-range num-tests)])
-         (test-entry n ival-fn fn args))))
-
-  ;; We also generate new functions by composing the above randomly
-  (define num-composed-tests 0)
-  (define composed-function-table
-    (filter
-     identity
-     (for/list ([i (in-range num-composed-tests)])
-       (compose-entries (random-choose function-table) (random-choose function-table)))))
-
-  (for ([entry (in-list composed-function-table)])
-    (match-define (list ival-fn fn args _) entry)
-    (test-case (~a (object-name ival-fn))
-       (for ([n (in-range num-tests)])
-         (test-entry ival-fn fn args)))))
+       (for ([n (in-range N)])
+         (test-entry n ival-fn fn args)
+         (eprintf ".")
+         (flush-output (current-error-port))))
+    (eprintf "\n")))
