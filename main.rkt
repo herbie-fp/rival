@@ -749,7 +749,7 @@
     ((convex bflog-gamma lgamma-pos-xmin lgamma-pos-ymin) x)]
    [(bf=? (bfadd xlo 1.bf) xlo)
     ;; Gaps are too big for finding minima
-    (ival (endpoint 0.bf xlo!) (endpoint +inf.bf #t) #t (bf=? xlo xhi))]
+    (ival (endpoint -inf.bf xlo!) (endpoint +inf.bf #t) #t (bf=? xlo xhi))]
    [(or (bf=? (bffloor xlo) (bffloor xhi))
         (bf=? xhi (bfadd (bffloor xlo) 1.bf)))
     ;; Gamma is concave in some direction between xlo and xhi
