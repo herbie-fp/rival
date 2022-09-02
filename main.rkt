@@ -163,7 +163,7 @@
     (for ([i (in-range -20 20)])
       (check-pred (if (even? i) bfeven? bfodd?) (bf i)))
     (define-values (val _1 t _2) (time-apply bfeven? (list (bfstep +inf.bf -1))))
-    (check-true (first val))
+    (check-true (car val))
     (check < t 2)))
 
 (define (ival-pi)
