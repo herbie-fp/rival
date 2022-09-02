@@ -190,9 +190,10 @@
           (struct-copy ival i [lo (endpoint val xlo!)])))
 
 (define (ival-split i val)
-  (define-values (lo hi) (split-ival i val))
-  (values (and (bflt? (ival-lo-val lo) (ival-hi-val lo)) lo)
-          (and (bflt? (ival-lo-val hi) (ival-hi-val hi)) hi)))
+  (cond
+   [(bflte? (ival-hi-val i) val) (values i #f)]
+   [(bfgte? (ival-lo-val i) val) (values #f i)]
+   [else (split-ival i val)]))
 
 (define (classify-ival x [val 0.bf])
   (cond [(bfgte? (ival-lo-val x) val) 1] [(bflte? (ival-hi-val x) val) -1] [else 0]))
@@ -714,10 +715,6 @@
        [else
         (loop lo (bigfloat-midpoint lo mlo) mlo mhi)]))))
 
-(define lgamma-pos-xmin #f)
-(define lgamma-pos-ymin #f)
-(define lgamma-pos-prec #f)
-
 ;; These both assume that xmin and ymin are not immovable (they are computed with rounding)
 (define ((convex fn xmin ymin) i)
   (match-define (ival lo hi err? err) i)
@@ -731,14 +728,19 @@
      (ival (endpoint ymin #f) (rnd 'up epfn fn lo) err? err)
      (ival (endpoint ymin #f) (rnd 'up epfn fn hi) err? err))]))
 
-(define (ival-lgamma x)
+; Optimized version of `ival-lgamma-basin` for positive values, adds a cache
+(define lgamma-pos-xmin #f)
+(define lgamma-pos-ymin #f)
+(define lgamma-pos-prec #f)
+
+(define (ival-lgamma-pos x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (cond
    [(bfgte? xlo (bf 1.5)) ; Fast path, gamma is increasing here
     ((monotonic bflog-gamma) x)]
    [(and (bfgte? xlo 0.bf) (bflte? xhi (bf 1.4))) ; Another fast path
     ((comonotonic bflog-gamma) x)]
-   [(bfgte? xlo 0.bf)
+   [else
     ;; Gamma has a single minimum for positive inputs, which is about 1.46163
     ;; This computation is common enough that we cache it
     (unless (and lgamma-pos-prec (<= (bf-precision) lgamma-pos-prec))
@@ -746,24 +748,36 @@
       (set! lgamma-pos-xmin xmin)
       (set! lgamma-pos-ymin ymin)
       (set! lgamma-pos-prec (bf-precision)))
-    ((convex bflog-gamma lgamma-pos-xmin lgamma-pos-ymin) x)]
-   [(bf=? (bfadd xlo 1.bf) xlo)
-    ;; Gaps are too big for finding minima
-    (ival (endpoint -inf.bf xlo!) (endpoint +inf.bf #t) #t (bf=? xlo xhi))]
-   [(or (bf=? (bffloor xlo) (bffloor xhi))
-        (bf=? xhi (bfadd (bffloor xlo) 1.bf)))
-    ;; Gamma is concave in some direction between xlo and xhi
-    (define-values (xmin ymin) (convex-find-min bflog-gamma (bffloor xlo) (bfceiling xhi)))
-    ((convex bflog-gamma xmin ymin) x)]
-   [(bf=? (bfadd 2.bf (bffloor xlo)) (bfceiling xhi))
-    (ival-union
-     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) xerr? xerr))
-     (ival-lgamma (ival (endpoint (bffloor xhi) (and xlo! xhi!)) (endpoint xhi xhi!) xerr? xerr)))]
-   [else
-    (ival-union
-     (ival-lgamma (ival (endpoint xlo xlo!) (endpoint (bfceiling xlo) (and xlo! xhi!)) xerr? xerr))
-     (ival-lgamma (ival (endpoint (bfceiling xlo) (and xlo! xhi!))
-                        (endpoint (bfadd 1.bf (bfceiling xlo)) (and xlo! xhi!)) xerr? xerr)))]))
+    ((convex bflog-gamma lgamma-pos-xmin lgamma-pos-ymin) x)]))
+
+(define (ival-lgamma-lbasin x)
+  (define-values (xmin ymin) (convex-find-min bflog-gamma (bffloor (ival-lo-val x)) (ival-hi-val x)))
+  (if (bflte? (ival-lo-val x) xmin)
+      ((convex bflog-gamma xmin ymin) x)
+      ((monotonic bflog-gamma) x)))
+
+(define (ival-lgamma-basin x)
+  (define-values (xmin ymin) (convex-find-min bflog-gamma (ival-lo-val x) (ival-hi-val x)))
+  ((convex bflog-gamma xmin ymin) x))
+
+(define (ival-lgamma x)
+  ; The starred versions allow #f for an empty interval
+  (define (ival-lo-val* x) (if x (ival-lo-val x) 0.bf))
+  (define (ival-split* i x) (if i (ival-split i x) (values #f #f)))
+  (define (ival-union* a b) (if (and a b) (ival-union a b) (or a b)))
+
+  (define-values (xneg xpos) (ival-split x 0.bf))
+  (define-values (xnegl xrest) (ival-split* xneg (bfceiling (ival-lo-val* xneg))))
+  (define-values (xnegr xdrop) (ival-split* xrest (bfadd 1.bf (ival-lo-val* xrest))))
+
+  ;; Edge case: what if xlo is so large & negative that can't do basin search
+  (if (and xneg (bf=? (ival-lo-val xneg) (bfadd 1.bf (ival-lo-val xneg))))
+      (ival (endpoint -inf.bf #f) (endpoint +inf.bf #f) #f #f)
+      (ival-union*
+       (and xpos (ival-lgamma-pos xpos))
+       (ival-union*
+        (and xnegl (ival-lgamma-lbasin xnegl))
+        (and xnegr (ival-lgamma-basin xnegr))))))
 
 (define (ival-tgamma x)
   (define logy (ival-lgamma x))
