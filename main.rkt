@@ -750,15 +750,34 @@
       (set! lgamma-pos-prec (bf-precision)))
     ((convex bflog-gamma lgamma-pos-xmin lgamma-pos-ymin) x)]))
 
-(define (ival-lgamma-lbasin x)
-  (define-values (xmin ymin) (convex-find-min bflog-gamma (bffloor (ival-lo-val x)) (ival-hi-val x)))
-  (if (bflte? (ival-lo-val x) xmin)
-      ((convex bflog-gamma xmin ymin) x)
-      ((monotonic bflog-gamma) x)))
+;; Crude estimate, used only when other option is not available.
+;;  Note that G(-n + f) = +- G(f) G(1-f) / G(n + 1 - f).
+;; Thus, the min of G over [-n, -n + 1] is greater than
+;;   A) the min of G(f) G(1-f) over [0, 1]
+;;   B) divided by the max of G(n + 1 - f) over [0, 1]
+;; (A) is easy because that function is symmetric over [0, 1];
+;;   the min is at 1/2 with value G(1/2)^2 = pi
+;; (B) is also easy because G is increasing on [n, n + 1]
+;;   since n is positive, so the max is at n + 1
+;; Hence, G over [-n, -n + 1] is greater than
+;;   pi / G(n + 1);
+;; Hence, logG over [-n, -n + 1] is greater than
+;;   log pi - logG(n + 1)
+(define (ival-lgamma-basin-bound imin)
+  (define logpi (rnd 'down bflog (rnd 'down pi.bf)))
+  (define logg (rnd 'up bflog-gamma (rnd 'up bfadd 1.bf (bfneg imin))))
+  (define bound (rnd 'down bfsub logpi logg))
+  (ival (endpoint bound #f) (endpoint +inf.bf #f) #f #f))
 
+;; Here we assume that x is entirely negative
+;; and does not cross any integer boundaries.
 (define (ival-lgamma-basin x)
-  (define-values (xmin ymin) (convex-find-min bflog-gamma (ival-lo-val x) (ival-hi-val x)))
-  ((convex bflog-gamma xmin ymin) x))
+  (define imin (bffloor (ival-lo-val x)))
+  (define imax (ival-hi-val x))
+  (if (< (bigfloats-between imin imax) 25) ; Value 25 is not verified
+      (ival-lgamma-basin-bound imin) ; Too close, cannot use convex
+      (let-values ([(xmin ymin) (convex-find-min bflog-gamma imin imax)])
+        ((convex bflog-gamma xmin ymin) x))))
 
 (define (ival-lgamma x)
   ; The starred versions allow #f for an empty interval
@@ -770,14 +789,11 @@
   (define-values (xnegl xrest) (ival-split* xneg (bfceiling (ival-lo-val* xneg))))
   (define-values (xnegr xdrop) (ival-split* xrest (bfadd 1.bf (ival-lo-val* xrest))))
 
-  ;; Edge case: what if xlo is so large & negative that can't do basin search
-  (if (and xneg (bf=? (ival-lo-val xneg) (bfadd 1.bf (ival-lo-val xneg))))
-      (ival (endpoint -inf.bf #f) (endpoint +inf.bf #f) #f #f)
-      (ival-union*
-       (and xpos (ival-lgamma-pos xpos))
-       (ival-union*
-        (and xnegl (ival-lgamma-lbasin xnegl))
-        (and xnegr (ival-lgamma-basin xnegr))))))
+  (ival-union*
+   (and xpos (ival-lgamma-pos xpos))
+   (ival-union*
+    (and xnegl (ival-lgamma-basin xnegl))
+    (and xnegr (ival-lgamma-basin xnegr)))))
 
 (define (ival-tgamma x)
   (define logy (ival-lgamma x))
