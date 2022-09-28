@@ -787,7 +787,7 @@
 
   (define-values (xneg xpos) (ival-split x 0.bf))
   (define-values (xnegl xrest) (ival-split* xneg (bfceiling (ival-lo-val* xneg))))
-  (define-values (xnegr xdrop) (ival-split* xrest (bfadd 1.bf (ival-lo-val* xrest))))
+  (define-values (xnegr xdrop) (ival-split* xrest (rnd 'up bfadd 1.bf (ival-lo-val* xrest))))
 
   (ival-union*
    (and xpos (ival-lgamma-pos xpos))
