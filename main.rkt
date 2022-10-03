@@ -42,7 +42,7 @@
          (rename-out [monotonic monotonic->ival] [comonotonic comonotonic->ival])
          (contract-out
           [ival-union (-> ival? ival? ival?)]
-          [ival-split (-> ival? bigfloat? (values (or/c ival? #f) (or/c ival? #f)))])
+          [ival-split (-> ival? value? (values (or/c ival? #f) (or/c ival? #f)))])
          (contract-out
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
@@ -191,6 +191,7 @@
 
 (define (ival-split i val)
   (cond
+   [(boolean? val) (if val (values i #f) (values #f i))]
    [(bflte? (ival-hi-val i) val) (values i #f)]
    [(bfgte? (ival-lo-val i) val) (values #f i)]
    [else (split-ival i val)]))
