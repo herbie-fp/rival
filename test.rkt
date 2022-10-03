@@ -177,8 +177,14 @@
 
 (define (sample-from ival)
   (if (bigfloat? (ival-lo ival))
-      (let ([p (random)] [range (bigfloats-between (ival-lo ival) (ival-hi ival))])
-        (bfstep (ival-lo ival) (exact-floor (* p range))))
+      (if (bf<= (ival-lo ival) 0.bf (ival-hi ival))
+          (let* ([p (random)]
+                 [lo* (bigfloat->flonum (ival-lo ival))]
+                 [hi* (bigfloat->flonum (ival-hi ival))]
+                 [range (flonums-between lo* hi*)])
+              (bf (flstep lo* (exact-floor (* p range)))))
+          (let ([p (random)] [range (bigfloats-between (ival-lo ival) (ival-hi ival))])
+            (bfstep (ival-lo ival) (exact-floor (* p range)))))
       (let ([p (random 0 2)])
         (if (= p 0) (ival-lo ival) (ival-hi ival)))))
 
