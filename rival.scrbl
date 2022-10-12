@@ -328,6 +328,23 @@ special error flags are set that can be retrieved with
   @racket[ival-illegal] yield an illegal interval.
 }
 
+@defproc[(ival-assert [c ival?] [msg identity #t]) ival?]{
+  Returns an illegal interval if @racket[c] is false, a legal interval
+  if @racket[c] is true, and a partially-legal one if @racket[c]'s
+  truth value is unknown. The value of the output interval is always
+  the constant @racket[#t].
+
+  If @racket[msg] is passed, it can be any value except @racket[#f],
+  and it is stored in the error flags instead of @racket[#t]. This can
+  be used to provide the user with details on what caused the error.
+  We recommend using a symbol or string as the error message.
+}
+
+@defproc[(ival-then [a ival?] ... [b ival?]) ival?]{
+  In other words, it raises an error if any of the @racket[a]s did,
+  and otherwise returns @racket[b].
+}
+
 @section{Movability flags}
 
 The typical use case for Rival is to recompute a certain expression at
