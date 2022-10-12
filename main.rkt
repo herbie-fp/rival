@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/contract racket/match racket/function math/private/bigfloat/mpfr)
+(require racket/contract racket/match racket/function math/private/bigfloat/mpfr racket/list)
 (require (for-syntax racket/base))
 (module+ test (require rackunit))
 
@@ -108,7 +108,9 @@
           [ival-not (-> ival? ival?)])
          (contract-out
           [ival-error? (-> ival? ival?)]
-          [ival-illegal ival?])
+          [ival-illegal ival?]
+          [ival-assert (->* (ival?) (string?) ival?)]
+          [ival-then (->* (ival?) #:rest ival? ival?)])
          close-enough->ival
          ; Deprecated
          ival-lo-fixed? ival-hi-fixed? ival-err? ival-err mk-ival
@@ -880,6 +882,16 @@
 
 (define (ival-error? x)
   (ival (endpoint (ival-err x) #f) (endpoint (ival-err? x) #f) #f #f))
+
+(define (ival-assert c [msg #t])
+  (ival (endpoint #t #t) (endpoint #t #t)
+        (or (ival-err? c) (if (ival-lo-val c) #f msg))
+        (or (ival-err c) (if (ival-hi-val c) #f msg))))
+
+(define (ival-then a . as)
+  (ival (ival-lo (last (cons a as))) (ival-hi (last (cons a as)))
+        (or (ival-err? a) (ormap ival-err? as))
+        (or (ival-err a) (ormap ival-err as))))
 
 (define (ival-if c x y)
   (cond
