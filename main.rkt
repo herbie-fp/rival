@@ -109,8 +109,8 @@
          (contract-out
           [ival-error? (-> ival? ival?)]
           [ival-illegal ival?]
-          [ival-assert (->* (ival?) (string?) ival?)]
-          [ival-then (->* (ival?) #:rest ival? ival?)])
+          [ival-assert (->* (ival?) (identity) ival?)]
+          [ival-then (->* (ival?) #:rest (listof ival?) ival?)])
          close-enough->ival
          ; Deprecated
          ival-lo-fixed? ival-hi-fixed? ival-err? ival-err mk-ival
