@@ -509,18 +509,13 @@
         (ival-err x)))
 
 (define (ival-cos x)
-  (define lopi (rnd 'down pi.bf))
-  (define hipi (rnd 'up pi.bf))
-  (define a (rnd 'down bffloor (bfdiv (ival-lo-val x) (if (bflt? (ival-lo-val x) 0.bf) lopi hipi))))
-  (define b (rnd 'up   bffloor (bfdiv (ival-hi-val x) (if (bflt? (ival-hi-val x) 0.bf) hipi lopi))))
+  (match-define (ival (endpoint a _) (endpoint b _) _ _)
+                (ival-floor (ival-div x (ival-pi))))
   (cond
    [(and (bf=? a b) (bfeven? a))
-    (ival (rnd 'down epfn bfcos (ival-hi x))
-          (rnd 'up epfn bfcos (ival-lo x))
-          (ival-err? x) (ival-err x))]
+    ((comonotonic bfcos) x)]
    [(and (bf=? a b) (bfodd? a))
-    (ival (rnd 'down epfn bfcos (ival-lo x))
-          (rnd 'up epfn bfcos (ival-hi x)) (ival-err? x) (ival-err x))]
+    ((monotonic bfcos) x)]
    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
     (ival (endpoint -1.bf #f)
           (rnd 'up epfn bfmax2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
@@ -529,34 +524,29 @@
     (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
           (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
    [else
-    (ival (endpoint -1.bf #f) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]))
+    (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
 (define (ival-sin x)
-  (define lopi (rnd 'down pi.bf))
-  (define hipi (rnd 'up pi.bf))
-  (define a (rnd 'down bffloor (bfsub (bfdiv (ival-lo-val x) (if (bflt? (ival-lo-val x) 0.bf) lopi hipi)) half.bf))) ; half.bf is exact
-  (define b (rnd 'up bffloor (bfsub (bfdiv (ival-hi-val x) (if (bflt? (ival-hi-val x) 0.bf) hipi lopi)) half.bf)))
+  (match-define (ival (endpoint a _) (endpoint b _) _ _)
+                (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf))))
   (cond
     [(and (bf=? a b) (bfeven? a))
-     (ival (rnd 'down epfn bfsin (ival-hi x))
-           (rnd 'up epfn bfsin (ival-lo x)) (ival-err? x) (ival-err x))]
+     ((comonotonic bfsin) x)]
     [(and (bf=? a b) (bfodd? a))
-     (ival (rnd 'down epfn bfsin (ival-lo x)) (rnd 'up epfn bfsin (ival-hi x)) (ival-err? x) (ival-err x))]
+     ((monotonic bfsin) x)]
     [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
      (ival (endpoint -1.bf #f) (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
     [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
      (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
     [else
-     (ival (endpoint -1.bf #f) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]))
+     (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
 (define (ival-tan x)
-  (define lopi (rnd 'down pi.bf))
-  (define hipi (rnd 'up pi.bf))
-  (define a (rnd 'down bffloor (bfsub (bfdiv (ival-lo-val x) (if (bflt? (ival-lo-val x) 0.bf) lopi hipi)) half.bf))) ; half.bf is exact
-  (define b (rnd 'up bffloor (bfsub (bfdiv (ival-hi-val x) (if (bflt? (ival-hi-val x) 0.bf) hipi lopi)) half.bf)))
+  (match-define (ival (endpoint a _) (endpoint b _) _ _)
+                (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf))))
   (if (bf=? a b) ; Same period
-      (ival (rnd 'down epfn bftan (ival-lo x)) (rnd 'up epfn bftan (ival-hi x)) #f #f)
-      (ival (endpoint -inf.bf #f) (endpoint +inf.bf #f) #t #f)))
+      ((monotonic bftan) x)
+      (ival-then x (ival-assert (mk-big-ival #f #t) 'ival-tan) (mk-big-ival -inf.bf +inf.bf))))
 
 (define* ival-asin (compose (monotonic bfasin) (clamp -1.bf 1.bf)))
 (define* ival-acos (compose (comonotonic bfacos) (clamp -1.bf 1.bf)))

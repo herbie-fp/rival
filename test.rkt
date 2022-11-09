@@ -285,7 +285,7 @@
 (module+ main
   (require racket/cmdline)
   (command-line
-   #:args (fname [n num-tests])
+   #:args (fname [n (~a num-tests)])
    (define entry
      (findf (λ (entry) (equal? (~a (object-name (first entry))) (format "ival-~a" fname)))
             function-table))
@@ -295,4 +295,5 @@
      [(list ival-fn fn itypes otype)
       (for ([n (in-range (string->number n))])
         (test-entry ival-fn fn itypes)
-        (eprintf "."))])))
+        (eprintf "."))
+      (newline)])))
