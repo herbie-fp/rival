@@ -146,28 +146,6 @@
 (define (or-fn . as)
   (ormap identity as))
 
-;; The `bfodd?` and `bfeven?` in math/bigfloat (as of Racket 7.7) is super slow
-(define (bfeven? x)
-  (define-values (sig exp) (bigfloat->sig+exp x))
-  ; x = sig << exp
-  ; x | 1 = (sig << exp) | 1 = sig | 1 << -exp
-  (cond
-   [(not (bfinteger? x)) #f]
-   [(> exp 0) #t]
-   [(= sig 0) #t]
-   [(> (- exp) (log (abs sig) 2)) #t] ; Avoid constructing large "1"s
-   [else (= (bitwise-and (abs sig) (expt 2 (- exp))) 0)]))
-
-(define (bfodd? x) (and (bfinteger? x) (not (bfeven? x))))
-
-(module+ test
-  (test-case "bfeven?"
-    (for ([i (in-range -20 20)])
-      (check-pred (if (even? i) bfeven? bfodd?) (bf i)))
-    (define-values (val _1 t _2) (time-apply bfeven? (list (bfstep +inf.bf -1))))
-    (check-true (car val))
-    (check < t 2)))
-
 (define (ival-pi)
   (ival (endpoint (rnd 'down pi.bf) #f) (endpoint (rnd 'up pi.bf) #f) #f #f))
 
