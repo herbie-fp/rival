@@ -3,6 +3,6 @@
 
 
 nightly:
-	bash infra/nightly.sh all
+	bash infra/nightly.sh perf
 	bash infra/publish.sh
 

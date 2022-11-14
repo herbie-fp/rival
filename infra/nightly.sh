@@ -54,6 +54,13 @@ function all {
   rerun
 }
 
+function perf {
+    clean
+    echo "<!doctype html><pre>" > "$REPORTDIR"/index.html
+    racket time.rkt 32000 >> "$REPORTDIR"/index.html
+    echo "</pre>" >> "$REPORTDIR"/index.html
+}
+
 for cmd in $@; do
     echo "Running $cmd"
     $cmd
