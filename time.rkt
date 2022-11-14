@@ -59,10 +59,10 @@
 (define (run)
   (for ([rec (in-list (get-all-timings))])
     (match-define (list name avg se) rec)
-    (eprintf "~a ~aµs ± ~a\n"
-             (~a name #:align 'left #:min-width 20)
-             (~r avg  #:precision '(= 1) #:min-width 8)
-             (~r se   #:precision '(= 3) #:min-width 8))))
+    (printf "~a ~aµs ± ~a\n"
+            (~a name #:align 'left #:min-width 20)
+            (~r (/ avg 1000)  #:precision '(= 3) #:min-width 8)
+            (~r (/ se 1000)   #:precision '(= 3) #:min-width 8))))
 
 (module+ main
   (require racket/cmdline)
