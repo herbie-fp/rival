@@ -10,7 +10,8 @@
       (ival-err? ival)
       (if (boolean? (ival-lo ival))
           (or (not (ival-lo ival)) (ival-hi ival))
-          (bf<= (ival-lo ival) (ival-hi ival)))))
+          (and (bf<= (ival-lo ival) (ival-hi ival))
+               (<= (bigfloat-signbit (ival-hi ival)) (bigfloat-signbit (ival-lo ival)))))))
 
 (define (ival-contains? ival pt)
   (if (bigfloat? pt)
