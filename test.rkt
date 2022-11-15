@@ -3,7 +3,7 @@
 (require racket/math math/base math/flonum math/bigfloat)
 (require rackunit)
 (require "main.rkt")
-(provide function-table sample-interval)
+(provide ival-valid? function-table sample-interval)
 
 (define (ival-valid? ival)
   (if (ival-err ival)

@@ -16,7 +16,11 @@
     (for/list ([itype (in-list itypes)])
       (random-ref (hash-ref vals itype))))
   (define out (apply ival-fn args))
-  (hash-update! vals otype (curry cons out)))
+  (if (ival-valid? out)
+      (hash-update! vals otype (curry cons out))
+      (printf "Invalid output ~a from (~a ~a)"
+              out (object-name ival-fn)
+              (string-join (map ~a args) " "))))
 
 (define (exec-real-fn vals)
   (match-define (list ival-fn bf-fn itypes otype)
