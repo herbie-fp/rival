@@ -11,6 +11,7 @@
       (if (boolean? (ival-lo ival))
           (or (not (ival-lo ival)) (ival-hi ival))
           (and (bf<= (ival-lo ival) (ival-hi ival))
+               (not (and (bfinfinite? (ival-hi ival)) (bf= (ival-hi ival) (ival-lo ival))))
                (<= (bigfloat-signbit (ival-hi ival)) (bigfloat-signbit (ival-lo ival)))))))
 
 (define (ival-contains? ival pt)
