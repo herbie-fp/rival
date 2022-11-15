@@ -353,8 +353,8 @@
 
 (define ((clamp lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  (ival (endpoint (bfmax2 xlo lo) xlo!)
-        (endpoint (bfmin2 xhi hi) xhi!)
+  (ival (endpoint (bfmin2 (bfmax2 xlo lo) hi) xlo!)
+        (endpoint (bfmax2 (bfmin2 xhi hi) lo) xhi!)
         (or xerr? (bflt? xlo lo) (bfgt? xhi hi))
         (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
 
@@ -562,7 +562,7 @@
   (define (mkatan a b c d)
     (ival (rnd 'down epfn bfatan2 a b) (rnd 'up epfn bfatan2 c d) err? err))
 
-  (match* ((classify-ival x) (classify-ival y))
+  (match* ((classify-ival-strict x) (classify-ival-strict y))
     [(-1 -1) (mkatan yhi xlo ylo xhi)]
     [( 0 -1) (mkatan yhi xlo yhi xhi)]
     [( 1 -1) (mkatan ylo xlo yhi xhi)]

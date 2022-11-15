@@ -18,7 +18,7 @@
   (define out (apply ival-fn args))
   (if (ival-valid? out)
       (hash-update! vals otype (curry cons out))
-      (printf "Invalid output ~a from (~a ~a)"
+      (printf "Invalid output ~a from (~a ~a)\n"
               out (object-name ival-fn)
               (string-join (map ~a args) " "))))
 
