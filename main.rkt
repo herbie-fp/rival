@@ -353,8 +353,8 @@
 
 (define ((clamp lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  (ival (endpoint (bfmax2 xlo lo) xlo!)
-        (endpoint (bfmin2 xhi hi) xhi!)
+  (ival (endpoint (bfmin2 (bfmax2 xlo lo) hi) xlo!)
+        (endpoint (bfmax2 (bfmin2 xhi hi) lo) xhi!)
         (or xerr? (bflt? xlo lo) (bfgt? xhi hi))
         (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
 
@@ -562,7 +562,7 @@
   (define (mkatan a b c d)
     (ival (rnd 'down epfn bfatan2 a b) (rnd 'up epfn bfatan2 c d) err? err))
 
-  (match* ((classify-ival x) (classify-ival y))
+  (match* ((classify-ival-strict x) (classify-ival-strict y))
     [(-1 -1) (mkatan yhi xlo ylo xhi)]
     [( 0 -1) (mkatan yhi xlo yhi xhi)]
     [( 1 -1) (mkatan ylo xlo yhi xhi)]
@@ -760,14 +760,19 @@
   (define-values (xnegl xrest) (ival-split* xneg (bfceiling (ival-lo-val* xneg))))
   (define-values (xnegr xdrop) (ival-split* xrest (rnd 'up bfadd 1.bf (ival-lo-val* xrest))))
 
-  (ival-union*
-   (and xpos (ival-lgamma-pos xpos))
-   (ival-union*
-    (and xnegl (ival-lgamma-basin xnegl))
-    (and xnegr (ival-lgamma-basin xnegr)))))
+  (if (or xpos xnegl xnegr)
+      (ival-union*
+       (and xpos (ival-lgamma-pos xpos))
+       (ival-union*
+        (and xnegl (ival-lgamma-basin xnegl))
+        (and xnegr (ival-lgamma-basin xnegr))))
+      ;; This case only happens if xnegr = #f meaning lo = rnd[up](lo + 1) meaning lo = -inf
+      (mk-big-ival -inf.bf +inf.bf)))
 
 (define (ival-tgamma x)
   (define logy (ival-lgamma x))
+  (unless logy
+    (error 'ival-lgamma "Invalid input to ival-lgamma: ~a" x))
   (define absy (ival-exp logy))
   (define lo (ival-lo-val x))
   (define hi (ival-hi-val x))
@@ -884,7 +889,11 @@
   (match* (can-neg can-pos)
     [(#t #t) (ival (epfn bfneg xhi) xhi err? err)]
     [(#t #f) (ival (epfn bfneg xhi) (epfn bfneg xlo) err? err)]
-    [(#f #t) (ival xlo xhi err? err)]))
+    [(#f #t) (ival xlo xhi err? err)]
+    [(#f #f)
+     (unless (ival-err y)
+       (error 'ival-copysign "Strange interval ~a" y))
+     ival-illegal]))
 
 (define (ival-fdim x y)
   (ival-fmax (ival-sub x y) (mk-ival 0.bf)))
