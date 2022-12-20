@@ -358,6 +358,13 @@
         (or xerr? (bflt? xlo lo) (bfgt? xhi hi))
         (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
 
+(define ((clamp-strict lo hi) x)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (ival (endpoint (bfmin2 (bfmax2 xlo lo) hi) xlo!)
+        (endpoint (bfmax2 (bfmin2 xhi hi) lo) xhi!)
+        (or xerr? (bflte? xlo lo) (bfgte? xhi hi))
+        (or xerr (bflte? xhi lo) (bfgte? xlo hi))))
+
 (define ((overflows-at fn lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) (fn x))
@@ -392,10 +399,10 @@
 (define* ival-exp2
   (overflows-at (monotonic bfexp2) (bfneg exp2-overflow-threshold) exp2-overflow-threshold))
 
-(define* ival-log (compose (monotonic bflog) (clamp 0.bf +inf.bf)))
-(define* ival-log2 (compose (monotonic bflog2) (clamp 0.bf +inf.bf)))
-(define* ival-log10 (compose (monotonic bflog10) (clamp 0.bf +inf.bf)))
-(define* ival-log1p (compose (monotonic bflog1p) (clamp -1.bf +inf.bf)))
+(define* ival-log (compose (monotonic bflog) (clamp-strict 0.bf +inf.bf)))
+(define* ival-log2 (compose (monotonic bflog2) (clamp-strict 0.bf +inf.bf)))
+(define* ival-log10 (compose (monotonic bflog10) (clamp-strict 0.bf +inf.bf)))
+(define* ival-log1p (compose (monotonic bflog1p) (clamp-strict -1.bf +inf.bf)))
 (define* ival-logb (compose ival-floor ival-log2 ival-fabs))
 
 (define* ival-sqrt (compose (monotonic bfsqrt) (clamp 0.bf +inf.bf)))
@@ -581,7 +588,7 @@
 (define* ival-tanh (monotonic bftanh))
 (define* ival-asinh (monotonic bfasinh))
 (define* ival-acosh (compose (monotonic bfacosh) (clamp 1.bf +inf.bf)))
-(define* ival-atanh (compose (monotonic bfatanh) (clamp -1.bf 1.bf)))
+(define* ival-atanh (compose (monotonic bfatanh) (clamp-strict -1.bf 1.bf)))
 
 (define (ival-fmod-pos x y err? err)
   ;; Assumes both `x` and `y` are entirely positive
