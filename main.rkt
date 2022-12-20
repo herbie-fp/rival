@@ -465,8 +465,9 @@
      (ival-union (mk-pow xlo yhi xhi yhi) (mk-pow xhi ylo xlo ylo))]))
 
 
+;; Assumes x is negative or zero
+;; TODO make this more precise for odd fractions
 (define (ival-pow-neg x y)
-  ;; Assumes x is negative
   (define err? (or (ival-err? x) (ival-err? y)
                    (bflt? (ival-lo-val y) (ival-hi-val y))
                    (even? (denominator (bigfloat->rational (ival-lo-val y))))
