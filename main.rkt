@@ -467,29 +467,15 @@
 
 (define (ival-pow-neg x y)
   ;; Assumes x is negative
-  (define err? (or (ival-err? x) (ival-err? y) (bflt? (ival-lo-val y) (ival-hi-val y))))
-  (define err (or (ival-err x) (ival-err y)))
-  (define xpos (ival-fabs x))
-  (define a (bfceiling (ival-lo-val y)))
-  (define b (bffloor (ival-hi-val y)))
-  (cond
-   [(bflt? b a)
-    (if (bfzero? (ival-hi-val x))
-        (ival (endpoint 0.bf #f) (endpoint 0.bf #f) #t #f)
-        (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t))]
-   [(bf=? a b)
-    (define aep (endpoint a (and (endpoint-immovable? (ival-lo y)) (endpoint-immovable? (ival-hi y)))))
-    (if (bfodd? a)
-        (ival-neg (ival-pow-pos xpos (ival aep aep err? err)))
-        (ival-pow-pos xpos (ival aep aep err? err)))]
-   [else
-    ;; TODO: the movability here is pretty subtle
-    (define odds (ival (endpoint (if (bfodd? a) a (bfadd a 1.bf)) #f)
-                       (endpoint (if (bfodd? b) b (bfsub b 1.bf)) #f) err? err))
-    (define evens (ival (endpoint (if (bfodd? a) (bfadd a 1.bf) a) #f)
-                        (endpoint (if (bfodd? b) (bfsub b 1.bf) b) #f) err? err))
-    (ival-union (ival-pow-pos xpos evens)
-                (ival-neg (ival-pow-pos xpos odds)))]))
+  (define err? (or (ival-err? x) (ival-err? y)
+                   (bflt? (ival-lo-val y) (ival-hi-val y))
+                   (even? (denominator (bigfloat->rational (ival-lo-val y))))
+                   ))
+  (define xpos (struct-copy ival (ival-fabs x) [err? err?]))
+
+  (define positive_ans (ival-pow-pos xpos y))
+  (ival-union positive_ans
+              (ival-neg positive_ans)))
 
 (define (ival-pow x y)
   (cond
