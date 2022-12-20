@@ -16,10 +16,17 @@
 
 (define (ival-contains? ival pt)
   (if (bigfloat? pt)
-      (if (bfnan? pt)
-          (ival-err? ival)
-          (and (not (ival-err ival))
-               (bf<= (ival-lo ival) pt) (bf<= pt (ival-hi ival))))
+      (cond 
+       [(bfnan? pt)
+        (ival-err? ival)]
+       [(bfinfinite? pt)
+        ;; This could be a real value rounded up, or a true infinity
+        ;; In theory, we could check the exact flag to determine this,
+        ;; but some of the functions we code up don't set that flag.
+        true]
+       [else
+        (and (not (ival-err ival))
+             (bf<= (ival-lo ival) pt) (bf<= pt (ival-hi ival)))])
       (and (not (ival-err ival))
            (or (equal? pt (ival-lo ival))
                (equal? pt (ival-hi ival))))))
