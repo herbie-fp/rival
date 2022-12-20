@@ -16,10 +16,17 @@
 
 (define (ival-contains? ival pt)
   (if (bigfloat? pt)
-      (if (bfnan? pt)
-          (ival-err? ival)
-          (and (not (ival-err ival))
-               (bf<= (ival-lo ival) pt) (bf<= pt (ival-hi ival))))
+      (cond 
+       [(bfnan? pt)
+        (ival-err? ival)]
+       [(bfinfinite? pt)
+        ;; This could be a real value rounded up, or a true infinity
+        ;; In theory, we could check the exact flag to determine this,
+        ;; but some of the functions we code up don't set that flag.
+        true]
+       [else
+        (and (not (ival-err ival))
+             (bf<= (ival-lo ival) pt) (bf<= pt (ival-hi ival)))])
       (and (not (ival-err ival))
            (or (equal? pt (ival-lo ival))
                (equal? pt (ival-hi ival))))))
@@ -72,8 +79,11 @@
     ;; For this to be precise, we need enough bits
     (define precision
       (+ (bf-precision) (max (- (bigfloat-exponent x) (bigfloat-exponent mod)) 0)))
-    (parameterize ([bf-precision precision]) 
-      (bfcanonicalize (bf- x (bf* (bftruncate (bf/ x mod)) mod))))]))
+    (if (< precision (expt 2 25)) ; Limit it to 32MB per number
+        (parameterize ([bf-precision precision]) 
+          (bfcanonicalize (bf- x (bf* (bftruncate (bf/ x mod)) mod))))
+        ;; By chance this is treated as either valid or invalid as needed
+        +inf.bf)]))
 
 (define (bffma a b c)
   ;; `bfstep` truncates to `(bf-precision)` bits
@@ -87,6 +97,11 @@
    [(bf> y mod/2) (bf- y mod*)]
    [(bf< y (bf- mod/2)) (bf+ y mod*)]
    [else y]))
+
+(define (bfatan2-no0 y x)
+  (if (and (bfzero? y) (bfzero? x))
+      +nan.bf
+      (bfatan2 y x)))
 
 (define function-table
   (list (list ival-neg   bf-        '(real) 'real)
@@ -122,7 +137,7 @@
         (list ival-asin  bfasin     '(real) 'real)
         (list ival-acos  bfacos     '(real) 'real)
         (list ival-atan  bfatan     '(real) 'real)
-        (list ival-atan2 bfatan2    '(real real) 'real)
+        (list ival-atan2 bfatan2-no0 '(real real) 'real)
 
         (list ival-sinh  bfsinh     '(real) 'real)
         (list ival-cosh  bfcosh     '(real) 'real)
@@ -169,6 +184,16 @@
   (ival (bfmin v1 v2) (bfmax v1 v2)))
 
 (define (sample-narrow-interval)
+  (if (= (random 0 2) 0)
+      (sample-constant-interval)
+      (sample-small-interval)))
+
+(define (sample-constant-interval)
+  (define constants (list 0.bf 1.bf -1.bf (bf 0.5)))
+  (define c (list-ref constants (random 0 (length constants))))
+  (ival c c))
+
+(define (sample-small-interval)
   ;; Biased toward small intervals
   (define v1 (sample-bigfloat))
   (define size (random 1 (bf-precision)))
@@ -209,8 +234,8 @@
       (and (value-equals? (ival-lo ival1) (ival-lo ival2))
            (value-equals? (ival-hi ival1) (ival-hi ival2)))))
 
-(define num-tests 250)
-(define num-slow-tests 100)
+(define num-tests 1000)
+(define num-slow-tests 25)
 (define num-witnesses 10)
 (define slow-tests (list ival-lgamma ival-tgamma))
 
@@ -287,7 +312,7 @@
     (test-case (~a (object-name ival-fn))
        (for ([n (in-range N)])
          (test-entry ival-fn fn args)
-         (when (= (remainder n 10) 0)
+         (when (= (remainder n 25) 0)
            (eprintf "."))))
     (define dt (/ (- (current-inexact-milliseconds) start-time) N))
     (eprintf " ~ams each" (~r dt #:min-width 6 #:precision '(= 3)))
