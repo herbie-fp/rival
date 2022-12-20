@@ -607,7 +607,8 @@
             (endpoint (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul c (ival-lo-val y))) #f)
             err? err)]
      [else
-      (ival (endpoint 0.bf #f) (endpoint (rnd 'up bfdiv (ival-hi-val x) (bfadd c 1.bf)) #f) err? err)])]
+      (ival (endpoint 0.bf #f)
+            (endpoint (bfmax2 (rnd 'up bfdiv (ival-hi-val x) (bfadd c 1.bf)) 0.bf) #f) err? err)])]
    [else
     (ival (endpoint 0.bf #f) (endpoint (ival-hi-val y) #f) err? err)]))
 
