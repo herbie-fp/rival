@@ -444,7 +444,10 @@
   (define (mk-pow a b c d)
     (match-define (endpoint lo lo!) (rnd 'down eppow a b x-class y-class))
     (match-define (endpoint hi hi!) (rnd 'up   eppow c d x-class y-class))
-    (define out (ival (endpoint lo lo!) (endpoint hi hi!) (or xerr? yerr?) (or xerr yerr)))
+    (define out
+      (ival (endpoint lo lo!) (endpoint hi hi!)
+            (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (not (= y-class 1))))
+            (or xerr yerr (and (bfzero? (endpoint-val xhi)) (= y-class -1)))))
     (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
       (ival-copy-movability out (ival-exp (ival-mult y (ival-log x))))
       out))
