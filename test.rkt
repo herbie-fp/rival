@@ -289,6 +289,15 @@
       (check ival-contains? (ival-error? res3) #f)
       (check ival-contains? (ival-error? res3) #t)))
 
+  (test-case
+   "pow-fractional-power"
+   (for ([i (in-range num-tests)])
+     (define one-third (ival-div (ival 1.bf) (ival 3.bf)))
+     (define x (sample-interval 'real))
+     (define res (ival-pow x one-third))
+     (check-ival-valid? res)
+     (check ival-contains? res (bfcbrt (sample-from x)))))
+
   (define (sorted? list cmp)
     (cond
       [(<= (length list) 1) #t]
