@@ -219,8 +219,8 @@
       (and (value-equals? (ival-lo ival1) (ival-lo ival2))
            (value-equals? (ival-hi ival1) (ival-hi ival2)))))
 
-(define num-tests 250)
-(define num-slow-tests 100)
+(define num-tests 1000)
+(define num-slow-tests 25)
 (define num-witnesses 10)
 (define slow-tests (list ival-lgamma ival-tgamma))
 
@@ -297,7 +297,7 @@
     (test-case (~a (object-name ival-fn))
        (for ([n (in-range N)])
          (test-entry ival-fn fn args)
-         (when (= (remainder n 10) 0)
+         (when (= (remainder n 25) 0)
            (eprintf "."))))
     (define dt (/ (- (current-inexact-milliseconds) start-time) N))
     (eprintf " ~ams each" (~r dt #:min-width 6 #:precision '(= 3)))
