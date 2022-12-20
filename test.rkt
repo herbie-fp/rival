@@ -95,6 +95,11 @@
    [(bf< y (bf- mod/2)) (bf+ y mod*)]
    [else y]))
 
+(define (bfatan2-no0 y x)
+  (if (and (bfzero? y) (bfzero? x))
+      +nan.bf
+      (bfatan2 y x)))
+
 (define function-table
   (list (list ival-neg   bf-        '(real) 'real)
         (list ival-fabs  bfabs      '(real) 'real)
@@ -129,7 +134,7 @@
         (list ival-asin  bfasin     '(real) 'real)
         (list ival-acos  bfacos     '(real) 'real)
         (list ival-atan  bfatan     '(real) 'real)
-        (list ival-atan2 bfatan2    '(real real) 'real)
+        (list ival-atan2 bfatan2-no0 '(real real) 'real)
 
         (list ival-sinh  bfsinh     '(real) 'real)
         (list ival-cosh  bfcosh     '(real) 'real)
