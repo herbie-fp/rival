@@ -169,6 +169,16 @@
   (ival (bfmin v1 v2) (bfmax v1 v2)))
 
 (define (sample-narrow-interval)
+  (if (= (random 0 2) 0)
+      (sample-constant-interval)
+      (sample-small-interval)))
+
+(define (sample-constant-interval)
+  (define constants (list 0.bf 1.bf -1.bf (bf 0.5)))
+  (define c (list-ref constants (random 0 (length constants))))
+  (ival c c))
+
+(define (sample-small-interval)
   ;; Biased toward small intervals
   (define v1 (sample-bigfloat))
   (define size (random 1 (bf-precision)))
