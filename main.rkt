@@ -608,6 +608,9 @@
 (define* ival-acosh (compose (monotonic bfacosh) (clamp 1.bf +inf.bf)))
 (define* ival-atanh (compose (monotonic bfatanh) (clamp-strict -1.bf 1.bf)))
 
+(define (bfmul* a b)
+  (if (or (bfzero? a) (bfzero? b)) 0.bf (bfmul a b)))
+
 (define (ival-fmod-pos x y err? err)
   ;; Assumes both `x` and `y` are entirely positive
   (define a (rnd 'down bftruncate (bfdiv (ival-lo-val x) (ival-hi-val y))))
@@ -618,8 +621,8 @@
     (define d (rnd 'up bftruncate (bfdiv (ival-hi-val x) (ival-lo-val y))))
     (cond
      [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
-      (ival (endpoint (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y))) #f)
-            (endpoint (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul c (ival-lo-val y))) #f)
+      (ival (endpoint (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul* c (ival-hi-val y))) #f)
+            (endpoint (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul* c (ival-lo-val y))) #f)
             err? err)]
      [else
       (ival (endpoint 0.bf #f)
