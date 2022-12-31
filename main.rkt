@@ -183,14 +183,26 @@
   (cond [(bfgt? (ival-lo-val x) val) 1] [(bflt? (ival-hi-val x) val) -1] [else 0]))
 
 (define (endpoint-min2 e1 e2)
-  (if (bflt? (endpoint-val e1) (endpoint-val e2))
-      e1
-      e2))
+  (match-define (endpoint x x!) e1)
+  (match-define (endpoint y y!) e2)
+  (cond
+   [(bflt? x y)
+    e1]
+   [(bflt? y x)
+    e2]
+   [else
+    (endpoint (bfmin2 x y) (or x! y!))]))
 
 (define (endpoint-max2 e1 e2)
-  (if (bfgt? (endpoint-val e1) (endpoint-val e2))
-      e1
-      e2))
+  (match-define (endpoint x x!) e1)
+  (match-define (endpoint y y!) e2)
+  (cond
+   [(bfgt? x y)
+    e1]
+   [(bfgt? y x)
+    e2]
+   [else
+    (endpoint (bfmax2 x y) (or x! y!))]))
 
 (define (ival-union x y)
   (cond
