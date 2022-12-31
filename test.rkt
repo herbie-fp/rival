@@ -193,9 +193,9 @@
   (define lo (list-ref constants (random 0 (length constants))))
   (cond
     [(= (random 0 5) 0)
-     (ival lo (bf+ lo (sample-bigfloat)))]
+     (ival lo (bf+ lo (bfabs (sample-bigfloat))))]
     [(= (random 0 5) 0)
-     (ival (bf- lo (sample-bigfloat)) lo)]
+     (ival (bf- lo (bfabs (sample-bigfloat))) lo)]
     [else
      (ival lo lo)]))
 
