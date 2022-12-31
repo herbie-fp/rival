@@ -190,8 +190,14 @@
 
 (define (sample-constant-interval)
   (define constants (list 0.bf 1.bf -1.bf (bf 0.5)))
-  (define c (list-ref constants (random 0 (length constants))))
-  (ival c c))
+  (define lo (list-ref constants (random 0 (length constants))))
+  (cond
+    [(= (random 0 5) 0)
+     (ival lo (bf+ lo (sample-bigfloat)))]
+    [(= (random 0 5) 0)
+     (ival (bf- lo (sample-bigfloat)) lo)]
+    [else
+     (ival lo lo)]))
 
 (define (sample-small-interval)
   ;; Biased toward small intervals

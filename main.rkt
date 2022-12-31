@@ -467,6 +467,7 @@
 
 ;; Assumes x is negative or zero
 ;; TODO make this more precise for odd fractions
+;; TODO make this figure out err for even fractions
 (define (ival-pow-neg x y)
   (define err? (or (ival-err? x) (ival-err? y)
                    (bflt? (ival-lo-val y) (ival-hi-val y))
