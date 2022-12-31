@@ -788,7 +788,7 @@
   (define lo (ival-lo-val x))
   (define hi (ival-hi-val x))
   (cond
-   [(bfpositive? lo)
+   [(bfgte? lo 0.bf)
     absy]
    [(not (bf=? (bffloor lo) (bffloor hi)))
     (ival (endpoint -inf.bf (ival-lo-fixed? x))
