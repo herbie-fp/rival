@@ -773,7 +773,7 @@
 ;; and does not cross any integer boundaries.
 (define (ival-lgamma-basin x)
   (define imin (bffloor (ival-lo-val x)))
-  (define imax (ival-hi-val x))
+  (define imax (bfceiling (ival-hi-val x)))
   (if (< (bigfloats-between imin imax) 25) ; Value 25 is not verified
       (ival-then x (ival-lgamma-basin-bound imin)) ; Too close, cannot use convex
       (let-values ([(xmin ymin) (convex-find-min bflog-gamma imin imax)])
