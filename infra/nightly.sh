@@ -58,7 +58,7 @@ function all {
 function perf {
     clean
     echo "<!doctype html><pre>" > "$REPORTDIR"/index.html
-    racket time.rkt 100 >> "$REPORTDIR"/index.html
+    racket time.rkt 32000 | tee -a "$REPORTDIR"/index.html
     echo "</pre>" >> "$REPORTDIR"/index.html
 }
 
