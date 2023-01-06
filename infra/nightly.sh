@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e -x
 
 function setup {
   raco pkg install --auto biginterval
