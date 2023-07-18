@@ -7,7 +7,7 @@
      (make-evaluator 'racket #:requires '(rival math/bigfloat racket/pretty))))
 @(call-in-sandbox-context example-eval
              (lambda ()
-               (current-print (dynamic-require 'racket/pretty 'pretty-print-handler)))))
+               (current-print (dynamic-require 'racket/pretty 'pretty-print-handler))))
 
 @title{Rival: An Interval Arithmetic for Real Computation}
 @author{Pavel Panchekha}
@@ -23,6 +23,9 @@ Besides the standard intervals, Rival also supports boolean intervals,
 error intervals, and movability flags, as described in
 @hyperlink["https://arxiv.org/abs/2107.05784"]{"An Interval Arithmetic
 for Robust Error Estimation"}.
+
+Rival is a part of the @hyperlink["https://herbie.uwplse.org"]{Herbie project},
+and is developed @hyperlink["https://github.com/herbie-fp/rival"]{on Github}.
 
 @section{Intervals}
 
