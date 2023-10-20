@@ -553,15 +553,15 @@
 
 (define (ival-sin x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf))))
+                (ival-round (ival-div x (ival-pi))))
   (cond
-    [(and (bf=? a b) (bfeven? a))
-     ((comonotonic bfsin) x)]
     [(and (bf=? a b) (bfodd? a))
+     ((comonotonic bfsin) x)]
+    [(and (bf=? a b) (bfeven? a))
      ((monotonic bfsin) x)]
-    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-     (ival (endpoint -1.bf #f) (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
     [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+     (ival (endpoint -1.bf #f) (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
+    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
      (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
     [else
      (ival-then x (mk-big-ival -1.bf 1.bf))]))
