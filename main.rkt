@@ -584,11 +584,14 @@
   
   (if (<= lo-exp (- prec))
       (if (<= hi-exp (- prec))
-           ;; If hi-val and lo-val are inside (-1, 1), but also lo or val can be +0.nan here,
-           ;; since (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
-          (if (or (bfnan? xlo) (bfnan? xhi))
+          ;; If hi-val and lo-val are inside (-1, 1), but also lo or val can be +0.nan here,
+          ;; since (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
+          ;; -9223372036854775807 is an exponent code for infinity in math/bigfloat
+          (if (or (equal? -9223372036854775807 lo-exp) (equal? -9223372036854775807 hi-exp))
               (ival-then x (mk-big-ival -1.bf 1.bf))
-              ((monotonic bfsin) x))
+              (if (or (equal? -9223372036854775934 lo-exp) (equal? -9223372036854775934 hi-exp))
+                  (ival-then x (mk-big-ival -1.bf 1.bf))
+                  ((monotonic bfsin) x)))
           (if (>= hi-exp (- (- prec 4)))
               ;; case where: lo-val is inside (-1, 1) but hi-val is inside (-inf, -8] U [8, +inf)
               ;; then the distance between them is at least 2pi -> return [-1, 1] 
