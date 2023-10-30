@@ -551,20 +551,70 @@
    [else
     (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
-(define (ival-sin x)
+(define (ival-sin-default x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-round (ival-div x (ival-pi))))
+    (parameterize ([bf-precision (bigfloat-precision (ival-lo-val x))])
+      (ival-round (ival-div x (ival-pi)))))
   (cond
     [(and (bf=? a b) (bfodd? a))
      ((comonotonic bfsin) x)]
     [(and (bf=? a b) (bfeven? a))
      ((monotonic bfsin) x)]
     [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-     (ival (endpoint -1.bf #f) (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
+     (ival (endpoint -1.bf #f)
+           (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+           (ival-err? x)
+           (ival-err x))]
     [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-     (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
+     (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+           (endpoint 1.bf #f)
+           (ival-err? x)
+           (ival-err x))]
     [else
      (ival-then x (mk-big-ival -1.bf 1.bf))]))
+
+;; Assume that ival-lo-val and ival-hi-val are in the same precisions
+;; Assume that ival-lo-val <= ival-hi-val
+(define (ival-sin x)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (define lo-exp (bigfloat-exponent xlo))
+  (define hi-exp (bigfloat-exponent xhi))
+  (define prec (bigfloat-precision xlo))
+  
+  (if (<= lo-exp (- prec))
+      (if (<= hi-exp (- prec))
+           ;; If hi-val and lo-val are inside (-1, 1), but also lo-val or hi-val can be +0.nan here,
+           ;; since (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
+          (if (or (bfnan? xlo) (bfnan? xhi))
+              (ival-then x (mk-big-ival -1.bf 1.bf))
+              ((monotonic bfsin) x))
+          (if (>= hi-exp (- (- prec 4)))
+              ;; case where: lo-val is inside (-1, 1) but hi-val is inside (-inf, -8] U [8, +inf)
+              ;; then the distance between them is at least 2pi -> return [-1, 1] 
+              (ival-then x (mk-big-ival -1.bf 1.bf))
+              ;; case where: lo-val is inside (-1, 1) and hi-val is inside (-8, -1] U [1, 8)
+              ;; then we need a range reduction definitely
+              (ival-sin-default x)))
+      (if (<= lo-exp (- (- prec 1)))
+          (if (>= hi-exp (- prec 5))
+              ;; case where lo-val is inside (-2, -1] U [1, 2) and hi-val is inside (-32, -16] U [16, 32)
+              ;; then the distance > 2pi
+              (ival-then x (mk-big-ival -1.bf 1.bf))
+              ;; case where lo-val is inside (-2, -1] U [1, 2) and hi-val is inside (-16, -1] U [1, 16) (assuming that lo<hi)
+              ;; then the distance is not that clear, range reduction is needed
+              (ival-sin-default x))
+          (if (<= lo-exp (- (- prec 2)))
+              (if (>= hi-exp (- prec 5))
+                  ;; case where lo-val is inside (-4, -2] U [2, 4) and hi-val is inside (-32, -16] U [16, 32)
+                  (ival-then x (mk-big-ival -1.bf 1.bf))
+                  ;; case where lo-val is inside (-4, -2] U [2, 4) and hi-val is inside (-16, -2] U [2, 16)
+                  (ival-sin-default x))
+              (if (> (- hi-exp lo-exp) 1)
+                  ;; if the lo-val and hi-val are in range (-inf, -4] U [4, inf) and exponent difference is more than 1
+                  ;; then the distance can be at least 8, which is already greater than 2pi
+                  (ival-then x (mk-big-ival -1.bf 1.bf))
+                  ;; else, values are inside (-inf, -4] U [4, inf) and the points can be possible closer than 2pi
+                  (ival-sin-default x))))))
 
 (define (ival-tan x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
