@@ -580,8 +580,8 @@
   (define hi-exp (bigfloat-exponent xhi))
   (define prec (bigfloat-precision xlo))
   
-  (if (< lo-exp (- prec))
-      (if (< hi-exp (- prec))
+  (if (<= lo-exp (- prec))
+      (if (<= hi-exp (- prec))
           ;; If hi-val and lo-val are inside (-1, 1), but also lo or val can be +0.nan here,
           ;; since (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
           ;; -9223372036854775807 is an exponent code for infinity in math/bigfloat
@@ -596,21 +596,21 @@
               ;; case where: lo-val is inside (-1, 1) and hi-val is inside (-8, -1] U [1, 8)
               ;; then we need a 'range reduction' definitely
               (ival-sin-default x)))
-      (if (< lo-exp (- (- prec 1)))
-          (if (>= hi-exp (- prec 5))
-              ;; case where lo-val is inside (-2, -1] U [1, 2) and hi-val is inside (-32, -16] U [16, 32)
+      (if (<= lo-exp (- (- prec 1)))
+          (if (>= hi-exp (- (- prec 5)))
+              ;; case where lo-val is inside (-2, -1] U [1, 2) and hi-val is inside (-inf, -16] U [16, inf)
               ;; then the distance > 2pi
               (ival-then x (mk-big-ival -1.bf 1.bf))
               ;; case where lo-val is inside (-2, -1] U [1, 2) and hi-val is inside (-16, -1] U [1, 16) (assuming that lo<hi)
               ;; then the distance is not that clear, range reduction is needed
               (ival-sin-default x))
-          (if (< lo-exp (- (- prec 2)))
-              (if (>= hi-exp (- prec 5))
+          (if (<= lo-exp (- (- prec 2)))
+              (if (>= hi-exp (- (- prec 5)))
                   ;; case where lo-val is inside (-4, -2] U [2, 4) and hi-val is inside (-inf, -16] U [16, +inf)
                   (ival-then x (mk-big-ival -1.bf 1.bf))
                   ;; case where lo-val is inside (-4, -2] U [2, 4) and hi-val is inside (-16, 16)
                   (ival-sin-default x))
-              (if (>= lo-exp (- (- prec 2)))
+              (if (>= lo-exp (- (- prec 3)))
                   (if (>= hi-exp (- (- prec 3)))
                       (if (> (- hi-exp lo-exp) 1)
                           ;; if the lo-val and hi-val are in range (-inf, -4] U [4, inf) and exponent difference is more than 1
