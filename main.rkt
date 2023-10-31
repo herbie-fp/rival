@@ -578,8 +578,6 @@
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (define lo-exp (bigfloat-exponent xlo))
   (define hi-exp (bigfloat-exponent xhi))
-  (define lo-sign (bigfloat-signbit xlo))
-  (define hi-sign (bigfloat-signbit xhi))
   (define prec (bigfloat-precision xlo))
   
   (if (<= lo-exp (- prec))
@@ -587,18 +585,17 @@
           ;; If hi-val and lo-val are inside (-1, 1), but also lo or val can be +0.nan here,
           ;; since (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
           ;; -9223372036854775807 is an exponent code for infinity in math/bigfloat
-          (if (or (equal? -9223372036854775807 lo-exp) (equal? -9223372036854775807 hi-exp))
+          ;; Also exponent code for +nan.0 can be -9223372036854777854
+          (if (or (> -9223372036854770000 lo-exp) (> -9223372036854770000 hi-exp))
               (ival-then x (mk-big-ival -1.bf 1.bf))
-              (if (or (equal? -9223372036854775934 lo-exp) (equal? -9223372036854775934 hi-exp))
-                  (ival-then x (mk-big-ival -1.bf 1.bf))
-                  ((monotonic bfsin) x)))
+              ((monotonic bfsin) x))
           (if (>= hi-exp (- (- prec 4)))
               ;; case where: lo-val is inside (-1, 1) but hi-val is inside (-inf, -8] U [8, +inf)
               ;; then the distance between them is at least 2pi -> return [-1, 1] 
               (ival-then x (mk-big-ival -1.bf 1.bf))
               ;; case where: lo-val is inside (-1, 1) and hi-val is inside (-8, -1] U [1, 8)
               ;; then we need a 'range reduction' definitely
-              (if (zero? lo-sign)
+              (if (zero? (bigfloat-signbit xlo))
                   (ival-sin-default x)
                   ;; if lo-val is inside (-1, 0] then the distance is 2pi
                   (ival-then x (mk-big-ival -1.bf 1.bf)))))
@@ -616,14 +613,18 @@
                   (ival-then x (mk-big-ival -1.bf 1.bf))
                   ;; case where lo-val is inside (-4, -2] U [2, 4) and hi-val is inside (-16, -2] U [2, 16)
                   (ival-sin-default x))
-              (if (> (- hi-exp lo-exp) 1)
-                  ;; if the lo-val and hi-val are in range (-inf, -4] U [4, inf) and exponent difference is more than 1
-                  ;; then the distance can be at least 8, which is already greater than 2pi
-                  (ival-then x (mk-big-ival -1.bf 1.bf))
-                  ;; else, values are inside (-inf, -4] U [4, inf) and the points can be possible closer than 2pi
-                  (if (equal? lo-sign hi-sign)
-                      (ival-sin-default x)
-                      (ival-then x (mk-big-ival -1.bf 1.bf))))))))
+              (if (>= lo-exp (- (- prec 3)))
+                  (if (>= hi-exp (- (- prec 3)))
+                      (if (> (- hi-exp lo-exp) 1)
+                          ;; if the lo-val and hi-val are in range (-inf, -4] U [4, inf) and exponent difference is more than 1
+                          ;; then the distance can be at least 8, which is already greater than 2pi
+                          (ival-then x (mk-big-ival -1.bf 1.bf))
+                          ;; else, values are inside (-inf, -4] U [4, inf) and the points can be possible closer than 2pi
+                          (if (equal? (bigfloat-signbit xlo) (bigfloat-signbit xhi))
+                              (ival-sin-default x)
+                              (ival-then x (mk-big-ival -1.bf 1.bf))))
+                      (ival-sin-default x))
+                  (ival-sin-default x))))))
 
 (define (ival-tan x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
