@@ -553,8 +553,7 @@
 
 (define (ival-sin-default x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-    (parameterize ([bf-precision (bigfloat-precision (ival-lo-val x))])
-      (ival-round (ival-div x (ival-pi)))))
+    (ival-round (ival-div x (ival-pi))))
   (cond
     [(and (bf=? a b) (bfodd? a))
      ((comonotonic bfsin) x)]
