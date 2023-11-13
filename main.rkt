@@ -538,48 +538,43 @@
   (define lo* (+ (bigfloat-exponent xlo) (bigfloat-precision xlo)))
   (define hi* (+ (bigfloat-exponent xhi) (bigfloat-precision xhi)))
 
-  (if (<= lo* 0)
-      (if (<= hi* 0)
-          ;; (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
-          ;; -9223372036854775807 is an exponent code for infinity in math/bigfloat
-          ;; Also exponent code for (bf +nan.0) can be -9223372036854777854
-          ;;                                           -9223372036854775809 is a code for 0.bf
-          ;;                                           -9223372036854775808 is a code for +nan.bf
+  (if (<= lo* 0)    ; if lo* belongs to (-1, 1)
+      (if (<= hi* 0)    ; if hi* belongs to (-1, 1)
           (if (or (and (> -9220000000000000000 lo*) (not (equal? -9223372036854775807 lo*)))
                   (and (> -9220000000000000000 hi*) (not (equal? -9223372036854775807 hi*))))
-              'too-wide
-              'near-0)
+              'too-wide    ; interval includes inf/nan
+              'near-0) 
           (cond
             [(equal? period 'pi)
-             (if (>= hi* 2)
+             (if (>= hi* 2)    ; if hi* belongs to (-inf, -2] U [2, +inf)
                  'too-wide
                  'range-reduce)]
             [(equal? period '2pi)
-             (if (>= hi* 4)
+             (if (>= hi* 4)    ; if hi* belongs to (-inf, -8] U [8, +inf)
                  'too-wide
                  'range-reduce)]))
-      (if (<= lo* 1)
+      (if (<= lo* 1)    ; if lo* belongs to (-2, 2)
           (cond
             [(equal? period 'pi)
-             (if (>= hi* 4)
+             (if (>= hi* 4)    ; if hi* belongs to (-inf, -8] U [8, +inf)
                  'too-wide
                  'range-reduce)]
             [(equal? period '2pi)
-             (if (>= hi* 5)
+             (if (>= hi* 5)    ; if hi* belongs to (-inf, -16] U [16, +inf)
                  'too-wide
                  'range-reduce)])
-          (if (<= lo* 2)
+          (if (<= lo* 2)  ; if lo* belongs to (-4, 4)
               (cond
                 [(equal? period 'pi)
-                 (if (>= hi* 4)
+                 (if (>= hi* 4)    ; if hi* belongs to (-inf, -8] U [8, +inf)
                      'too-wide
                      'range-reduce)]
                 [(equal? period '2pi)
-                 (if (>= hi* 5)
+                 (if (>= hi* 5)    ; if hi* belongs to (-inf, -16] U [16, +inf)
                      'too-wide
                      'range-reduce)])
-              (if (>= lo* 3)
-                  (if (>= hi* 3)
+              (if (>= lo* 3)  ; if lo* belongs to (-inf, -4] U [4, +inf)
+                  (if (>= hi* 3)  ; if hi* belongs to (-inf, -4] U [4, +inf)
                       (if (> (abs (- hi* lo*)) 1)
                           'too-wide
                           (if (equal? (bigfloat-signbit xlo) (bigfloat-signbit xhi))
