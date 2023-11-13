@@ -537,8 +537,6 @@
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (define lo* (+ (bigfloat-exponent xlo) (bigfloat-precision xlo)))
   (define hi* (+ (bigfloat-exponent xhi) (bigfloat-precision xhi)))
-  (define lo-sgn (bigfloat-signbit xlo))
-  (define hi-sgn (bigfloat-signbit xhi))
 
   (if (<= lo* 0)
       (if (<= hi* 0)
@@ -584,7 +582,7 @@
                   (if (>= hi* 3)
                       (if (> (abs (- hi* lo*)) 1)
                           'too-wide
-                          (if (equal? lo-sgn hi-sgn)
+                          (if (equal? (bigfloat-signbit xlo) (bigfloat-signbit xhi))
                               'range-reduce
                               'too-wide))
                       'range-reduce)
