@@ -4,6 +4,8 @@
 (require (for-syntax racket/base))
 (module+ test (require rackunit))
 
+(define rival-precision (make-parameter 8192))
+
 (define-match-expander ival-expander
   (λ (stx)
     (syntax-case stx ()
@@ -597,7 +599,7 @@
          (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
                (endpoint 1.bf #f) (ival-err? x) (ival-err x)))]
     ['range-reduce
-     (let ([prec (min 8192
+     (let ([prec (min rival-precision
                       (max (bf-precision)
                            (+ 10 (max
                                   (+ (bigfloat-exponent xlo) (bigfloat-precision xlo))
@@ -627,7 +629,7 @@
     ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
     ['near-0 ((monotonic bfsin) x)]
     ['range-reduce
-     (let ([prec (min 8192
+     (let ([prec (min rival-precision
                       (max (bf-precision)
                            (+ 10 (max
                                   (+ (bigfloat-exponent xlo) (bigfloat-precision xlo))
@@ -660,7 +662,7 @@
     ['too-wide (ival-then x (ival-assert (mk-big-ival #f #t) 'ival-tan) (mk-big-ival -inf.bf +inf.bf))]
     ['near-0 ((monotonic bftan) x)]
     ['range-reduce
-     (let ([prec (min 8192
+     (let ([prec (min rival-precision
                       (max (bf-precision)
                            (+ 10 (max
                                   (+ (bigfloat-exponent xlo) (bigfloat-precision xlo))
