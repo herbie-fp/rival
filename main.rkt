@@ -493,7 +493,7 @@
    [(bflt? b a)
     (if (bfzero? (ival-hi-val x))
         (ival (endpoint 0.bf #f) (endpoint 0.bf #f) #t #f)
-        (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t))]
+        (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #f))]
    [(bf=? a b)
     (define aep (endpoint a (and (endpoint-immovable? (ival-lo y)) (endpoint-immovable? (ival-hi y)))))
     (if (bfodd? a)
