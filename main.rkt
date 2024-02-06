@@ -508,8 +508,12 @@
     (ival-union (ival-pow-pos xpos evens)
                 (ival-neg (ival-pow-pos xpos odds)))]))
 
+(define* ival-pow2 (compose (monotonic (lambda (x) (bfmul x x))) ival-fabs))
+
 (define (ival-pow x y)
   (cond
+   [(and (bfeq? (ival-hi-val y) 2.bf) (bfeq? (ival-lo-val y) 2.bf))
+    (ival-pow2 x)]
    [(bflt? (ival-hi-val x) 0.bf) (ival-pow-neg x y)]
    [(bfgte? (ival-lo-val x) 0.bf) (ival-pow-pos x y)]
    [else
