@@ -512,7 +512,7 @@
 
 (define (ival-pow x y)
   (cond
-   [(and (bfeq? (ival-hi-val y) 2.bf) (bfeq? (ival-lo-val y) 2.bf))
+   [(and (bf=? (ival-hi-val y) 2.bf) (bf=? (ival-lo-val y) 2.bf))
     (ival-pow2 x)]
    [(bflt? (ival-hi-val x) 0.bf) (ival-pow-neg x y)]
    [(bfgte? (ival-lo-val x) 0.bf) (ival-pow-pos x y)]
