@@ -180,7 +180,7 @@
 
 (define (classify-ival x [val #f])
   (when val (set! x (bfsub x val)))
-  (match* ((bigfloat-signbit (ival-lo-val x)) (bigfloat-signbig (ival-hi-val x)))
+  (match* ((bigfloat-signbit (ival-lo-val x)) (bigfloat-signbit (ival-hi-val x)))
     [(0 0) 1]
     [(1 1) -1]
     [(1 0) 0]))
