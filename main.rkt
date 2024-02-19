@@ -178,8 +178,12 @@
    [(bfgte? (ival-lo-val i) val) (values #f i)]
    [else (split-ival i val)]))
 
-(define (classify-ival x [val 0.bf])
-  (cond [(bfgte? (ival-lo-val x) val) 1] [(bflte? (ival-hi-val x) val) -1] [else 0]))
+(define (classify-ival x [val #f])
+  (when val (set! x (bfsub x val)))
+  (match* ((bigfloat-signbit (ival-lo-val x)) (bigfloat-signbig (ival-hi-val x)))
+    [(0 0) 1]
+    [(1 1) -1]
+    [(1 0) 0]))
 
 (define (classify-ival-strict x [val 0.bf])
   (cond [(bfgt? (ival-lo-val x) val) 1] [(bflt? (ival-hi-val x) val) -1] [else 0]))
@@ -296,16 +300,19 @@
           (rnd 'up   epmul c d x-sign y-sign)
           (or xerr? yerr?)  (or xerr yerr)))
 
-  (match* ((bigfloat-signbit xlo) (bigfloat-signbit xhi) (bigfloat-signbit ylo) (bigfloat-signbit yhi))
-    [(0 0 0 0) (mkmult xlo ylo xhi yhi)]
-    [(0 0 1 1) (mkmult xhi ylo xlo yhi)]
-    [(0 0 1 0) (mkmult xhi ylo xhi yhi)]
-    [(1 1 1 0) (mkmult xlo yhi xlo ylo)]
-    [(1 1 0 0) (mkmult xlo yhi xhi ylo)]
-    [(1 1 1 1) (mkmult xhi yhi xlo ylo)]
-    [(1 0 0 0) (mkmult xlo yhi xhi yhi)]
-    [(1 0 1 1) (mkmult xhi ylo xlo ylo)]
-    [(1 0 1 0)
+  (define x-sign (classify-ival x))
+  (define y-sign (classify-ival y))
+
+  (match* (x-sign y-sign)
+    [( 1  1) (mkmult xlo ylo xhi yhi)]
+    [( 1 -1) (mkmult xhi ylo xlo yhi)]
+    [( 1  0) (mkmult xhi ylo xhi yhi)]
+    [(-1  0) (mkmult xlo yhi xlo ylo)]
+    [(-1  1) (mkmult xlo yhi xhi ylo)]
+    [(-1 -1) (mkmult xhi yhi xlo ylo)]
+    [( 0  1) (mkmult xlo yhi xhi yhi)]
+    [( 0 -1) (mkmult xhi ylo xlo ylo)]
+    [( 0  0)
      ;; Here, the two branches of the union are meaningless on their own;
      ;; however, both branches compute possible lo/hi's to min/max together
      (ival-union (mkmult xhi ylo xlo ylo)
