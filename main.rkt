@@ -494,10 +494,10 @@
   (define a (bfceiling (ival-lo-val y)))
   (define b (bffloor (ival-hi-val y)))
   (cond
-   [(bflt? b a)
+   [(bflt? b a) ; y does not contain an integer
     (if (bfzero? (ival-hi-val x))
         (ival (endpoint 0.bf #f) (endpoint 0.bf #f) #t #f)
-        (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #f))]
+        (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t))]
    [(bf=? a b)
     (define aep (endpoint a (and (endpoint-immovable? (ival-lo y)) (endpoint-immovable? (ival-hi y)))))
     (if (bfodd? a)
