@@ -178,8 +178,11 @@
    [(bfgte? (ival-lo-val i) val) (values #f i)]
    [else (split-ival i val)]))
 
-(define (classify-ival x [val 0.bf])
-  (cond [(bfgte? (ival-lo-val x) val) 1] [(bflte? (ival-hi-val x) val) -1] [else 0]))
+(define (classify-ival x [val #f])
+  (when val (set! x (ival-sub x (ival-expander val))))
+  (if (ival-err x)
+      1
+      (- 1 (bigfloat-signbit (ival-lo-val x)) (bigfloat-signbit (ival-hi-val x)))))
 
 (define (classify-ival-strict x [val 0.bf])
   (cond [(bfgt? (ival-lo-val x) val) 1] [(bflt? (ival-hi-val x) val) -1] [else 0]))
@@ -491,10 +494,10 @@
   (define a (bfceiling (ival-lo-val y)))
   (define b (bffloor (ival-hi-val y)))
   (cond
-   [(bflt? b a)
+   [(bflt? b a) ; y does not contain an integer
     (if (bfzero? (ival-hi-val x))
         (ival (endpoint 0.bf #f) (endpoint 0.bf #f) #t #f)
-        (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #f))]
+        (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t))]
    [(bf=? a b)
     (define aep (endpoint a (and (endpoint-immovable? (ival-lo y)) (endpoint-immovable? (ival-hi y)))))
     (if (bfodd? a)
