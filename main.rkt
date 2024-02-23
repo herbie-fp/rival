@@ -180,10 +180,9 @@
 
 (define (classify-ival x [val #f])
   (when val (set! x (ival-sub x (ival-expander val))))
-  (match* ((bigfloat-signbit (ival-lo-val x)) (bigfloat-signbit (ival-hi-val x)))
-    [(0 0) 1]
-    [(1 1) -1]
-    [(1 0) 0]))
+  (if (ival-err x)
+      1
+      (- 1 (bigfloat-signbit (ival-lo-val x)) (bigfloat-signbit (ival-hi-val x)))))
 
 (define (classify-ival-strict x [val 0.bf])
   (cond [(bfgt? (ival-lo-val x) val) 1] [(bflt? (ival-hi-val x) val) -1] [else 0]))
