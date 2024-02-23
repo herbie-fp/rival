@@ -373,15 +373,16 @@
 
 (define ((clamp lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  (ival (endpoint (bfmin2 (bfmax2 xlo lo) hi) xlo!)
-        (endpoint (bfmax2 (bfmin2 xhi hi) lo) xhi!)
+  
+  (ival (endpoint (if (bflt? xlo lo) lo xlo) xlo!)
+        (endpoint (if (bfgt? xhi hi) hi xhi) xhi!)
         (or xerr? (bflt? xlo lo) (bfgt? xhi hi))
         (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
 
 (define ((clamp-strict lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  (ival (endpoint (bfmin2 (bfmax2 xlo lo) hi) xlo!)
-        (endpoint (bfmax2 (bfmin2 xhi hi) lo) xhi!)
+  (ival (endpoint (if (bflt? xlo lo) lo xlo) xlo!)
+        (endpoint (if (bfgt? xhi hi) hi xhi) xhi!)
         (or xerr? (bflte? xlo lo) (bfgte? xhi hi))
         (or xerr (bflte? xhi lo) (bfgte? xlo hi))))
 
