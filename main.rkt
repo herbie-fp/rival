@@ -495,9 +495,13 @@
   (define b (bffloor (ival-hi-val y)))
   (cond
    [(bflt? b a) ; y does not contain an integer
-    (if (bfzero? (ival-hi-val x))
-        (ival (endpoint 0.bf #f) (endpoint 0.bf #f) #t #f)
-        (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t))]
+    ; But it still contains many odd fractions
+    ; It is sort-of unclear what we actually do here:
+    ; (-1)^(1/3) = -1 makes sense, but what about
+    ; (-1)^(2/3) = 1? Or (-1)^(2/6)?
+    ; We go with an expansive definition, hoping it will never matter.
+    (define pos-pow (ival-pow-pos xpos y))
+    (ival-then ival-maybe (ival-union (ival-neg pos-pow) pos-pow))]
    [(bf=? a b)
     (define aep (endpoint a (and (endpoint-immovable? (ival-lo y)) (endpoint-immovable? (ival-hi y)))))
     (if (bfodd? a)
@@ -1000,6 +1004,8 @@
   (ival (endpoint #t #t) (endpoint #t #t)
         (or (ival-err? c) (if (ival-lo-val c) #f msg))
         (or (ival-err c) (if (ival-hi-val c) #f msg))))
+
+(define ival-maybe (ival (endpoint #f #t) (endpoint #t #t) #f #f))
 
 (define (ival-then a . as)
   (ival (ival-lo (last (cons a as))) (ival-hi (last (cons a as)))
