@@ -4,7 +4,7 @@
 (require (for-syntax racket/base))
 (module+ test (require rackunit))
 
-(define *rival-precision* (make-parameter 8192))
+(define *rival-precision* (make-parameter 10000))
 
 (define-match-expander ival-expander
   (λ (stx)
