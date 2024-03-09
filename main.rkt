@@ -212,11 +212,6 @@
           (epfn or-fn (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]))
 
-(define (propagate-err c x)
-  (ival (ival-lo x) (ival-hi x)
-        (or (ival-err? c) (ival-err? x))
-        (or (ival-err c) (ival-err x))))
-
 ;; This function computes and propagates the immovable? flag for endpoints
 (define (epfn op . args)
   (define args-bf (map endpoint-val args))
@@ -1002,11 +997,13 @@
         (or (ival-err? a) (ormap ival-err? as))
         (or (ival-err a) (ormap ival-err as))))
 
+(define* ival-identity (monotonic bfcopy))
+
 (define (ival-if c x y)
   (cond
-   [(ival-lo-val c) (propagate-err c x)]
-   [(not (ival-hi-val c)) (propagate-err c y)]
-   [else (propagate-err c (ival-union x y))]))
+   [(ival-lo-val c) (ival-then c (ival-identity x))]
+   [(not (ival-hi-val c)) (ival-then c (ival-identity y))]
+   [else (ival-then c (ival-union x y))]))
 
 (define (ival-fmin x y)
   (ival (rnd 'down endpoint-min2 (ival-lo x) (ival-lo y))
