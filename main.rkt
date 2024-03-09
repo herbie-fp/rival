@@ -390,14 +390,14 @@
 (define* ival-trunc (monotonic bftruncate))
 
 (define (ival-fabs x)
-  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  (cond
-   [(bfgt? xlo 0.bf) x]
-   [(bflt? xhi 0.bf) (ival-neg x)]
-   [else ; interval stradles 0
-    (ival (endpoint 0.bf (and xlo! xhi!))
-          (endpoint-max2 (endpoint (bfneg xlo) xlo!) (ival-hi x))
-          (ival-err? x) (ival-err x))]))
+  (match (classify-ival x)
+    [-1 ((comonotonic bfabs) x)]
+    [1 ((monotonic bfabs) x)]
+    [0
+     (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+     (ival (endpoint 0.bf (and xlo! xhi!))
+           (rnd 'up endpoint-max2 (epfn bfabs (ival-lo x)) (ival-hi x))
+           (ival-err? x) (ival-err x))]))
 
 ;; Since MPFR has a cap on exponents, no value can be more than twice MAX_VAL
 (define exp-overflow-threshold  (bfadd (bflog (bfprev +inf.bf)) 1.bf))
