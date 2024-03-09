@@ -172,6 +172,9 @@
         (list ival-tgamma bfgamma   '(real) 'real)
         ))
 
+(define (sample-precision)
+  (random 40 100))
+
 (define (sample-bigfloat)
   (define exponent (random -1023 1023)) ; Pretend-double
   (define significand (bf (random-bits (bf-precision)) (- (bf-precision))))
@@ -240,8 +243,13 @@
 (define slow-tests (list ival-lgamma ival-tgamma))
 
 (define (test-entry ival-fn fn args)
-  (define is (for/list ([arg args]) (sample-interval arg)))
-  (define iy (apply ival-fn is))
+  (define out-prec (sample-precision))
+  (define in-precs (for/list ([arg args]) (sample-precision)))
+
+  (define is (for/list ([arg args] [in-prec in-precs])
+               (parameterize ([bf-precision in-prec])
+                 (sample-interval arg))))
+  (define iy (parameterize ([bf-precision out-prec]) (apply ival-fn is)))
 
   (with-check-info (['intervals is])
     (check-ival-valid? iy))
@@ -249,8 +257,10 @@
   (define xs #f)
   (define y #f)
   (for ([_ (in-range num-witnesses)])
-    (set! xs (for/list ([i is]) (sample-from i)))
-    (set! y (apply fn xs))
+    (set! xs (for/list ([i is] [in-prec in-precs])
+               (parameterize ([bf-precision in-prec])
+                 (sample-from i))))
+    (set! y (parameterize ([bf-precision out-prec]) (apply fn xs)))
     (with-check-info (['intervals is] ['points xs])
       (check ival-contains? iy y)))
 
@@ -258,10 +268,14 @@
     (for ([k (in-naturals)] [i is] [x xs])
       (define-values (ilo ihi) (ival-split i x))
       (when (and ilo ihi)
-        (define iylo (apply ival-fn (list-set is k ilo)))
-        (define iyhi (apply ival-fn (list-set is k ihi)))
+        (define iylo (parameterize ([bf-precision out-prec])
+                       (apply ival-fn (list-set is k ilo))))
+        (define iyhi (parameterize ([bf-precision out-prec])
+                       (apply ival-fn (list-set is k ihi))))
         (with-check-info (['split-argument k] ['ilo ilo] ['ihi ihi] ['iylo iylo] ['iyhi iyhi])
-          (check-ival-equals? iy (ival-union iylo iyhi)))))
+          (check-ival-equals?
+           iy 
+           (parameterize ([bf-precision out-prec]) (ival-union iylo iyhi))))))
     (when (or (ival-lo-fixed? iy) (ival-hi-fixed? iy))
       (define iy* (parameterize ([bf-precision 128]) (apply ival-fn is)))
       (check ival-refines? iy iy*))))
