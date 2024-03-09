@@ -1009,11 +1009,13 @@
    [else (propagate-err c (ival-union x y))]))
 
 (define (ival-fmin x y)
-  (ival (endpoint-min2 (ival-lo x) (ival-lo y)) (endpoint-min2 (ival-hi x) (ival-hi y))
+  (ival (rnd 'down endpoint-min2 (ival-lo x) (ival-lo y))
+        (rnd 'up endpoint-min2 (ival-hi x) (ival-hi y))
         (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-fmax x y)
-  (ival (endpoint-max2 (ival-lo x) (ival-lo y)) (endpoint-max2 (ival-hi x) (ival-hi y))
+  (ival (rnd 'down endpoint-max2 (ival-lo x) (ival-lo y))
+        (rnd 'up endpoint-max2 (ival-hi x) (ival-hi y))
         (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-copysign x y)
