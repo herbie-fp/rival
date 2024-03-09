@@ -190,32 +190,22 @@
 (define (endpoint-min2 e1 e2)
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
-  (cond
-   [(bflt? x y)
-    e1]
-   [(bflt? y x)
-    e2]
-   [else
-    (endpoint (bfmin2 x y) (or x! y!))]))
+  (define out (bfmin2 x y))
+  (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
 (define (endpoint-max2 e1 e2)
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
-  (cond
-   [(bfgt? x y)
-    e1]
-   [(bfgt? y x)
-    e2]
-   [else
-    (endpoint (bfmax2 x y) (or x! y!))]))
+  (define out (bfmax2 x y))
+  (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
 (define (ival-union x y)
   (cond
    [(ival-err x) (struct-copy ival y [err? #t])]
    [(ival-err y) (struct-copy ival x [err? #t])]
    [(bigfloat? (ival-lo-val x))
-    (ival (endpoint-min2 (ival-lo x) (ival-lo y))
-          (endpoint-max2 (ival-hi x) (ival-hi y))
+    (ival (rnd 'down endpoint-min2 (ival-lo x) (ival-lo y))
+          (rnd 'up endpoint-max2 (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]
    [(boolean? (ival-lo-val x))
     (ival (epfn and-fn (ival-lo x) (ival-lo y))
