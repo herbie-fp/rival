@@ -712,7 +712,7 @@
             err? err)]
      [else
       (ival (endpoint 0.bf #f)
-            (endpoint (bfmax2 (rnd 'up bfdiv (ival-hi-val x) (bfadd c 1.bf)) 0.bf) #f) err? err)])]
+            (endpoint (rnd 'up bfmax2 (bfdiv (ival-hi-val x) (bfadd c 1.bf)) 0.bf) #f) err? err)])]
    [else
     (ival (endpoint 0.bf #f) (endpoint (ival-hi-val y) #f) err? err)]))
 
@@ -743,20 +743,21 @@
     (cond
      [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
       (define y* (bfdiv (ival-hi-val y) 2.bf))
-      (ival (endpoint (bfmax2 (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y)))
+      (ival (endpoint (rnd 'down bfmax2 (bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y)))
                               (bfneg y*)) #f)
-            (endpoint (bfmin2 (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul c (ival-lo-val y)))
+            (endpoint (rnd 'up bfmin2 (bfsub (ival-hi-val x) (rnd 'down bfmul c (ival-lo-val y)))
                               y*) #f)
             err? err)]
      [else
       ;; NOPE! need to subtract half.bf one way, add it another!
-      (define y*-hi (bfdiv (rnd 'down bfdiv (ival-hi-val x) (bfadd c half.bf)) 2.bf))
-      (define y*-lo (bfmax2 (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y)))
-                            (bfneg (bfdiv (ival-hi-val y) 2.bf))))
-      (ival (endpoint (bfmin2 y*-lo (bfneg y*-hi)) #f) (endpoint y*-hi #f) err? err)])]
+      (define y*-hi (rnd 'up bfdiv (bfdiv (ival-hi-val x) (bfadd c half.bf)) 2.bf))
+      (define y*-lo (rnd 'down bfmax2
+                         (bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y)))
+                         (bfneg (bfdiv (ival-hi-val y) 2.bf))))
+      (ival (endpoint (rnd 'down bfmin2 y*-lo (bfneg y*-hi)) #f) (endpoint y*-hi #f) err? err)])]
    [else
-    (define y* (bfdiv (ival-hi-val y) 2.bf))
-    (ival (endpoint (bfneg y*) #f) (endpoint y* #f) err? err)]))
+    (define y* (rnd 'up bfdiv (ival-hi-val y) 2.bf))
+    (ival (endpoint (rnd 'down bfneg y*) #f) (endpoint y* #f) err? err)]))
 
 ;; Seems unnecessary
 (define (ival-remainder x y)
@@ -884,6 +885,10 @@
       ;; This case only happens if xnegr = #f meaning lo = rnd[up](lo + 1) meaning lo = -inf
       (mk-big-ival -inf.bf +inf.bf)))
 
+(define (exact-bffloor x)
+  (parameterize ([bf-precision (bigfloat-precision x)])
+    (bffloor x)))
+
 (define (ival-tgamma x)
   (define logy (ival-lgamma x))
   (unless logy
@@ -894,13 +899,13 @@
   (cond
    [(bfgte? lo 0.bf)
     absy]
-   [(not (bf=? (bffloor lo) (bffloor hi)))
+   [(not (bf=? (exact-bffloor lo) (exact-bffloor hi)))
     (ival (endpoint -inf.bf (ival-lo-fixed? x))
           (endpoint +inf.bf (ival-hi-fixed? x))
           #t (ival-err x))]
    [(and (not (bfpositive? lo)) (bf=? lo hi) (bfinteger? lo))
     ival-illegal]
-   [(bfeven? (bffloor lo))
+   [(bfeven? (exact-bffloor lo))
     absy]
    [else
     (ival-neg absy)]))
