@@ -234,13 +234,6 @@
   (values out exact?))
 ;; End hairy code
 
-(define (ival-neg x)
-  ;; No rounding, negation is exact
-  (ival
-   (epfn bfneg (ival-hi x))
-   (epfn bfneg (ival-lo x))
-   (ival-err? x) (ival-err x)))
-
 ;; Endpoint computation for both `add`, `sub`, and `hypot` (which has an add inside)
 (define (eplinear bffn a-endpoint b-endpoint)
   (match-define (endpoint a a!) a-endpoint)
@@ -377,6 +370,8 @@
   (ival (endpoint ylo (or ylo! (bflte? xhi lo) (and (bflte? xlo lo) xlo!)))
         (endpoint yhi (or yhi! (bfgte? xlo hi) (and (bfgte? xhi hi) xhi!)))
         xerr? xerr))
+
+(define* ival-neg (comonotonic bfneg))
 
 (define* ival-rint (monotonic bfrint))
 (define* ival-round (monotonic bfround))
@@ -707,8 +702,10 @@
     (define d (rnd 'up bftruncate (bfdiv (ival-hi-val x) (ival-lo-val y))))
     (cond
      [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
-      (ival (endpoint (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul* c (ival-hi-val y))) #f)
-            (endpoint (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul* c (ival-lo-val y))) #f)
+      (define lo (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul* c (ival-hi-val y))))
+      (define hi (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul* c (ival-lo-val y))))
+      (ival (endpoint lo #f)
+            (endpoint hi #f)
             err? err)]
      [else
       (ival (endpoint 0.bf #f)

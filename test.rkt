@@ -81,8 +81,9 @@
       (+ (bf-precision) (max (- (+ (bigfloat-exponent x) (bigfloat-precision x))
                                 (+ (bigfloat-exponent mod) (bigfloat-precision mod))) 0)))
     (if (< precision (expt 2 25)) ; Limit it to 32MB per number
-        (parameterize ([bf-precision precision]) 
-          (bfcanonicalize (bf- x (bf* (bftruncate (bf/ x mod)) mod))))
+        (bfcopy
+         (parameterize ([bf-precision precision]) 
+           (bfcanonicalize (bf- x (bf* (bftruncate (bf/ x mod)) mod)))))
         ;; By chance this is treated as either valid or invalid as needed
         +inf.bf)]))
 
@@ -262,7 +263,7 @@
                (parameterize ([bf-precision in-prec])
                  (sample-from i))))
     (set! y (parameterize ([bf-precision out-prec]) (apply fn xs)))
-    (with-check-info (['intervals is] ['points xs])
+    (with-check-info (['intervals is] ['points xs] ['in-precs in-precs] ['out-prec out-prec])
       (check ival-contains? iy y)))
 
   (with-check-info (['intervals is] ['points xs] ['iy iy] ['y y])
