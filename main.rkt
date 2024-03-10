@@ -473,33 +473,19 @@
 
 (define (ival-pow-neg x y)
   ;; Assumes x is negative
-  (define err? (or (ival-err? x) (ival-err? y) (bflt? (ival-lo-val y) (ival-hi-val y))))
-  (define err (or (ival-err x) (ival-err y)))
-  (define xpos (ival-fabs x))
-  (define a (bfceiling (ival-lo-val y)))
-  (define b (bffloor (ival-hi-val y)))
-  (cond
-   [(bflt? b a) ; y does not contain an integer
-    ; But it still contains many odd fractions
-    ; It is sort-of unclear what we actually do here:
-    ; (-1)^(1/3) = -1 makes sense, but what about
-    ; (-1)^(2/3) = 1? Or (-1)^(2/6)?
-    ; We go with an expansive definition, hoping it will never matter.
-    (define pos-pow (ival-pow-pos xpos y))
-    (ival-then ival-maybe (ival-union (ival-neg pos-pow) pos-pow))]
-   [(bf=? a b)
-    (define aep (endpoint a (and (endpoint-immovable? (ival-lo y)) (endpoint-immovable? (ival-hi y)))))
-    (if (bfodd? a)
-        (ival-neg (ival-pow-pos xpos (ival aep aep err? err)))
-        (ival-pow-pos xpos (ival aep aep err? err)))]
-   [else
-    ;; TODO: the movability here is pretty subtle
-    (define odds (ival (endpoint (if (bfodd? a) a (bfadd a 1.bf)) #f)
-                       (endpoint (if (bfodd? b) b (bfsub b 1.bf)) #f) err? err))
-    (define evens (ival (endpoint (if (bfodd? a) (bfadd a 1.bf) a) #f)
-                        (endpoint (if (bfodd? b) (bfsub b 1.bf) b) #f) err? err))
-    (ival-union (ival-pow-pos xpos evens)
-                (ival-neg (ival-pow-pos xpos odds)))]))
+  (if (bf=? (ival-lo-val y) (ival-hi-val y))
+      (if (bfinteger? (ival-lo-val y))
+          ; If y is an integer point interval, there's no error,
+          ; because it's always valid to raise to an integer power.
+          (if (bfodd? (ival-lo-val y))
+              (ival-neg (ival-pow-pos (ival-fabs x) y)) ; Use fabs in case of [x, 0]
+              (ival-pow-pos (ival-fabs x) y))
+          ; If y is non-integer point interval, it must be an even
+          ; fraction (because all bigfloats are) so we always error
+          ival-illegal)
+      ; Moreover, if we have (-x)^y, that's basically x^y U -(x^y).
+      (let ([pospow (ival-pow-pos (ival-fabs x) y)])
+        (ival-then (ival-assert ival-maybe) (ival-union (ival-neg pospow) pospow)))))
 
 (define* ival-pow2 (compose (monotonic (lambda (x) (bfmul x x))) ival-fabs))
 
