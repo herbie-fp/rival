@@ -1010,13 +1010,16 @@
 
 (define (ival-copysign x y)
   (match-define (ival xlo xhi xerr? xerr) (ival-fabs x))
-  (define can-neg (= (bigfloat-signbit (ival-lo-val y)) 1))
-  (define can-pos (= (bigfloat-signbit (ival-hi-val y)) 0))
+  (define can-zero
+    (or (bfzero? (ival-lo-val y)) (bfzero? (ival-hi-val y))))
+  ;; 0 is both positive and negative because we don't handle signed zero well
+  (define can-neg (or (= (bigfloat-signbit (ival-lo-val y)) 1) can-zero))
+  (define can-pos (or (= (bigfloat-signbit (ival-hi-val y)) 0) can-zero))
   (define err? (or (ival-err? y) xerr?))
   (define err (or (ival-err y) xerr))
   (match* (can-neg can-pos)
-    [(#t #t) (ival (epfn bfneg xhi) xhi err? err)]
-    [(#t #f) (ival (epfn bfneg xhi) (epfn bfneg xlo) err? err)]
+    [(#t #t) (ival (rnd 'down epfn bfneg xhi) (rnd 'up epfn bfcopy xhi) err? err)]
+    [(#t #f) (ival (rnd 'down epfn bfneg xhi) (rnd 'up epfn bfneg xlo) err? err)]
     [(#f #t) (ival xlo xhi err? err)]
     [(#f #f)
      (unless (ival-err y)
