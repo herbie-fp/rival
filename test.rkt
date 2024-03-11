@@ -58,7 +58,9 @@
   (bffloor (bflog2 (bfabs x))))
 
 (define (bfcopysign x y)
-  (bf* (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf)))
+  (if (bfnan? y)
+      +nan.bf
+      (bf* (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf))))
 
 (define (bffdim x y)
   (if (bf> x y) (bf- x y) 0.bf))
@@ -78,10 +80,12 @@
    [else
     ;; For this to be precise, we need enough bits
     (define precision
-      (+ (bf-precision) (max (- (bigfloat-exponent x) (bigfloat-exponent mod)) 0)))
-    (if (< precision (expt 2 25)) ; Limit it to 32MB per number
-        (parameterize ([bf-precision precision]) 
-          (bfcanonicalize (bf- x (bf* (bftruncate (bf/ x mod)) mod))))
+      (+ (bf-precision) (max (- (+ (bigfloat-exponent x) (bigfloat-precision x))
+                                (+ (bigfloat-exponent mod) (bigfloat-precision mod))) 0)))
+    (if (< precision (expt 2 20)) ; Limit it to 1MB per number
+        (bfcopy
+         (parameterize ([bf-precision precision]) 
+           (bfcanonicalize (bf- x (bf* (bftruncate (bf/ x mod)) mod)))))
         ;; By chance this is treated as either valid or invalid as needed
         +inf.bf)]))
 
@@ -102,6 +106,11 @@
   (if (and (bfzero? y) (bfzero? x))
       +nan.bf
       (bfatan2 y x)))
+
+(define ((bftrig-narrow fn) x)
+  (if (> (+ (bigfloat-exponent x) (bigfloat-precision x)) (expt 2 20))
+      0.bf
+      (fn x)))
 
 (define function-table
   (list (list ival-neg   bf-        '(real) 'real)
@@ -131,9 +140,9 @@
         (list ival-logb  bflogb     '(real) 'real)
         (list ival-pow   bfexpt     '(real real) 'real)
 
-        (list ival-sin   bfsin      '(real) 'real)
-        (list ival-cos   bfcos      '(real) 'real)
-        (list ival-tan   bftan      '(real) 'real)
+        (list ival-sin   (bftrig-narrow bfsin) '(real) 'real)
+        (list ival-cos   (bftrig-narrow bfcos) '(real) 'real)
+        (list ival-tan   (bftrig-narrow bftan) '(real) 'real)
         (list ival-asin  bfasin     '(real) 'real)
         (list ival-acos  bfacos     '(real) 'real)
         (list ival-atan  bfatan     '(real) 'real)
@@ -172,30 +181,38 @@
         (list ival-tgamma bfgamma   '(real) 'real)
         ))
 
-(define (sample-bigfloat)
-  (define exponent (random -1023 1023)) ; Pretend-double
-  (define significand (bf (random-bits (bf-precision)) (- (bf-precision))))
-  (define val (bfshift (bf+ 1.bf significand) exponent))
-  (if (= (random 0 2) 1) (bf- val) val))
+(define (sample-precision)
+  (random 40 100))
 
-(define (sample-wide-interval)
-  (define v1 (sample-bigfloat))
+(define (sample-bigfloat)
+  (cond
+    [(= (random 0 100) 0) ; 4% chance of special value
+     (match (random 0 10)
+       [0 (bf -inf.0)]
+       [1 (bf -1)]
+       [2 (bf -0.0)]
+       [3 (bf 0.0)]
+       [4 (bf 1)]
+       [5 (bf +inf.0)]
+       [6 (parameterize ([bf-rounding-mode 'down]) pi.bf)]
+       [7 (parameterize ([bf-rounding-mode 'up]) pi.bf)]
+       [8 (parameterize ([bf-rounding-mode 'down]) (bf- pi.bf))]
+       [9 (parameterize ([bf-rounding-mode 'up]) (bf- pi.bf))])]
+    [else
+     (define exponent (random -1023 1023)) ; Pretend-double
+     (define significand (bf (random-bits (bf-precision)) (- (bf-precision))))
+     (define val (bfshift (bf+ 1.bf significand) exponent))
+     (if (= (random 0 2) 1) (bf- val) val)]))
+
+(define (sample-wide-interval v1)
   (define v2 (sample-bigfloat))
   (ival (bfmin v1 v2) (bfmax v1 v2)))
 
-(define (sample-narrow-interval)
-  (if (= (random 0 2) 0)
-      (sample-constant-interval)
-      (sample-small-interval)))
-
-(define (sample-constant-interval)
-  (define constants (list 0.bf 1.bf -1.bf (bf 0.5)))
-  (define c (list-ref constants (random 0 (length constants))))
+(define (sample-constant-interval c)
   (ival c c))
 
-(define (sample-small-interval)
+(define (sample-narrow-interval v1)
   ;; Biased toward small intervals
-  (define v1 (sample-bigfloat))
   (define size (random 1 (bf-precision)))
   (define delta (* (match (random 0 2) [0 -1] [1 1]) size))
   (define v2 (bfstep v1 delta))
@@ -204,8 +221,15 @@
 (define (sample-interval type)
   (match type
     ['real
-     (define x (if (= (random 0 2) 0) (sample-wide-interval) (sample-narrow-interval)))
-     (if (or (bfnan? (ival-lo x)) (bfnan? (ival-hi x))) (sample-interval type) x)]
+     (define mode (random 0 3))
+     (define value (sample-bigfloat))
+     (define x
+       (match mode
+         [0 #:when (not (bfinfinite? value))
+            (sample-constant-interval value)]
+         [1 (sample-narrow-interval value)]
+         [_ (sample-wide-interval value)]))
+     (if (ival-err x) (sample-interval type) x)]
     ['bool
      (match (random 0 3)
        [0 (ival #f)]
@@ -214,14 +238,21 @@
 
 (define (sample-from ival)
   (if (bigfloat? (ival-lo ival))
-      (if (bf<= (ival-lo ival) 0.bf (ival-hi ival))
-          (let* ([p (random)]
-                 [lo* (bigfloat->flonum (ival-lo ival))]
-                 [hi* (bigfloat->flonum (ival-hi ival))]
-                 [range (flonums-between lo* hi*)])
-              (bf (flstep lo* (exact-floor (* p range)))))
-          (let ([p (random)] [range (bigfloats-between (ival-lo ival) (ival-hi ival))])
-            (bfstep (ival-lo ival) (exact-floor (* p range)))))
+      (cond
+        [(or (bf<= (ival-lo ival) 0.bf (ival-hi ival))
+             (and (bfinfinite? (ival-lo ival)) (not (infinite? (bigfloat->flonum (ival-hi ival)))))
+             (and (bfinfinite? (ival-hi ival)) (not (infinite? (bigfloat->flonum (ival-lo ival))))))
+         (define p (random))
+         (define lo* (bigfloat->flonum (ival-lo ival)))
+         (define hi* (bigfloat->flonum (ival-hi ival)))
+         (define range (flonums-between lo* hi*))
+         (bf (flstep lo* (exact-floor (* p range))))]
+        [else
+         (define p (random))
+         (define reduction (if (or (bfinfinite? (ival-lo ival)) (bfinfinite? (ival-hi ival))) 1 0))
+         (define range (- (bigfloats-between (ival-lo ival) (ival-hi ival)) reduction))
+         (define offset (+ (if (bfinfinite? (ival-lo ival)) 1 0) (exact-floor (* p range))))
+         (bfstep (ival-lo ival) offset)])
       (let ([p (random 0 2)])
         (if (= p 0) (ival-lo ival) (ival-hi ival)))))
 
@@ -235,13 +266,19 @@
            (value-equals? (ival-hi ival1) (ival-hi ival2)))))
 
 (define num-tests 1000)
-(define num-slow-tests 25)
 (define num-witnesses 10)
+
 (define slow-tests (list ival-lgamma ival-tgamma))
+(define num-slow-tests 25)
 
 (define (test-entry ival-fn fn args)
-  (define is (for/list ([arg args]) (sample-interval arg)))
-  (define iy (apply ival-fn is))
+  (define out-prec (sample-precision))
+  (define in-precs (for/list ([arg args]) (sample-precision)))
+
+  (define is (for/list ([arg args] [in-prec in-precs])
+               (parameterize ([bf-precision in-prec])
+                 (sample-interval arg))))
+  (define iy (parameterize ([bf-precision out-prec]) (apply ival-fn is)))
 
   (with-check-info (['intervals is])
     (check-ival-valid? iy))
@@ -249,19 +286,25 @@
   (define xs #f)
   (define y #f)
   (for ([_ (in-range num-witnesses)])
-    (set! xs (for/list ([i is]) (sample-from i)))
-    (set! y (apply fn xs))
-    (with-check-info (['intervals is] ['points xs])
+    (set! xs (for/list ([i is] [in-prec in-precs])
+               (parameterize ([bf-precision in-prec])
+                 (sample-from i))))
+    (set! y (parameterize ([bf-precision out-prec]) (apply fn xs)))
+    (with-check-info (['intervals is] ['points xs] ['in-precs in-precs] ['out-prec out-prec])
       (check ival-contains? iy y)))
 
   (with-check-info (['intervals is] ['points xs] ['iy iy] ['y y])
     (for ([k (in-naturals)] [i is] [x xs])
       (define-values (ilo ihi) (ival-split i x))
       (when (and ilo ihi)
-        (define iylo (apply ival-fn (list-set is k ilo)))
-        (define iyhi (apply ival-fn (list-set is k ihi)))
+        (define iylo (parameterize ([bf-precision out-prec])
+                       (apply ival-fn (list-set is k ilo))))
+        (define iyhi (parameterize ([bf-precision out-prec])
+                       (apply ival-fn (list-set is k ihi))))
         (with-check-info (['split-argument k] ['ilo ilo] ['ihi ihi] ['iylo iylo] ['iyhi iyhi])
-          (check-ival-equals? iy (ival-union iylo iyhi)))))
+          (check-ival-equals?
+           iy 
+           (parameterize ([bf-precision out-prec]) (ival-union iylo iyhi))))))
     (when (or (ival-lo-fixed? iy) (ival-hi-fixed? iy))
       (define iy* (parameterize ([bf-precision 128]) (apply ival-fn is)))
       (check ival-refines? iy iy*))))
@@ -322,15 +365,18 @@
 (module+ main
   (require racket/cmdline)
   (command-line
-   #:args (fname [n (~a num-tests)])
-   (define entry
-     (findf (λ (entry) (equal? (~a (object-name (first entry))) (format "ival-~a" fname)))
-            function-table))
-   (match entry
-     [#f
-      (raise-user-error 'test.rkt "No function named ival-~a" fname)]
-     [(list ival-fn fn itypes otype)
-      (for ([n (in-range (string->number n))])
-        (test-entry ival-fn fn itypes)
-        (eprintf "."))
-      (newline)])))
+   #:args ([fname #f] [n (~a num-tests)])
+   (cond
+     [fname
+      (define entry
+        (findf (λ (entry) (equal? (~a (object-name (first entry))) (format "ival-~a" fname)))
+               function-table))
+      (match entry
+        [#f
+         (raise-user-error 'test.rkt "No function named ival-~a" fname)]
+        [(list ival-fn fn itypes otype)
+         (for ([n (in-range (string->number n))])
+           (test-entry ival-fn fn itypes)
+           (eprintf "."))
+         (newline)])]
+     [else (run-tests)])))
