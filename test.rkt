@@ -107,6 +107,11 @@
       +nan.bf
       (bfatan2 y x)))
 
+(define ((bftrig-narrow fn) x)
+  (if (> (+ (bigfloat-exponent x) (bigfloat-precision x)) (expt 2 20))
+      0.bf
+      (fn x)))
+
 (define function-table
   (list (list ival-neg   bf-        '(real) 'real)
         (list ival-fabs  bfabs      '(real) 'real)
@@ -135,9 +140,9 @@
         (list ival-logb  bflogb     '(real) 'real)
         (list ival-pow   bfexpt     '(real real) 'real)
 
-        (list ival-sin   bfsin      '(real) 'real)
-        (list ival-cos   bfcos      '(real) 'real)
-        (list ival-tan   bftan      '(real) 'real)
+        (list ival-sin   (bftrig-narrow bfsin) '(real) 'real)
+        (list ival-cos   (bftrig-narrow bfcos) '(real) 'real)
+        (list ival-tan   (bftrig-narrow bftan) '(real) 'real)
         (list ival-asin  bfasin     '(real) 'real)
         (list ival-acos  bfacos     '(real) 'real)
         (list ival-atan  bfatan     '(real) 'real)
@@ -222,9 +227,7 @@
        (match mode
          [0 #:when (not (bfinfinite? value))
             (sample-constant-interval value)]
-         [1 #:when (not (bfinfinite? value))
-            ;; Don't want to sample [omega, inf] because it'll blow up sin/cos/tan
-            (sample-narrow-interval value)]
+         [1 (sample-narrow-interval value)]
          [_ (sample-wide-interval value)]))
      (if (ival-err x) (sample-interval type) x)]
     ['bool
@@ -237,20 +240,13 @@
   (if (bigfloat? (ival-lo ival))
       (cond
         [(or (bf<= (ival-lo ival) 0.bf (ival-hi ival))
-             (bfinfinite? (ival-lo ival))
-             (bfinfinite? (ival-hi ival)))
+             (and (bfinfinite? (ival-lo ival)) (not (infinite? (bigfloat->flonum (ival-hi ival)))))
+             (and (bfinfinite? (ival-hi ival)) (not (infinite? (bigfloat->flonum (ival-lo ival))))))
          (define p (random))
          (define lo* (bigfloat->flonum (ival-lo ival)))
          (define hi* (bigfloat->flonum (ival-hi ival)))
-         (define reduction (if (or (infinite? lo*) (infinite? hi*)) 1 0))
-         (define range (- (+ (flonums-between lo* hi*) 1) reduction))
-         (define offset (+ (if (infinite? lo*) 1 0) (exact-floor (* p range))))
-         ; This only happens if [lo*, hi*] = [inf, inf] due to rounding
-         (if (and (= range 0) (= reduction 1))
-             (if (negative? lo*)
-                 (bf (flstep -inf.0 1))
-                 (bf (flstep +inf.0 -1)))
-             (bf (flstep lo* offset)))]
+         (define range (flonums-between lo* hi*))
+         (bf (flstep lo* (exact-floor (* p range))))]
         [else
          (define p (random))
          (define reduction (if (or (bfinfinite? (ival-lo ival)) (bfinfinite? (ival-hi ival))) 1 0))
