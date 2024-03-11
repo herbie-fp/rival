@@ -351,11 +351,15 @@
 
 (define ((clamp lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (define err? (or xerr? (bflt? xlo lo) (bfgt? xhi hi)))
+  (define err (or (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
   
-  (ival (endpoint (if (bflt? xlo lo) lo xlo) xlo!)
-        (endpoint (if (bfgt? xhi hi) hi xhi) xhi!)
-        (or xerr? (bflt? xlo lo) (bfgt? xhi hi))
-        (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
+  (if (and (bfzero? lo) (bfzero? xhi))
+      (ival (endpoint 0.bf xlo!) (endpoint 0.bf xhi!) err? err)
+      (ival (endpoint (if (bflt? xlo lo) lo xlo) xlo!)
+            (endpoint (if (bfgt? xhi hi) hi xhi) xhi!)
+            err?
+            err)))
 
 (define ((clamp-strict lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
