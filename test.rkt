@@ -180,29 +180,34 @@
   (random 40 100))
 
 (define (sample-bigfloat)
-  (define exponent (random -1023 1023)) ; Pretend-double
-  (define significand (bf (random-bits (bf-precision)) (- (bf-precision))))
-  (define val (bfshift (bf+ 1.bf significand) exponent))
-  (if (= (random 0 2) 1) (bf- val) val))
+  (cond
+    [(= (random 0 100) 0) ; 4% chance of special value
+     (match (random 0 10)
+       [0 (bf -inf.0)]
+       [1 (bf -1)]
+       [2 (bf -0.0)]
+       [3 (bf 0.0)]
+       [4 (bf 1)]
+       [5 (bf +inf.0)]
+       [6 (parameterize ([bf-rounding-mode 'down]) pi.bf)]
+       [7 (parameterize ([bf-rounding-mode 'up]) pi.bf)]
+       [8 (parameterize ([bf-rounding-mode 'down]) (bf- pi.bf))]
+       [9 (parameterize ([bf-rounding-mode 'up]) (bf- pi.bf))])]
+    [else
+     (define exponent (random -1023 1023)) ; Pretend-double
+     (define significand (bf (random-bits (bf-precision)) (- (bf-precision))))
+     (define val (bfshift (bf+ 1.bf significand) exponent))
+     (if (= (random 0 2) 1) (bf- val) val)]))
 
-(define (sample-wide-interval)
-  (define v1 (sample-bigfloat))
+(define (sample-wide-interval v1)
   (define v2 (sample-bigfloat))
   (ival (bfmin v1 v2) (bfmax v1 v2)))
 
-(define (sample-narrow-interval)
-  (if (= (random 0 2) 0)
-      (sample-constant-interval)
-      (sample-small-interval)))
-
-(define (sample-constant-interval)
-  (define constants (list 0.bf 1.bf -1.bf (bf 0.5)))
-  (define c (list-ref constants (random 0 (length constants))))
+(define (sample-constant-interval c)
   (ival c c))
 
-(define (sample-small-interval)
+(define (sample-narrow-interval v1)
   ;; Biased toward small intervals
-  (define v1 (sample-bigfloat))
   (define size (random 1 (bf-precision)))
   (define delta (* (match (random 0 2) [0 -1] [1 1]) size))
   (define v2 (bfstep v1 delta))
@@ -211,7 +216,14 @@
 (define (sample-interval type)
   (match type
     ['real
-     (define x (if (= (random 0 2) 0) (sample-wide-interval) (sample-narrow-interval)))
+     (define mode (random 0 3))
+     (define value (sample-bigfloat))
+     (define x
+       (match mode
+         [0 #:when (not (bfinfinite? value))
+            (sample-constant-interval value)]
+         [1 (sample-narrow-interval value)]
+         [_ (sample-wide-interval value)]))
      (if (or (bfnan? (ival-lo x)) (bfnan? (ival-hi x))) (sample-interval type) x)]
     ['bool
      (match (random 0 3)
@@ -221,14 +233,20 @@
 
 (define (sample-from ival)
   (if (bigfloat? (ival-lo ival))
-      (if (bf<= (ival-lo ival) 0.bf (ival-hi ival))
-          (let* ([p (random)]
-                 [lo* (bigfloat->flonum (ival-lo ival))]
-                 [hi* (bigfloat->flonum (ival-hi ival))]
-                 [range (flonums-between lo* hi*)])
-              (bf (flstep lo* (exact-floor (* p range)))))
-          (let ([p (random)] [range (bigfloats-between (ival-lo ival) (ival-hi ival))])
-            (bfstep (ival-lo ival) (exact-floor (* p range)))))
+      (cond
+        [(ival-err ival)
+         +nan.bf]
+        [(or (bf<= (ival-lo ival) 0.bf (ival-hi ival))
+             (bfinfinite? (ival-lo ival))
+             (bfinfinite? (ival-hi ival)))
+         (let* ([p (random)]
+                [lo* (bigfloat->flonum (ival-lo ival))]
+                [hi* (bigfloat->flonum (ival-hi ival))]
+                [range (flonums-between lo* hi*)])
+           (bf (flstep lo* (exact-floor (* p range)))))]
+        [else
+         (let ([p (random)] [range (bigfloats-between (ival-lo ival) (ival-hi ival))])
+           (bfstep (ival-lo ival) (exact-floor (* p range))))])
       (let ([p (random 0 2)])
         (if (= p 0) (ival-lo ival) (ival-hi ival)))))
 
