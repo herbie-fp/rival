@@ -131,8 +131,9 @@
 (define (mk-big-ival x y)
   (cond
    [(and (bigfloat? x) (bigfloat? y))
-    (define err? (or (bfnan? x) (bfnan? y)))
     (define fix? (bf=? x y))
+    (define err? (or (bfnan? x) (bfnan? y)
+                     (and (bfinfinite? x) fix?)))
     (ival (endpoint x fix?) (endpoint y fix?) err? err?)]
    [(and (boolean? x) (boolean? y))
     (define fix? (equal? x y))
