@@ -242,9 +242,10 @@
            (value-equals? (ival-hi ival1) (ival-hi ival2)))))
 
 (define num-tests 1000)
-(define num-slow-tests 25)
 (define num-witnesses 10)
+
 (define slow-tests (list ival-lgamma ival-tgamma))
+(define num-slow-tests 25)
 
 (define (test-entry ival-fn fn args)
   (define out-prec (sample-precision))
@@ -340,15 +341,18 @@
 (module+ main
   (require racket/cmdline)
   (command-line
-   #:args (fname [n (~a num-tests)])
-   (define entry
-     (findf (λ (entry) (equal? (~a (object-name (first entry))) (format "ival-~a" fname)))
-            function-table))
-   (match entry
-     [#f
-      (raise-user-error 'test.rkt "No function named ival-~a" fname)]
-     [(list ival-fn fn itypes otype)
-      (for ([n (in-range (string->number n))])
-        (test-entry ival-fn fn itypes)
-        (eprintf "."))
-      (newline)])))
+   #:args ([fname #f] [n (~a num-tests)])
+   (cond
+     [fname
+      (define entry
+        (findf (λ (entry) (equal? (~a (object-name (first entry))) (format "ival-~a" fname)))
+               function-table))
+      (match entry
+        [#f
+         (raise-user-error 'test.rkt "No function named ival-~a" fname)]
+        [(list ival-fn fn itypes otype)
+         (for ([n (in-range (string->number n))])
+           (test-entry ival-fn fn itypes)
+           (eprintf "."))
+         (newline)])]
+     [else (run-tests)])))
