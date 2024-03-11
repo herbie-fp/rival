@@ -80,7 +80,7 @@
     (define precision
       (+ (bf-precision) (max (- (+ (bigfloat-exponent x) (bigfloat-precision x))
                                 (+ (bigfloat-exponent mod) (bigfloat-precision mod))) 0)))
-    (if (< precision (expt 2 25)) ; Limit it to 32MB per number
+    (if (< precision (expt 2 20)) ; Limit it to 1MB per number
         (bfcopy
          (parameterize ([bf-precision precision]) 
            (bfcanonicalize (bf- x (bf* (bftruncate (bf/ x mod)) mod)))))
