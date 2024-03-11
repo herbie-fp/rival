@@ -222,9 +222,11 @@
        (match mode
          [0 #:when (not (bfinfinite? value))
             (sample-constant-interval value)]
-         [1 (sample-narrow-interval value)]
+         [1 #:when (not (bfinfinite? value))
+            ;; Don't want to sample [omega, inf] because it'll blow up sin/cos/tan
+            (sample-narrow-interval value)]
          [_ (sample-wide-interval value)]))
-     (if (or (bfnan? (ival-lo x)) (bfnan? (ival-hi x))) (sample-interval type) x)]
+     (if (ival-err x) (sample-interval type) x)]
     ['bool
      (match (random 0 3)
        [0 (ival #f)]
@@ -234,19 +236,27 @@
 (define (sample-from ival)
   (if (bigfloat? (ival-lo ival))
       (cond
-        [(ival-err ival)
-         +nan.bf]
         [(or (bf<= (ival-lo ival) 0.bf (ival-hi ival))
              (bfinfinite? (ival-lo ival))
              (bfinfinite? (ival-hi ival)))
-         (let* ([p (random)]
-                [lo* (bigfloat->flonum (ival-lo ival))]
-                [hi* (bigfloat->flonum (ival-hi ival))]
-                [range (flonums-between lo* hi*)])
-           (bf (flstep lo* (exact-floor (* p range)))))]
+         (define p (random))
+         (define lo* (bigfloat->flonum (ival-lo ival)))
+         (define hi* (bigfloat->flonum (ival-hi ival)))
+         (define reduction (if (or (infinite? lo*) (infinite? hi*)) 1 0))
+         (define range (- (+ (flonums-between lo* hi*) 1) reduction))
+         (define offset (+ (if (infinite? lo*) 1 0) (exact-floor (* p range))))
+         ; This only happens if [lo*, hi*] = [inf, inf] due to rounding
+         (if (and (= range 0) (= reduction 1))
+             (if (negative? lo*)
+                 (bf (flstep -inf.0 1))
+                 (bf (flstep +inf.0 -1)))
+             (bf (flstep lo* offset)))]
         [else
-         (let ([p (random)] [range (bigfloats-between (ival-lo ival) (ival-hi ival))])
-           (bfstep (ival-lo ival) (exact-floor (* p range))))])
+         (define p (random))
+         (define reduction (if (or (bfinfinite? (ival-lo ival)) (bfinfinite? (ival-hi ival))) 1 0))
+         (define range (- (bigfloats-between (ival-lo ival) (ival-hi ival)) reduction))
+         (define offset (+ (if (bfinfinite? (ival-lo ival)) 1 0) (exact-floor (* p range))))
+         (bfstep (ival-lo ival) offset)])
       (let ([p (random 0 2)])
         (if (= p 0) (ival-lo ival) (ival-hi ival)))))
 
