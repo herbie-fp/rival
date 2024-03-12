@@ -378,11 +378,25 @@
 
 (define* ival-neg (comonotonic bfneg))
 
-(define* ival-rint (monotonic bfrint))
-(define* ival-round (monotonic bfround))
-(define* ival-ceil (monotonic bfceiling))
-(define* ival-floor (monotonic bffloor))
-(define* ival-trunc (monotonic bftruncate))
+;; This function fixes a bug in MPFR where mixed-precision
+;; rint/round/ceil/floor/trunc operations are rounded in the input
+;; precision, not the output precision, so (rnd 'down bfround xxx) can
+;; return +inf.bf
+(define (fix-infinite-pt-interval x)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (cond
+    [(and (bfnegative? xhi) (bfinfinite? xhi))
+     (ival (endpoint xlo xlo!) (endpoint (bfstep xhi 1) #f) xerr? xerr)]
+    [(and (bfpositive? xlo) (bfinfinite? xlo))
+     (ival (endpoint (bfstep xlo -1) #f) (endpoint xhi xhi!) xerr? xerr)]
+    [else
+     x]))
+
+(define* ival-rint (compose fix-infinite-pt-interval (monotonic bfrint)))
+(define* ival-round (compose fix-infinite-pt-interval (monotonic bfround)))
+(define* ival-ceil (compose fix-infinite-pt-interval (monotonic bfceiling)))
+(define* ival-floor (compose fix-infinite-pt-interval (monotonic bffloor)))
+(define* ival-trunc (compose fix-infinite-pt-interval (monotonic bftruncate)))
 
 (define (ival-fabs x)
   (match (classify-ival x)
