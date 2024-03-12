@@ -583,6 +583,12 @@
                       'range-reduce)
                   'range-reduce)))))
 
+(define (bfexponent x)
+  (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
+  (if (< 1000000000 (abs exp))
+      0  ; overflow/inf.bf/nan.bf/0.bf
+      exp))
+
 (define (ival-cos x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   
@@ -600,8 +606,8 @@
      (let ([prec (min (*rival-precision*)
                       (max (bf-precision)
                            (max
-                            (+ (bigfloat-exponent xlo) (bigfloat-precision xlo) (bigfloat-precision xlo))
-                            (+ (bigfloat-exponent xhi) (bigfloat-precision xhi) (bigfloat-precision xhi)))))])
+                            (+ (bfexponent xlo) (bigfloat-precision xlo))
+                            (+ (bfexponent xhi) (bigfloat-precision xhi)))))])
        (match-define (ival (endpoint a _) (endpoint b _) _ _)
          (parameterize ([bf-precision prec])
            (ival-floor (ival-div x (ival-pi)))))
@@ -630,8 +636,8 @@
      (let ([prec (min (*rival-precision*)
                       (max (bf-precision)
                            (max
-                            (+ (bigfloat-exponent xlo) (bigfloat-precision xlo) (bigfloat-precision xlo))
-                            (+ (bigfloat-exponent xhi) (bigfloat-precision xhi) (bigfloat-precision xhi)))))])
+                            (+ (bfexponent xlo) (bigfloat-precision xlo))
+                            (+ (bfexponent xhi) (bigfloat-precision xhi)))))])
        (match-define (ival (endpoint a _) (endpoint b _) _ _)
          (parameterize ([bf-precision prec])
            (ival-round (ival-div x (ival-pi)))))
@@ -663,8 +669,8 @@
      (let ([prec (min (*rival-precision*)
                       (max (bf-precision)
                            (max
-                            (+ (bigfloat-exponent xlo) (bigfloat-precision xlo) (bigfloat-precision xlo))
-                            (+ (bigfloat-exponent xhi) (bigfloat-precision xhi) (bigfloat-precision xhi)))))])
+                            (+ (bfexponent xlo) (bigfloat-precision xlo))
+                            (+ (bfexponent xhi) (bigfloat-precision xhi)))))])
        (match-define (ival (endpoint a _) (endpoint b _) _ _)
          (parameterize ([bf-precision prec])
            (ival-round (ival-div x (ival-pi)))))
