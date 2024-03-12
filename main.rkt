@@ -583,12 +583,6 @@
                       'range-reduce)
                   'range-reduce)))))
 
-(define (bfexponent x)
-  (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
-  (if (< 1000000000 (abs exp))
-      0  ; overflow/inf.bf/nan.bf/0.bf
-      exp))
-
 (define (ival-cos x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   
