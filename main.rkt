@@ -539,9 +539,9 @@
 
   (if (<= lo* 0)    ; if lo* belongs to (-1, 1)
       (if (<= hi* 0)    ; if hi* belongs to (-1, 1)
-                        ; -9223372036854775807 is a code for 0.bf, otherwise -9220000000000000000 and lower is a nan/inf
-          (if (or (and (< 1073741822 (abs lo*)) (not (equal? -9223372036854775807 lo*)))
-                  (and (< 1073741822 (abs hi*)) (not (equal? -9223372036854775807 hi*))))
+                        ; -9223372036854775807 is a code for 0.bf, otherwise 1000000000 and higher is a nan/inf/overflow
+          (if (or (and (< 1000000000 (abs lo*)) (not (equal? -9223372036854775807 lo*)))
+                  (and (< 1000000000 (abs hi*)) (not (equal? -9223372036854775807 hi*))))
               'too-wide    ; interval includes inf/nan/overflow
               'near-0) 
           (cond
