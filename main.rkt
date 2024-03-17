@@ -534,58 +534,18 @@
 
 (define (classify-ival-periodic x period)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  (define lo* (+ (bigfloat-exponent xlo) (bigfloat-precision xlo)))
-  (define hi* (+ (bigfloat-exponent xhi) (bigfloat-precision xhi)))
-
-  
-  (if (or (and (< 1073741822 (abs lo*)) (not (equal? -9223372036854775807 lo*)))  ; -9223372036854775807 is a code for 0.bf
-          (and (< 1073741822 (abs hi*)) (not (equal? -9223372036854775807 hi*)))) ; |lo* or hi*| > 1073741822 is nan/inf/overflow 
-      'too-wide                     ; overflow/inf/nan
-      (if (<= lo* 0)                ; if lo* belongs to (-1, 1)
-          (if (<= hi* 0)            ; if hi* belongs to (-1, 1)  
-              'near-0
-              (cond
-                [(equal? period 'pi)
-                 (if (>= hi* 2)     ; if hi* belongs to (-inf, -2] U [2, +inf)
-                     'too-wide
-                     'range-reduce)]
-                [(equal? period '2pi)
-                 (if (>= hi* 4)     ; if hi* belongs to (-inf, -8] U [8, +inf)
-                     'too-wide
-                     'range-reduce)]))
-          (if (<= lo* 1)            ; if lo* belongs to (-2, 2)
-              (cond
-                [(equal? period 'pi)
-                 (if (>= hi* 4)     ; if hi* belongs to (-inf, -8] U [8, +inf)
-                     'too-wide
-                     'range-reduce)]
-                [(equal? period '2pi)
-                 (if (>= hi* 5)     ; if hi* belongs to (-inf, -16] U [16, +inf)
-                     'too-wide
-                     'range-reduce)])
-              (if (<= lo* 2)        ; if lo* belongs to (-4, 4)
-                  (cond
-                    [(equal? period 'pi)
-                     (if (>= hi* 4) ; if hi* belongs to (-inf, -8] U [8, +inf)
-                         'too-wide
-                         'range-reduce)]
-                    [(equal? period '2pi)
-                     (if (>= hi* 5) ; if hi* belongs to (-inf, -16] U [16, +inf)
-                         'too-wide
-                         'range-reduce)])
-                  (if (>= lo* 3)    ; if lo* belongs to (-inf, -4] U [4, +inf)
-                      (if (>= hi* 3) ; if hi* belongs to (-inf, -4] U [4, +inf)
-                          (if (> (abs (- hi* lo*)) 1)
-                              'too-wide
-                              (if (equal? (bigfloat-signbit xlo) (bigfloat-signbit xhi))
-                                  'range-reduce
-                                  'too-wide))
-                          'range-reduce)
-                      'range-reduce))))))
+  (define lo-ulp (bigfloat-exponent xlo))
+  (define hi-ulp (bigfloat-exponent xhi))
+  (define lo-exp (+ lo-ulp (bigfloat-precision xlo)))
+  (define hi-exp (+ hi-ulp (bigfloat-precision xhi)))
+  (cond
+    [(and (not (bfinfinite? xlo)) (not (bfinfinite? xhi))
+          (< lo-exp 0) (< hi-exp 0)) 'near-0]
+    [(or  (> lo-ulp 0) (> hi-ulp 0)) (if (bf=? xlo xhi) 'range-reduce 'too-wide)]
+    [else 'range-reduce]))
 
 (define (ival-cos x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  
   (match (classify-ival-periodic x '2pi)
     ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
     ['near-0
