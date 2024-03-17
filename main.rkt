@@ -540,7 +540,7 @@
   (define hi-exp (+ hi-ulp (bigfloat-precision xhi)))
   (cond
     [(and (< lo-exp 0) (< hi-exp 0)) 'near-0]
-    [(or  (> lo-ulp 0) (> hi-ulp 0)) 'too-wide]
+    [(or  (> lo-ulp 0) (> hi-ulp 0)) (if (bf=? xlo xhi) 'range-reduce 'too-wide)]
     [else 'range-reduce]))
 
 (define (ival-cos x)
