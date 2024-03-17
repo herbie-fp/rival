@@ -539,13 +539,13 @@
   (define lo-exp (+ lo-ulp (bigfloat-precision xlo)))
   (define hi-exp (+ hi-ulp (bigfloat-precision xhi)))
   (cond
-    [(and (< lo-exp 0) (< hi-exp 0)) 'near-0]
+    [(and (not (bfinfinite? xlo)) (not (bfinfinite? xhi))
+          (< lo-exp 0) (< hi-exp 0)) 'near-0]
     [(or  (> lo-ulp 0) (> hi-ulp 0)) (if (bf=? xlo xhi) 'range-reduce 'too-wide)]
     [else 'range-reduce]))
 
 (define (ival-cos x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  
   (match (classify-ival-periodic x '2pi)
     ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
     ['near-0
