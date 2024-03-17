@@ -539,8 +539,8 @@
   (define lo-exp (+ lo-ulp (bigfloat-precision xlo)))
   (define hi-exp (+ hi-ulp (bigfloat-precision xhi)))
   (cond
-    [(and (not (bfinfinite? xlo)) (not (bfinfinite? xhi))
-          (< lo-exp 0) (< hi-exp 0)) 'near-0]
+    [(or (bfinfinite? xlo) (bfinfinite? xhi)) 'too-wide]
+    [(and (< lo-exp 0) (< hi-exp 0)) 'near-0]
     [(or  (> lo-ulp 0) (> hi-ulp 0)) (if (bf=? xlo xhi) 'range-reduce 'too-wide)]
     [else 'range-reduce]))
 
