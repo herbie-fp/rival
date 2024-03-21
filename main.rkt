@@ -687,21 +687,30 @@
    [else
     (ival (endpoint 0.bf #f) (endpoint (ival-hi-val y) #f) err? err)]))
 
+(define (ival-max-precision x)
+  (max (bf-precision) (bigfloat-precision (ival-lo-val x)) (bigfloat-precision (ival-hi-val x))))
+
 (define (ival-fmod x y)
   (define err? (or (ival-err? x) (ival-err? y)
                    (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
   (define err (or (ival-err x) (ival-err y)
                   (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
-  (define y* (ival-fabs y))
-  (cond
-   [(bflte? (ival-hi-val x) 0.bf)
-    (ival-neg (ival-fmod-pos (ival-neg x) y* err? err))]
-   [(bfgte? (ival-lo-val x) 0.bf)
-    (ival-fmod-pos x y* err? err)]
-   [else
-    (define-values (neg pos) (split-ival x 0.bf))
-    (ival-union (ival-fmod-pos pos y* err? err)
-                (ival-neg (ival-fmod-pos (ival-neg neg) y* err? err)))]))
+  (parameterize ([bf-precision (max (ival-max-precision x)
+                                    (ival-max-precision y))])
+    (define y* (ival-fabs y))
+    (cond
+      [(bflte? (ival-hi-val x) 0.bf)
+       (ival-neg (ival-fmod-pos
+                  (ival-neg x)
+                  y* err? err))]
+      [(bfgte? (ival-lo-val x) 0.bf)
+       (ival-fmod-pos x y* err? err)]
+      [else
+       (define-values (neg pos) (split-ival x 0.bf))
+       (ival-union (ival-fmod-pos pos y* err? err)
+                   (ival-neg (ival-fmod-pos
+                              (ival-neg neg)
+                              y* err? err)))])))
 
 (define (ival-remainder-pos x y err? err)
   ;; Assumes both `x` and `y` are entirely positive
