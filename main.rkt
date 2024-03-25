@@ -955,9 +955,13 @@
 (define ival-maybe (ival (endpoint #f #t) (endpoint #t #t) #f #f))
 
 (define (ival-then a . as)
-  (ival (ival-lo (last (cons a as))) (ival-hi (last (cons a as)))
-        (or (ival-err? a) (ormap ival-err? as))
-        (or (ival-err a) (ormap ival-err as))))
+  (match-define (ival alo ahi aerr? aerr) a)
+  (for/fold
+      ([lo alo] [hi ahi] [err? aerr?] [err aerr]
+       #:result (ival lo hi err? err))
+      ([a (in-list as)])
+    (match-define (ival alo ahi aerr? aerr) a)
+    (values alo ahi (or err? aerr?) (or err aerr))))
 
 (define* ival-identity (monotonic bfcopy))
 
