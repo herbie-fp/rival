@@ -2,7 +2,7 @@
 
 (define collection "rival")
 (define version "1.7")
-(define license "MIT License")
+(define license 'MIT)
 
 ;; Packaging information
 
