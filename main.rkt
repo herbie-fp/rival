@@ -992,7 +992,7 @@
         (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-copysign x y)
-  (match-define (ival xlo xhi xerr? xerr) (ival-exact-fabs x))
+  (match-define (ival xlo xhi xerr? xerr) (ival-fabs x))
   (define can-zero
     (or (bfzero? (ival-lo-val y)) (bfzero? (ival-hi-val y))))
   ;; 0 is both positive and negative because we don't handle signed zero well
