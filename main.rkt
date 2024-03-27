@@ -403,6 +403,16 @@
            (rnd 'up endpoint-max2 (epfn bfabs (ival-lo x)) (ival-hi x))
            (ival-err? x) (ival-err x))]))
 
+;; These functions execute ival-fabs and ival-neg with input's precision
+(define (ival-max-prec x)
+  (max (bigfloat-precision (ival-lo-val x)) (bigfloat-precision (ival-hi-val x))))
+
+(define (ival-exact-fabs x)
+  (parameterize ([bf-precision (ival-max-prec x)]) (ival-fabs x)))
+
+(define (ival-exact-neg x)
+  (parameterize ([bf-precision (ival-max-prec x)]) (ival-neg x)))
+
 ;; Since MPFR has a cap on exponents, no value can be more than twice MAX_VAL
 (define exp-overflow-threshold  (bfadd (bflog (bfprev +inf.bf)) 1.bf))
 (define exp2-overflow-threshold (bfadd (bflog2 (bfprev +inf.bf)) 1.bf))
@@ -418,7 +428,7 @@
 (define* ival-log2 (compose (monotonic bflog2) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log10 (compose (monotonic bflog10) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log1p (compose (monotonic bflog1p) (clamp-strict -1.bf +inf.bf)))
-(define* ival-logb (compose ival-floor ival-log2 ival-fabs))
+(define* ival-logb (compose ival-floor ival-log2 ival-exact-fabs))
 
 (define* ival-sqrt (compose (monotonic bfsqrt) (clamp 0.bf +inf.bf)))
 (define* ival-cbrt (monotonic bfcbrt))
@@ -426,8 +436,8 @@
 (define (ival-hypot x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (define x* (ival-fabs x))
-  (define y* (ival-fabs y))
+  (define x* (ival-exact-fabs x))
+  (define y* (ival-exact-fabs y))
   (ival (rnd 'down eplinear bfhypot (ival-lo x*) (ival-lo y*))
         (rnd 'up   eplinear bfhypot (ival-hi x*) (ival-hi y*)) err? err))
 
@@ -487,16 +497,16 @@
           ; If y is an integer point interval, there's no error,
           ; because it's always valid to raise to an integer power.
           (if (bfodd? (ival-lo-val y))
-              (ival-neg (ival-pow-pos (ival-fabs x) y)) ; Use fabs in case of [x, 0]
-              (ival-pow-pos (ival-fabs x) y))
+              (ival-neg (ival-pow-pos (ival-exact-fabs x) y)) ; Use fabs in case of [x, 0]
+              (ival-pow-pos (ival-exact-fabs x) y))
           ; If y is non-integer point interval, it must be an even
           ; fraction (because all bigfloats are) so we always error
           ival-illegal)
       ; Moreover, if we have (-x)^y, that's basically x^y U -(x^y).
-      (let ([pospow (ival-pow-pos (ival-fabs x) y)])
+      (let ([pospow (ival-pow-pos (ival-exact-fabs x) y)])
         (ival-then (ival-assert ival-maybe) (ival-union (ival-neg pospow) pospow)))))
 
-(define* ival-pow2 (compose (monotonic (lambda (x) (bfmul x x))) ival-fabs))
+(define* ival-pow2 (compose (monotonic (lambda (x) (bfmul x x))) ival-exact-fabs))
 
 (define (ival-pow x y)
   (cond
@@ -656,7 +666,7 @@
             (or err (and (bf=? (ival-lo-val x) 0.bf) (bf=? (ival-hi-val x) 0.bf)
                          (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))]))
 
-(define* ival-cosh (compose (monotonic bfcosh) ival-fabs))
+(define* ival-cosh (compose (monotonic bfcosh) ival-exact-fabs))
 (define* ival-sinh (monotonic bfsinh))
 (define* ival-tanh (monotonic bftanh))
 (define* ival-asinh (monotonic bfasinh))
@@ -692,16 +702,16 @@
                    (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
   (define err (or (ival-err x) (ival-err y)
                   (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
-  (define y* (ival-fabs y))
+  (define y* (ival-exact-fabs y))
   (cond
    [(bflte? (ival-hi-val x) 0.bf)
-    (ival-neg (ival-fmod-pos (ival-neg x) y* err? err))]
+    (ival-neg (ival-fmod-pos (ival-exact-neg x) y* err? err))]
    [(bfgte? (ival-lo-val x) 0.bf)
     (ival-fmod-pos x y* err? err)]
    [else
     (define-values (neg pos) (split-ival x 0.bf))
     (ival-union (ival-fmod-pos pos y* err? err)
-                (ival-neg (ival-fmod-pos (ival-neg neg) y* err? err)))]))
+                (ival-neg (ival-fmod-pos (ival-exact-neg neg) y* err? err)))]))
 
 (define (ival-remainder-pos x y err? err)
   ;; Assumes both `x` and `y` are entirely positive
@@ -736,16 +746,16 @@
                    (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
   (define err (or (ival-err x) (ival-err y)
                   (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
-  (define y* (ival-fabs y))
+  (define y* (ival-exact-fabs y))
   (cond
    [(bflte? (ival-hi-val x) 0.bf)
-    (ival-neg (ival-remainder-pos (ival-neg x) y* err? err))]
+    (ival-neg (ival-remainder-pos (ival-exact-neg x) y* err? err))]
    [(bfgte? (ival-lo-val x) 0.bf)
     (ival-remainder-pos x y* err? err)]
    [else
     (define-values (neg pos) (split-ival x 0.bf))
     (ival-union (ival-remainder-pos pos y* err? err)
-                (ival-neg (ival-remainder-pos (ival-neg neg) y* err? err)))]))
+                (ival-neg (ival-remainder-pos (ival-exact-neg neg) y* err? err)))]))
 
 (define (bigfloat-midpoint lo hi)
   (bfstep lo (inexact->exact (floor (/ (bigfloats-between lo hi) 2)))))
@@ -982,7 +992,7 @@
         (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-copysign x y)
-  (match-define (ival xlo xhi xerr? xerr) (ival-fabs x))
+  (match-define (ival xlo xhi xerr? xerr) (ival-exact-fabs x))
   (define can-zero
     (or (bfzero? (ival-lo-val y)) (bfzero? (ival-hi-val y))))
   ;; 0 is both positive and negative because we don't handle signed zero well
@@ -1011,4 +1021,3 @@
   (define lo! (andmap (lambda (iv) (ival-lo-fixed? iv)) ivs))
   (for/list ([u upper] [l lower])
             (ival (endpoint l lo!) (endpoint u hi!) err? err)))
-
