@@ -350,16 +350,9 @@
   (for ([entry (in-list function-table)])
     (match-define (list ival-fn fn args _) entry)
     (define N (if (memq ival-fn slow-tests) num-slow-tests num-tests))
-    (eprintf "~a on ~a inputs: " (object-name ival-fn) N)
-    (define start-time (current-inexact-milliseconds))
     (test-case (~a (object-name ival-fn))
-       (for ([n (in-range N)])
-         (test-entry ival-fn fn args)
-         (when (= (remainder n 25) 0)
-           (eprintf "."))))
-    (define dt (/ (- (current-inexact-milliseconds) start-time) N))
-    (eprintf " ~ams each" (~r dt #:min-width 6 #:precision '(= 3)))
-    (eprintf "\n")))
+      (for ([n (in-range N)])
+        (test-entry ival-fn fn args)))))
 
 (module+ test (run-tests))
 (module+ main
@@ -375,8 +368,12 @@
         [#f
          (raise-user-error 'test.rkt "No function named ival-~a" fname)]
         [(list ival-fn fn itypes otype)
+         (printf "~a on ~a inputs: " (object-name ival-fn) n)
+         (define start-time (current-inexact-milliseconds))
          (for ([n (in-range (string->number n))])
            (test-entry ival-fn fn itypes)
-           (eprintf "."))
+           (printf "."))
+         (define dt (/ (- (current-inexact-milliseconds) start-time) (string->number n)))
+         (printf " ~ams each" (~r dt #:min-width 6 #:precision '(= 3)))
          (newline)])]
      [else (run-tests)])))
