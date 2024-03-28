@@ -34,7 +34,16 @@
 (define (value-equals? bf1 bf2)
   (if (boolean? bf1)
       (equal? bf1 bf2)
-      (or (bf= bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
+      (or (bigfloats-equal? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
+
+(define (bigfloats-equal? x y)
+  (cond
+     [(< (bigfloat-precision x) (bigfloat-precision y))
+      (bf= x (parameterize ([bf-rounding-mode 'nearest] [bf-precision (bigfloat-precision x)]) (bfcopy y)))]
+     [(> (bigfloat-precision x) (bigfloat-precision y))
+      (bf= y (parameterize ([bf-rounding-mode 'nearest] [bf-precision (bigfloat-precision y)]) (bfcopy x)))]
+     [else (bf= y x)]))
+    
 
 (define (value-lte? bf1 bf2)
   (if (boolean? bf1)
