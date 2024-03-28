@@ -695,7 +695,7 @@
       (ival (endpoint 0.bf #f)
             (endpoint (rnd 'up bfmax2 (bfdiv (ival-hi-val x) (bfadd c 1.bf)) 0.bf) #f) err? err)])]
    [else
-    (ival (endpoint 0.bf #f) (endpoint (rnd 'up bfabs (ival-hi-val y)) #f) err? err)]))
+    (ival (endpoint 0.bf #f) (endpoint (ival-hi-val y) #f) err? err)]))
 
 (define (ival-fmod x y)
   (define err? (or (ival-err? x) (ival-err? y)
