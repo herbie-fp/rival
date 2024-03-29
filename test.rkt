@@ -31,17 +31,17 @@
            (or (equal? pt (ival-lo ival))
                (equal? pt (ival-hi ival))))))
 
-(define (value-equals? bf1 bf2)
+(define (value-equals? bf1 bf2 [rnd-mode 'nearest])
   (if (boolean? bf1)
       (equal? bf1 bf2)
-      (or (bigfloats-equal? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
+      (or (bigfloats-equal? bf1 bf2 rnd-mode) (and (bfnan? bf1) (bfnan? bf2)))))
 
-(define (bigfloats-equal? x y)
+(define (bigfloats-equal? x y rnd-mode)
   (cond
      [(< (bigfloat-precision x) (bigfloat-precision y))
-      (bf= x (parameterize ([bf-rounding-mode 'nearest] [bf-precision (bigfloat-precision x)]) (bfcopy y)))]
+      (bf= x (parameterize ([bf-rounding-mode rnd-mode] [bf-precision (bigfloat-precision x)]) (bfcopy y)))]
      [(> (bigfloat-precision x) (bigfloat-precision y))
-      (bf= y (parameterize ([bf-rounding-mode 'nearest] [bf-precision (bigfloat-precision y)]) (bfcopy x)))]
+      (bf= y (parameterize ([bf-rounding-mode rnd-mode] [bf-precision (bigfloat-precision y)]) (bfcopy x)))]
      [else (bf= y x)]))
     
 
@@ -271,8 +271,8 @@
 (define-binary-check (check-ival-equals? ival1 ival2)
   (if (ival-err ival1)
       (ival-err ival2)
-      (and (value-equals? (ival-lo ival1) (ival-lo ival2))
-           (value-equals? (ival-hi ival1) (ival-hi ival2)))))
+      (and (value-equals? (ival-lo ival1) (ival-lo ival2) 'down)
+           (value-equals? (ival-hi ival1) (ival-hi ival2) 'up))))
 
 (define num-tests 1000)
 (define num-witnesses 10)
