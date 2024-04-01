@@ -678,22 +678,31 @@
 
 (define (ival-fmod-pos x y err? err)
   ;; Assumes both `x` and `y` are entirely positive
-  (define a (rnd 'down bftruncate (bfdiv (ival-lo-val x) (ival-hi-val y))))
-  (define b (rnd 'up bftruncate (bfdiv (ival-hi-val x) (ival-hi-val y))))
+  (define precision (max (ival-max-prec x) (ival-max-prec y)))
+  (define a (parameterize ([bf-precision precision])
+              (rnd 'down bftruncate (bfdiv (ival-lo-val x) (ival-hi-val y)))))
+  (define b (parameterize ([bf-precision precision])
+              (rnd 'up bftruncate (bfdiv (ival-hi-val x) (ival-hi-val y)))))
   (cond
    [(bf=? a b) ; No intersection along `y.hi` edge
-    (define c (rnd 'down bftruncate (bfdiv (ival-hi-val x) (ival-hi-val y))))
-    (define d (rnd 'up bftruncate (bfdiv (ival-hi-val x) (ival-lo-val y))))
+    (define c (parameterize ([bf-precision precision])
+                (rnd 'down bftruncate (bfdiv (ival-hi-val x) (ival-hi-val y)))))
+    (define d (parameterize ([bf-precision precision])
+                (rnd 'up bftruncate (bfdiv (ival-hi-val x) (ival-lo-val y)))))
     (cond
      [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
-      (define lo (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul* c (ival-hi-val y))))
-      (define hi (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul* c (ival-lo-val y))))
+      (define lo (rnd 'down bfsub (ival-lo-val x) (parameterize ([bf-precision precision])
+                                                    (rnd 'up bfmul* c (ival-hi-val y)))))
+      (define hi (rnd 'up bfsub (ival-hi-val x) (parameterize ([bf-precision precision])
+                                                  (rnd 'down bfmul* c (ival-lo-val y)))))
       (ival (endpoint lo #f)
             (endpoint hi #f)
             err? err)]
      [else
       (ival (endpoint 0.bf #f)
-            (endpoint (rnd 'up bfmax2 (bfdiv (ival-hi-val x) (bfadd c 1.bf)) 0.bf) #f) err? err)])]
+            (endpoint (rnd 'up bfmax2 (parameterize ([bf-precision precision])
+                                        (bfdiv (ival-hi-val x) (bfadd c 1.bf)))
+                                        0.bf) #f) err? err)])]
    [else
     (ival (endpoint 0.bf #f) (endpoint (ival-hi-val y) #f) err? err)]))
 
