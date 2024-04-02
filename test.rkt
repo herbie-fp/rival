@@ -26,8 +26,12 @@
         true]
        [else
         (and (not (ival-err ival))
-             (bf<= (ival-lo ival) (parameterize ([bf-precision (bigfloat-precision (ival-lo ival))] [bf-rounding-mode 'down]) (bfcopy pt))) 
-             (bf<= (parameterize ([bf-precision (bigfloat-precision (ival-lo ival))] [bf-rounding-mode 'up]) (bfcopy pt)) (ival-hi ival)))])
+             (if (equal? (bigfloat-precision pt) (bigfloat-precision (ival-lo ival))) 
+                 (bf<= (ival-lo ival) pt)
+                 (bf<= (parameterize ([bf-precision (bigfloat-precision pt)] [bf-rounding-mode 'down]) (bfcopy (ival-lo ival))) pt))
+             (if (equal? (bigfloat-precision pt) (bigfloat-precision (ival-hi ival))) 
+                 (bf<= pt (ival-hi ival))
+                 (bf<= pt (parameterize ([bf-precision (bigfloat-precision pt)] [bf-rounding-mode 'up]) (bfcopy (ival-hi ival))))))])
       (and (not (ival-err ival))
            (or (equal? pt (ival-lo ival))
                (equal? pt (ival-hi ival))))))
