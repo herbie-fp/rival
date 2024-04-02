@@ -700,8 +700,8 @@
             err? err)]
      [else
       (ival (endpoint 0.bf #f)
-            (endpoint (rnd 'up bfmax2 (bfdiv (ival-hi-val x) 
-                                             (parameterize ([bf-precision precision]) (bfadd c 1.bf)))
+            (endpoint (rnd 'up bfmax2 (parameterize ([bf-precision precision]) (bfdiv (ival-hi-val x) 
+                                                                                      (bfadd c 1.bf)))
                            0.bf) #f) err? err)])]
    [else
     (ival (endpoint 0.bf #f) (endpoint (ival-hi-val y) #f) err? err)]))
