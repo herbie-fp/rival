@@ -678,7 +678,7 @@
 
 (define (ival-fmod-pos x y err? err)
   ;; Assumes both `x` and `y` are entirely positive
-  (define precision (max (ival-max-prec x) (ival-max-prec y)))
+  (define precision (max (bf-precision) (ival-max-prec x) (ival-max-prec y)))
   (define a (parameterize ([bf-precision precision])
               (rnd 'down bftruncate (bfdiv (ival-lo-val x) (ival-hi-val y)))))
   (define b (parameterize ([bf-precision precision])
@@ -700,9 +700,9 @@
             err? err)]
      [else
       (ival (endpoint 0.bf #f)
-            (endpoint (rnd 'up bfmax2 (parameterize ([bf-precision precision])
-                                        (bfdiv (ival-hi-val x) (bfadd c 1.bf)))
-                                        0.bf) #f) err? err)])]
+            (endpoint (rnd 'up bfmax2 (bfdiv (ival-hi-val x) 
+                                             (parameterize ([bf-precision precision]) (bfadd c 1.bf)))
+                           0.bf) #f) err? err)])]
    [else
     (ival (endpoint 0.bf #f) (endpoint (ival-hi-val y) #f) err? err)]))
 
