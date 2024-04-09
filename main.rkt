@@ -988,7 +988,16 @@
   (cond
    [(ival-lo-val c) (ival-then c (ival-identity x))]
    [(not (ival-hi-val c)) (ival-then c (ival-identity y))]
-   [else (ival-then c (ival-union x y))]))
+   [else
+    (define out (ival-then c (ival-union x y)))
+    ; If condition is movable output should be too
+    (if (not (and (ival-lo-fixed? c) (ival-hi-fixed? c)))
+        (ival-mobilize out)
+        out)]))
+
+(define (ival-mobilize x)
+  (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) x)
+  (ival (endpoint lo #f) (endpoint hi #f) err? err))
 
 (define (ival-fmin x y)
   (ival (rnd 'down endpoint-min2 (ival-lo x) (ival-lo y))

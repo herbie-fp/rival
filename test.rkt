@@ -361,6 +361,10 @@
            (check-true (sorted? (map ival-lo output) bf<=))
            (check-true (sorted? (map ival-hi output) bf<=)))))
 
+  (test-case "ival-if"
+    ;; Tests that movable conditions for if statements mean movable results
+    (ival-lo-fixed? (ival-if (ival #f #t) (ival 0.bf) (ival 1.bf))))
+
   (for ([entry (in-list function-table)])
     (match-define (list ival-fn fn args _) entry)
     (define N (if (memq ival-fn slow-tests) num-slow-tests num-tests))
