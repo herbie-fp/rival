@@ -376,6 +376,21 @@
         (endpoint yhi (or yhi! (bfgte? xlo hi) (and (bfgte? xhi hi) xhi!)))
         xerr? xerr))
 
+;; Biggest non-inf value
+;;
+;; + 1 . 1111111111111111111111 e MAXEXP
+;;       Adding more 1s makes a bigger number
+;;
+;; + 1 . 0000000000000000000000 e MINEXP
+;;       Adding more 0s does not change value
+
+(define ((overflows-loose-at fn lo hi) x)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) (fn x))
+  (ival (endpoint ylo (or ylo! (bflte? xhi lo) (and (bflte? xlo lo) xlo!)))
+        (endpoint yhi (or yhi! (bflte? xhi lo) (bfgte? xlo hi) (and (bfgte? xhi hi) xhi!)))
+        xerr? xerr))
+
 (define* ival-neg (comonotonic bfneg))
 
 ;; This function fixes a bug in MPFR where mixed-precision
@@ -418,11 +433,11 @@
 (define exp2-overflow-threshold (bfadd (bflog2 (bfprev +inf.bf)) 1.bf))
 
 (define* ival-exp
-  (overflows-at (monotonic bfexp) (bfneg exp-overflow-threshold) exp-overflow-threshold))
+  (overflows-loose-at (monotonic bfexp) (bfneg exp-overflow-threshold) exp-overflow-threshold))
 (define* ival-expm1
   (overflows-at (monotonic bfexpm1) (bfneg exp-overflow-threshold) exp-overflow-threshold))
 (define* ival-exp2
-  (overflows-at (monotonic bfexp2) (bfneg exp2-overflow-threshold) exp2-overflow-threshold))
+  (overflows-loose-at (monotonic bfexp2) (bfneg exp2-overflow-threshold) exp2-overflow-threshold))
 
 (define* ival-log (compose (monotonic bflog) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log2 (compose (monotonic bflog2) (clamp-strict 0.bf +inf.bf)))
