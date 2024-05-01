@@ -108,12 +108,26 @@
   (bfstep (bf+ c (parameterize ([bf-precision (* (bf-precision) 2)]) (bf* a b))) 0))
 
 (define (bfremainder x mod)
-  (define y (bffmod x mod))
-  (define mod* (bfabs mod))
-  (define mod/2 (bf/ mod* 2.bf))
+  ;; The output of this is +- between 0 and |mod|
+  ;; But then we will subtract up to |mod|
+  ;; This can cause massive cancellation
+  ;; The worst-case cancellation is all but one ULP,
+  ;; so if we double precision that should be fine
+  (define y
+    (parameterize ([bf-precision (* 2 (bigfloat-precision mod))])
+      (bffmod x mod)))
+  (define mod*
+    (parameterize ([bf-precision (bigfloat-precision mod)])
+      (bfabs mod)))
+  (define mod/2
+    (parameterize ([bf-precision (bigfloat-precision mod*)])
+      (bf/ mod* 2.bf)))
+  (define -mod/2
+    (parameterize ([bf-precision (bigfloat-precision mod*)])
+      (bf- mod/2)))
   (cond
    [(bf> y mod/2) (bf- y mod*)]
-   [(bf< y (bf- mod/2)) (bf+ y mod*)]
+   [(bf< y -mod/2) (bf+ y mod*)]
    [else y]))
 
 (define (bfatan2-no0 y x)
