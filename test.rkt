@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/math math/base math/flonum math/bigfloat)
+(require racket/math math/base math/flonum math/bigfloat (rename-in math/bigfloat [bfremainder bffmod]))
 (require rackunit)
 (require "main.rkt")
 (provide ival-valid? function-table sample-interval)
@@ -86,22 +86,6 @@
 
 (define (if-fn c x y)
   (if c x y))
-
-(define (bffmod x mod)
-  (cond
-   [(bfinfinite? x) +nan.bf]
-   [(bfinfinite? mod) x]
-   [else
-    ;; For this to be precise, we need enough bits
-    (define precision
-      (+ (* 2 (bf-precision)) (max (- (+ (bigfloat-exponent x) (bigfloat-precision x))
-                                (+ (bigfloat-exponent mod) (bigfloat-precision mod))) 0)))
-    (if (< precision (expt 2 20)) ; Limit it to 1MB per number
-        (bfcopy
-         (parameterize ([bf-precision precision]) 
-           (bfcanonicalize (bf- x (bf* (bftruncate (bf/ x mod)) mod)))))
-        ;; By chance this is treated as either valid or invalid as needed
-        +inf.bf)]))
 
 (define (bffma a b c)
   ;; `bfstep` truncates to `(bf-precision)` bits
