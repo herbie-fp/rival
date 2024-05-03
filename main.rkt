@@ -515,12 +515,10 @@
               (ival-neg (ival-pow-pos (ival-exact-fabs x) y)) ; Use fabs in case of [x, 0]
               (ival-pow-pos (ival-exact-fabs x) y))
 
-          (let ([frac (rationalize (bigfloat->rational x) (expt 2 (- (bf-precision))))])
+          (let ([frac (rationalize (bigfloat->rational (ival-lo-val y)) (expt 2 (- (bf-precision))))])
             (if (and (odd? (numerator frac)) (odd? (denominator frac)))
                 (ival-neg (ival-pow-pos (ival-exact-fabs x) y)) ; y is an odd fraction
-                (if (even? (numerator frac))
-                    (ival-pow-pos (ival-exact-fabs x) y)        ; y is an even fraction
-                    ival-illegal))))
+                ival-illegal)))
             
       ; Moreover, if we have (-x)^y, that's basically x^y U -(x^y).
       (let ([pospow (ival-pow-pos (ival-exact-fabs x) y)])
