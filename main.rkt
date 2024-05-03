@@ -514,9 +514,14 @@
           (if (bfodd? (ival-lo-val y))
               (ival-neg (ival-pow-pos (ival-exact-fabs x) y)) ; Use fabs in case of [x, 0]
               (ival-pow-pos (ival-exact-fabs x) y))
-          ; If y is non-integer point interval, it must be an even
-          ; fraction (because all bigfloats are) so we always error
-          ival-illegal)
+
+          (let ([frac (rationalize (bigfloat->rational x) (expt 2 (- (bf-precision))))])
+            (if (and (odd? (numerator frac)) (odd? (denominator frac)))
+                (ival-neg (ival-pow-pos (ival-exact-fabs x) y)) ; y is an odd fraction
+                (if (even? (numerator frac))
+                    (ival-pow-pos (ival-exact-fabs x) y)        ; y is an even fraction
+                    ival-illegal))))
+            
       ; Moreover, if we have (-x)^y, that's basically x^y U -(x^y).
       (let ([pospow (ival-pow-pos (ival-exact-fabs x) y)])
         (ival-then (ival-assert ival-maybe) (ival-union (ival-neg pospow) pospow)))))
