@@ -31,7 +31,6 @@
 (define ival-list? (listof ival?))
 (define value? (or/c bigfloat? boolean?))
 
-
 (define (ival-hi-val ival)
   (endpoint-val (ival-hi ival)))
 (define (ival-lo-val ival)
