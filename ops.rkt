@@ -3,6 +3,22 @@
 (require racket/contract racket/match racket/function math/private/bigfloat/mpfr racket/list)
 (require (for-syntax racket/base))
 
+(provide
+ ival? (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
+ ival-union ival-split (rename-out [monotonic monotonic->ival] [comonotonic comonotonic->ival])
+ ival-illegal ival-pi ival-e ival-bool
+ ival-add ival-sub ival-neg ival-mult ival-div ival-fma       
+ ival-fabs ival-sqrt ival-cbrt ival-hypot ival-exp ival-exp2 ival-expm1
+ ival-log ival-log2 ival-log10 ival-log1p ival-logb ival-pow ival-sin ival-cos ival-tan       
+ ival-asin ival-acos ival-atan ival-atan2 ival-sinh ival-cosh ival-tanh
+ ival-asinh ival-acosh ival-atanh ival-erf ival-erfc ival-lgamma ival-tgamma    
+ ival-fmod ival-remainder ival-rint ival-round ival-ceil ival-floor ival-trunc     
+ ival-fmin ival-fmax ival-copysign ival-fdim ival-sort      
+ ival-< ival-<= ival-> ival->= ival-== ival-!= ival-if ival-and ival-or ival-not       
+ ival-error? ival-assert ival-then close-enough->ival
+ ;; Deprecated
+ ival-lo-fixed? ival-hi-fixed? ival-err? ival-err mk-ival)
+
 (define *rival-precision* (make-parameter (expt 2 20)))
 
 (define-match-expander ival-expander
@@ -27,9 +43,6 @@
         (fprintf port "ival-illegal")
         (fprintf port "(ival ~s ~s)" (ival-lo-val ival) (ival-hi-val ival))))])
 
-(define ival-list? (listof ival?))
-(define value? (or/c bigfloat? boolean?))
-
 (define (ival-hi-val ival)
   (endpoint-val (ival-hi ival)))
 (define (ival-lo-val ival)
@@ -38,84 +51,6 @@
   (endpoint-immovable? (ival-lo ival)))
 (define (ival-hi-fixed? ival)
   (endpoint-immovable? (ival-hi ival)))
-
-(provide ival? (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
-         (rename-out [monotonic monotonic->ival] [comonotonic comonotonic->ival])
-         (contract-out
-          [ival-union (-> ival? ival? ival?)]
-          [ival-split (-> ival? value? (values (or/c ival? #f) (or/c ival? #f)))])
-         (contract-out
-          [ival-pi (-> ival?)]
-          [ival-e  (-> ival?)]
-          [ival-bool (-> boolean? ival?)]
-          [ival-add (-> ival? ival? ival?)]
-          [ival-sub (-> ival? ival? ival?)]
-          [ival-neg (-> ival? ival?)]
-          [ival-mult (-> ival? ival? ival?)]
-          [ival-div (-> ival? ival? ival?)]
-          [ival-fma (-> ival? ival? ival? ival?)] ; TODO: untested
-          [ival-fabs (-> ival? ival?)]
-          [ival-sqrt (-> ival? ival?)]
-          [ival-cbrt (-> ival? ival?)]
-          [ival-hypot (-> ival? ival? ival?)]
-          [ival-exp (-> ival? ival?)]
-          [ival-exp2 (-> ival? ival?)]
-          [ival-expm1 (-> ival? ival?)]
-          [ival-log (-> ival? ival?)]
-          [ival-log2 (-> ival? ival?)]
-          [ival-log10 (-> ival? ival?)]
-          [ival-log1p (-> ival? ival?)]
-          [ival-logb (-> ival? ival?)]
-          [ival-pow (-> ival? ival? ival?)]
-          [ival-sin (-> ival? ival?)]
-          [ival-cos (-> ival? ival?)]
-          [ival-tan (-> ival? ival?)]
-          [ival-asin (-> ival? ival?)]
-          [ival-acos (-> ival? ival?)]
-          [ival-atan (-> ival? ival?)]
-          [ival-atan2 (-> ival? ival? ival?)]
-          [ival-sinh (-> ival? ival?)]
-          [ival-cosh (-> ival? ival?)]
-          [ival-tanh (-> ival? ival?)]
-          [ival-asinh (-> ival? ival?)]
-          [ival-acosh (-> ival? ival?)]
-          [ival-atanh (-> ival? ival?)]
-          [ival-erf (-> ival? ival?)]
-          [ival-erfc (-> ival? ival?)]
-          [ival-lgamma (-> ival? ival?)]
-          [ival-tgamma (-> ival? ival?)]
-          [ival-fmod (-> ival? ival? ival?)]
-          [ival-remainder (-> ival? ival? ival?)]
-          [ival-rint (-> ival? ival?)]
-          [ival-round (-> ival? ival?)]
-          [ival-ceil (-> ival? ival?)]
-          [ival-floor (-> ival? ival?)]
-          [ival-trunc (-> ival? ival?)]
-          [ival-fmin (-> ival? ival? ival?)]
-          [ival-fmax (-> ival? ival? ival?)]
-          [ival-copysign (-> ival? ival? ival?)]
-          [ival-fdim (-> ival? ival? ival?)]
-          [ival-sort (-> ival-list? (-> value? value? boolean?) ival-list?)])
-         (contract-out
-          [ival-<  (->* () #:rest (listof ival?) ival?)]
-          [ival-<= (->* () #:rest (listof ival?) ival?)]
-          [ival->  (->* () #:rest (listof ival?) ival?)]
-          [ival->= (->* () #:rest (listof ival?) ival?)]
-          [ival-== (->* () #:rest (listof ival?) ival?)]
-          [ival-!= (->* () #:rest (listof ival?) ival?)]
-          [ival-if (-> ival? ival? ival? ival?)]
-          [ival-and (->* () #:rest (listof ival?) ival?)]
-          [ival-or  (->* () #:rest (listof ival?) ival?)]
-          [ival-not (-> ival? ival?)])
-         (contract-out
-          [ival-error? (-> ival? ival?)]
-          [ival-illegal ival?]
-          [ival-assert (->* (ival?) (identity) ival?)]
-          [ival-then (->* (ival?) #:rest (listof ival?) ival?)])
-         close-enough->ival
-         ; Deprecated
-         ival-lo-fixed? ival-hi-fixed? ival-err? ival-err mk-ival
-         )
 
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))
