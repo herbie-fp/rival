@@ -57,7 +57,7 @@
 
   ; Step 5. If precisions have not changed but the point didn't converge. A problem exists - add slack to every op
   (unless any-false?
-    (set-rival-machine-bumps! (add1 bumps))
+    (set-rival-machine-bumps! machine (add1 bumps))
     (define slack (get-slack))
     (for ([prec (in-vector vprecs)]
           [n (in-range (vector-length vprecs))])
