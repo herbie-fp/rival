@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/math math/base math/flonum math/bigfloat)
+(require racket/math math/base math/flonum (rename-in math/bigfloat [bfremainder bffmod]))
 (require rackunit)
 (require "main.rkt")
 (provide ival-valid? function-table sample-interval)
@@ -87,34 +87,19 @@
 (define (if-fn c x y)
   (if c x y))
 
-(define (bffmod x mod)
-  (cond
-   [(bfinfinite? x) +nan.bf]
-   [(bfinfinite? mod) x]
-   [else
-    ;; For this to be precise, we need enough bits
-    (define precision
-      (+ (bf-precision) (max (- (+ (bigfloat-exponent x) (bigfloat-precision x))
-                                (+ (bigfloat-exponent mod) (bigfloat-precision mod))) 0)))
-    (if (< precision (expt 2 20)) ; Limit it to 1MB per number
-        (bfcopy
-         (parameterize ([bf-precision precision]) 
-           (bfcanonicalize (bf- x (bf* (bftruncate (bf/ x mod)) mod)))))
-        ;; By chance this is treated as either valid or invalid as needed
-        +inf.bf)]))
-
 (define (bffma a b c)
   ;; `bfstep` truncates to `(bf-precision)` bits
   (bfstep (bf+ c (parameterize ([bf-precision (* (bf-precision) 2)]) (bf* a b))) 0))
 
-(define (bfremainder x mod)
-  (define y (bffmod x mod))
-  (define mod* (bfabs mod))
-  (define mod/2 (bf/ mod* 2.bf))
-  (cond
-   [(bf> y mod/2) (bf- y mod*)]
-   [(bf< y (bf- mod/2)) (bf+ y mod*)]
-   [else y]))
+(module hairy racket/base
+  (require ffi/unsafe math/private/bigfloat/mpfr)
+  (provide bfremainder)
+  (define mpfr_remainder (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+  (define (bfremainder x mod)
+    (define out (bf 3))
+    (mpfr_remainder out x mod (bf-rounding-mode))
+    out))
+(require (submod "." hairy))
 
 (define (bfatan2-no0 y x)
   (if (and (bfzero? y) (bfzero? x))
