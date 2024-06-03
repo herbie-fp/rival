@@ -14,7 +14,7 @@
           [comonotonic->ival (-> (-> value? value?) (-> ival? ival?))]
           [ival-union (-> ival? ival? ival?)]
           [ival-split (-> ival? value? (values (or/c ival? #f) (or/c ival? #f)))]
-          [close-enough->ival (-> (-> value? value? boolean?) ival?)])
+          [close-enough->ival (-> (-> value? value? boolean?) (-> ival? ival?))])
          (contract-out
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
