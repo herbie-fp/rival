@@ -28,12 +28,19 @@
          (when (< n 4)
            (raise-user-error 'set "Precision must be an integer greater than 3"))
          (set! precision n)]
-        [`(FPCore ,(? symbol? name) (,(? symbol? args) ...)
-                  ,(and (or (? list?) (? symbol?) (? number?))
-                        body))
+        [`(define (,(? symbol? name) ,(? symbol? args) ...)
+            ,body)
          (hash-set! fns name
                     (rival-compile (list (fix-up-fpcore body)) args
                                    (list (bf-discretization precision))))]
+        [`(eval ,body)
+         (define machine (rival-compile (list (fix-up-fpcore body)) '()
+                                        (list (bf-discretization precision))))
+         (define out
+           (parameterize ([bf-precision precision])
+             (vector-ref (rival-apply machine (vector)) 0)))
+         (display (bigfloat->string out))
+         (newline)]
         [`(eval ,(? symbol? name) ,(? real? vals) ...)
          (define machine (hash-ref fns name))
          (unless (= (vector-length (rival-machine-arguments machine)) (length vals))
@@ -47,4 +54,4 @@
          (newline)])
       (display "> "))
     (display "exit")
-    (newline))
+    (newline)))
