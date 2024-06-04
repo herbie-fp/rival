@@ -91,7 +91,7 @@
 (provide (contract-out
           [rival-compile (-> (listof any/c) (listof symbol?) (listof discretization?)
                              rival-machine?)]
-          [rival-apply (-> rival-machine? (vectorof bigfloat?) (vectorof any/c))]
+          [rival-apply (-> rival-machine? (vectorof value?) (vectorof any/c))]
           [rival-analyze (-> rival-machine? (vectorof ival?) ival?)])
          (struct-out discretization)
          (struct-out exn:rival) (struct-out exn:rival:invalid) (struct-out exn:rival:unsamplable)
