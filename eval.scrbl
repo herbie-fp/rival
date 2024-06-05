@@ -183,9 +183,10 @@ precision, or choose to use a precision over the maximum before
 reaching the maximum number of iterations. The default values are
 likely sufficient for most use cases.
 
-@defproc[rival-analyze
-  ([machine rival-machine?]
-   [input-ranges (vectorof ival?)])
+@defproc[
+  (rival-analyze
+    [machine rival-machine?]
+    [input-ranges (vectorof ival?)])
   ival?]{
 Returns a boolean interval which indicates whether a call to @racket[rival-apply],
 with inputs in the supplied @racket[input-ranges],

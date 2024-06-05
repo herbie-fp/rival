@@ -9,10 +9,8 @@ guaranteed to be stable, backward-, or forward-compatible between
 versions. We do not recommend relying on @racket[rival-profile] in
 your code without following Rival development closely.
 
-@defproc[rival-profile 
-  ([machine rival-machine?]
-   [command symbol?])
-  any/c]{
+@defproc[(rival-profile [machine rival-machine?] [command symbol?]) any/c]{
+
 The @racket[rival-profile] function is called on a @racket[rival-machine?]
 with a command symbol that decribes the kind of profiling information to return.
 Profiling commands may be added or removed freely across versions; do not rely on them.
@@ -25,6 +23,8 @@ The currently-supported command symbols and their return values are:
 @item{@code{bumps} returns the number of unexpected non-convergences detected during the most recent call to @racket[rival-apply] with the compiled @racket[machine]. These generally represent internal errors in Rival. While Rival will attempt to handle these "bumps" smoothly, they should still be reported to the developers as a bug.}
 @item{@code{executions} returns a list of @racket{execution} structs, one for every register machine instruction executed by Rival. These executions are stored in a fixed-size buffer (see @racket[*rival-profile-executions*]) which is retained across @racket[rival-apply] calls and can fill up. The buffer is emptied by calls to @racket[(rival-profile machine 'executions)], so make sure to call this function regularly. If the list of @racket{execution}s returned by @racket[rival-profile] is equal in length to @racket[*rival-profile-executions*], you likely filled the buffer and are missing some executions.}
 ]
+
+}
 
 @defstruct*[execution
   ([name symbol?]
