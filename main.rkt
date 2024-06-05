@@ -100,6 +100,9 @@
          (contract-out
           [rival-profile (-> rival-machine? symbol? any/c)]))
 
+(require "utils.rkt")
+(provide flonum-discretization boolean-discretization bf-discretization)
+
 (module+ main
   (require "eval/repl.rkt")
   (rival-repl))
