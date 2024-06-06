@@ -8,7 +8,7 @@
 (define (bf-discretization n)
   (discretization
    (lambda (x) (parameterize ([bf-precision n]) (bfcopy x)))
-   (lambda (x y) (parameterize ([bf-precision n]) (bigfloats-between x y)))))
+   (lambda (x y) (parameterize ([bf-precision n]) (abs (bigfloats-between x y))))))
 
 (define (fix-up-fpcore expr)
   (match expr

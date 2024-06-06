@@ -9,7 +9,7 @@ function setup {
 }
 
 function generate-points {
-  racket "infra/generate-points.rkt" "./herbie/bench" "./infra/all-points.txt"
+  racket -y "infra/generate-points.rkt" "./herbie/bench" "./infra/all-points.txt"
 }
 
 REPORTDIR="report"
@@ -26,18 +26,18 @@ function clean {
 
 function run-mpfi {
   echo "running mpfi on generated points"
-  racket "infra/run-mpfi.rkt" "infra/all-points.txt" "$1"
+  racket -y "infra/run-mpfi.rkt" "infra/all-points.txt" "$1"
 }
 
 function run-mathematica {
   echo "Converting points to mathematica script"
   rm "report/mathematica-output.txt"  
-  racket "infra/run-mathematica.rkt" "infra/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$MATH_DATA" "$RIVAL_DATA"
+  racket -y "infra/run-mathematica.rkt" "infra/all-points.txt" "$REPORTDIR/mathematica-input.txt" "$MATH_DATA" "$RIVAL_DATA"
 }
 
 function format-data {
   echo "Formatting the mpfi and mathematica data into latex table"
-  racket "infra/report.rkt" "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html" "$REPORTDIR/examples.txt" "$REPORTDIR/macros.txt"
+  racket -y "infra/report.rkt" "$MPFI_DATA" "$MATH_DATA" "$RIVAL_DATA" "$REPORTDIR/index.html" "$REPORTDIR/examples.txt" "$REPORTDIR/macros.txt"
   cp "infra/index.css" "$REPORTDIR"
 }
 
@@ -58,7 +58,7 @@ function all {
 function perf {
     clean
     echo "<!doctype html><pre>" > "$REPORTDIR"/index.html
-    racket time.rkt 32000 | tee -a "$REPORTDIR"/index.html
+    racket -y time.rkt 32000 | tee -a "$REPORTDIR"/index.html
     echo "</pre>" >> "$REPORTDIR"/index.html
 }
 
