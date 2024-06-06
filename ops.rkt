@@ -883,13 +883,13 @@
         (or (ival-err x) (ival-err y))))
 
 (define ((ival-comparator f name) . as)
-  (if (null? as)
-      ival-true
-      (let loop ([head (car as)] [tail (cdr as)] [acc ival-true])
-        (match tail
-          ['() acc]
-          [(cons next rest)
-           (loop next rest (ival-and (f head next) acc))]))))
+  (let loop ([as as])
+    (match as
+      ['() ival-true]
+      [(list x) ival-true]
+      [(list x y) (f x y)]
+      [(cons x (and (cons y _) tail))
+       (ival-and (f x y) (loop tail))])))
 
 (define* ival-<  (ival-comparator ival-<2  'ival-<))
 (define* ival-<= (ival-comparator ival-<=2 'ival-<=))
