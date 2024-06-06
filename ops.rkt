@@ -202,15 +202,17 @@
 (define (epmul a-endpoint b-endpoint a-class b-class)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
+  (define a0 (bfzero? a))
+  (define b0 (bfzero? b))
   (define-values (val exact?)
-    (if (or (bfzero? a) (bfzero? b))
+    (if (or a0 b0)
         (values 0.bf #t) ; 0 * inf = 0, not nan, because inf is potential, not actual
         (bf-return-exact? bfmul (list a b))))
   (endpoint val
    (or (and a! b! exact?)
-       (and a! (bfzero? a))
+       (and a! a0)
        (and a! (bfinfinite? a) (not (= b-class 0)))
-       (and b! (bfzero? b))
+       (and b! b0)
        (and b! (bfinfinite? b) (not (= a-class 0))))))
 
 (define (ival-mult x y)
