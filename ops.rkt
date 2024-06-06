@@ -128,8 +128,8 @@
 
 (define (classify-ival-strict x)
   (cond
-    [(= (mpfr-sign (ival-lo-val x)) 1) 1]
-    [(= (mpfr-sign (ival-hi-val x)) -1) -1]
+    [(and (= (mpfr-sign (ival-lo-val x)) 1) (not (bfzero? (ival-lo-val x)))) 1]
+    [(and (= (mpfr-sign (ival-hi-val x)) -1) (not (bfzero? (ival-hi-val x)))) -1]
     [else 0]))
 
 (define (endpoint-min2 e1 e2)
