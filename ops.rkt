@@ -113,14 +113,24 @@
    [(bfgte? (ival-lo-val i) val) (values #f i)]
    [else (split-ival i val)]))
 
-(define (classify-ival x [val #f])
-  (when val (set! x (ival-sub x (ival-expander val))))
-  (if (ival-err x)
-      1
-      (- 1 (bigfloat-signbit (ival-lo-val x)) (bigfloat-signbit (ival-hi-val x)))))
+(define (classify-ival x)
+  (cond
+    [(= (mpfr-sign (ival-lo-val x)) 1) 1]
+    [(= (mpfr-sign (ival-hi-val x)) -1) -1]
+    [else 0]))
 
-(define (classify-ival-strict x [val 0.bf])
-  (cond [(bfgt? (ival-lo-val x) val) 1] [(bflt? (ival-hi-val x) val) -1] [else 0]))
+(define (classify-pos-ival-1 x) ;; Assumes x positive
+  (define x.lo (ival-lo-val x))
+  (cond
+    [(>= (mpfr-exp (ival-lo-val x)) 1) 1]
+    [(< (mpfr-exp (ival-hi-val x)) 1) -1]
+    [else 0]))
+
+(define (classify-ival-strict x)
+  (cond
+    [(= (mpfr-sign (ival-lo-val x)) 1) 1]
+    [(= (mpfr-sign (ival-hi-val x)) -1) -1]
+    [else 0]))
 
 (define (endpoint-min2 e1 e2)
   (match-define (endpoint x x!) e1)
@@ -412,7 +422,7 @@
   ;; Assumes x is positive; code copied from ival-mult
   (match-define (ival xlo xhi xerr? xerr) x)
   (match-define (ival ylo yhi yerr? yerr) y)
-  (define x-class (classify-ival x 1.bf))
+  (define x-class (classify-pos-ival-1 x))
   (define y-class (classify-ival y))
 
   (define (mk-pow a b c d)
@@ -503,9 +513,9 @@
   (match (classify-ival-periodic x '2pi)
     ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
     ['near-0
-     (if (equal? (bigfloat-signbit xlo)
-                 (bigfloat-signbit xhi))
-         (if (> (bigfloat-signbit xlo) 0)
+     (if (equal? (mpfr-sign xlo)
+                 (mpfr-sign xhi))
+         (if (< (mpfr-sign xlo) 0)
              ((monotonic bfcos) x)    ; negative
              ((comonotonic bfcos) x)) ; positive
          (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
@@ -963,8 +973,8 @@
   (define can-zero
     (or (bfzero? (ival-lo-val y)) (bfzero? (ival-hi-val y))))
   ;; 0 is both positive and negative because we don't handle signed zero well
-  (define can-neg (or (= (bigfloat-signbit (ival-lo-val y)) 1) can-zero))
-  (define can-pos (or (= (bigfloat-signbit (ival-hi-val y)) 0) can-zero))
+  (define can-neg (or (= (mpfr-sign (ival-lo-val y)) -1) can-zero))
+  (define can-pos (or (= (mpfr-sign (ival-hi-val y)) 1) can-zero))
   (define err? (or (ival-err? y) xerr?))
   (define err (or (ival-err y) xerr))
   (match* (can-neg can-pos)
