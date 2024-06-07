@@ -3,7 +3,7 @@
 (require racket/math math/base math/flonum (rename-in math/bigfloat [bfremainder bffmod]))
 (require rackunit)
 (require "main.rkt")
-(provide ival-valid? function-table sample-interval)
+(provide ival-valid? function-table sample-interval slow-tests)
 
 (define (ival-valid? ival)
   (if (ival-err ival)
@@ -372,11 +372,8 @@
          (raise-user-error 'test.rkt "No function named ival-~a" fname)]
         [(list ival-fn fn itypes otype)
          (printf "~a on ~a inputs: " (object-name ival-fn) n)
-         (define start-time (current-inexact-milliseconds))
          (for ([n (in-range (string->number n))])
            (test-entry ival-fn fn itypes)
            (printf "."))
-         (define dt (/ (- (current-inexact-milliseconds) start-time) (string->number n)))
-         (printf " ~ams each" (~r dt #:min-width 6 #:precision '(= 3)))
          (newline)])]
      [else (run-tests)])))

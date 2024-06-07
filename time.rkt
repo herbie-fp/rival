@@ -4,57 +4,28 @@
 (require "main.rkt" "test.rkt")
 
 (define total-vals 1000)
-(define sample-vals (make-parameter 1000))
+(define sample-vals (make-parameter 2000))
 
-(define (mk-initial-values n)
-  (make-hash
-   (list (cons 'real (build-list n (λ (i) (sample-interval 'real))))
-         (cons 'bool (list (ival #t) (ival #f) (ival #f #t))))))
-
-(define (exec-fn vals ival-fn itypes otype)
-  (define args
-    (for/list ([itype (in-list itypes)])
-      (random-ref (hash-ref vals itype))))
-  (define out (apply ival-fn args))
-  (if (ival-valid? out)
-      (hash-update! vals otype (curry cons out))
-      (printf "Invalid output ~a from (~a ~a)\n"
-              out (object-name ival-fn)
-              (string-join (map ~a args) " "))))
-
-(define (exec-real-fn vals)
-  (match-define (list ival-fn bf-fn itypes otype)
-                (random-ref function-table))
-  (if (eq? otype 'real)
-      (exec-fn vals ival-fn itypes otype)
-      (exec-real-fn vals)))
-
-(define (mk-values)
-  (define vals (mk-initial-values 25))
-  (for ([n (in-range 25 total-vals)])
-    (exec-real-fn vals))
-  vals)
-
-(define (get-timings vals ival-fn itypes otype)
-  (define tot '())
+(define (get-timings ival-fn itypes otype)
   (define n
-    (if (string-contains? (~a (object-name ival-fn)) "gamma")
+    (if (set-member? slow-tests ival-fn)
         (/ (sample-vals) 100) ; Gamma functions are super duper slow
         (sample-vals)))
+  (define times (make-vector n))
   (for ([i (in-range n)])
     (define args
       (for/list ([itype (in-list itypes)])
-        (random-ref (hash-ref vals itype))))
+        (sample-interval itype)))
     (define start (current-inexact-milliseconds))
     (apply ival-fn args)
-    (set! tot (cons (- (current-inexact-milliseconds) start) tot)))
-  tot)
+    (define dt (- (current-inexact-milliseconds) start))
+    (vector-set! times i dt))
+  (vector->list times))
 
 (define (get-all-timings)
-  (define vals (mk-values))
   (for/list ([fn (in-list function-table)])
     (match-define (list ival-fn bf-fn itypes otype) fn)
-    (define t (get-timings vals ival-fn itypes otype))
+    (define t (get-timings ival-fn itypes otype))
     (define avg (/ (apply + t) (length t)))
     (define stdev (sqrt (/ (apply + (for/list ([v t]) (expt (- v avg) 2))) (- (length t) 1.5))))
     (define serr (/ stdev (sqrt (length t))))
