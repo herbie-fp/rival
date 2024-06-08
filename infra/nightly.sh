@@ -57,9 +57,8 @@ function all {
 
 function perf {
     clean
-    echo "<!doctype html><pre>" > "$REPORTDIR"/index.html
-    racket -y time.rkt 32000 | tee -a "$REPORTDIR"/index.html
-    echo "</pre>" >> "$REPORTDIR"/index.html
+    xz -d -k -f infra/points.json.xz
+    racket -y time.rkt --html infra/points.json > "$REPORTDIR"/index.html
 }
 
 for cmd in $@; do
