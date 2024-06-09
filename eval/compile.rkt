@@ -18,6 +18,8 @@
   (define (munge prog)
     (define node ; This compiles to the register machine
       (match prog
+        [`(pow ,arg 2)
+         (list 'pow2 (munge args))]
         [(list op args ...)
          (cons op (map munge args))]
         [_
@@ -127,7 +129,7 @@
         [(list 'pow x y)   (list ival-pow x y)]
         [(list 'remainder x y) (list ival-remainder x y)]
 
-        [(list 'fma x y z) (list ival-fma x y z)]
+        [(list 'pow2 x) (list ival-pow2 x)]
 
         [(list '== x y) (list ival-== x y)]
         [(list '!= x y) (list ival-!= x y)]
