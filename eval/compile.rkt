@@ -19,7 +19,7 @@
     (define node ; This compiles to the register machine
       (match prog
         [`(pow ,arg 2)
-         (list 'pow2 (munge args))]
+         (list 'pow2 (munge arg))]
         [(list op args ...)
          (cons op (map munge args))]
         [_
