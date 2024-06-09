@@ -1,76 +1,145 @@
 #lang racket
 
 (require racket/math math/base math/flonum math/bigfloat racket/random)
+(require json)
 (require "main.rkt" "test.rkt")
 
-(define total-vals 1000)
-(define sample-vals (make-parameter 1000))
+(define sample-vals (make-parameter 5000))
 
-(define (mk-initial-values n)
-  (make-hash
-   (list (cons 'real (build-list n (λ (i) (sample-interval 'real))))
-         (cons 'bool (list (ival #t) (ival #f) (ival #f #t))))))
-
-(define (exec-fn vals ival-fn itypes otype)
-  (define args
-    (for/list ([itype (in-list itypes)])
-      (random-ref (hash-ref vals itype))))
-  (define out (apply ival-fn args))
-  (if (ival-valid? out)
-      (hash-update! vals otype (curry cons out))
-      (printf "Invalid output ~a from (~a ~a)\n"
-              out (object-name ival-fn)
-              (string-join (map ~a args) " "))))
-
-(define (exec-real-fn vals)
-  (match-define (list ival-fn bf-fn itypes otype)
-                (random-ref function-table))
-  (if (eq? otype 'real)
-      (exec-fn vals ival-fn itypes otype)
-      (exec-real-fn vals)))
-
-(define (mk-values)
-  (define vals (mk-initial-values 25))
-  (for ([n (in-range 25 total-vals)])
-    (exec-real-fn vals))
-  vals)
-
-(define (get-timings vals ival-fn itypes otype)
-  (define tot '())
+(define (time-operation ival-fn itypes otype)
   (define n
-    (if (string-contains? (~a (object-name ival-fn)) "gamma")
+    (if (set-member? slow-tests ival-fn)
         (/ (sample-vals) 100) ; Gamma functions are super duper slow
         (sample-vals)))
+  (define times (make-vector n))
   (for ([i (in-range n)])
     (define args
       (for/list ([itype (in-list itypes)])
-        (random-ref (hash-ref vals itype))))
+        (sample-interval itype)))
     (define start (current-inexact-milliseconds))
     (apply ival-fn args)
-    (set! tot (cons (- (current-inexact-milliseconds) start) tot)))
-  tot)
+    (define dt (- (current-inexact-milliseconds) start))
+    (vector-set! times i dt))
+  (vector->list times))
 
-(define (get-all-timings)
-  (define vals (mk-values))
+(define (time-operations)
   (for/list ([fn (in-list function-table)])
     (match-define (list ival-fn bf-fn itypes otype) fn)
-    (define t (get-timings vals ival-fn itypes otype))
+    (define t (time-operation ival-fn itypes otype))
     (define avg (/ (apply + t) (length t)))
     (define stdev (sqrt (/ (apply + (for/list ([v t]) (expt (- v avg) 2))) (- (length t) 1.5))))
     (define serr (/ stdev (sqrt (length t))))
-    (list (object-name ival-fn) avg serr)))
+    (list ival-fn avg serr)))
 
-(define (run)
-  (for ([rec (in-list (get-all-timings))])
-    (match-define (list name avg se) rec)
-    (printf "~a [~a, ~a]µs\n"
-            (~a name #:align 'left #:min-width 20)
-            (~r (* (- avg se se) 1000)  #:precision '(= 3) #:min-width 8)
-            (~r (* (+ avg se se) 1000)   #:precision '(= 3) #:min-width 8))))
+(define (read-from-string s)
+  (read (open-input-string s)))
+
+(define (time-expr rec)
+  (define exprs (map read-from-string (hash-ref rec 'exprs)))
+  (define vars (map read-from-string (hash-ref rec 'vars)))
+  (unless (andmap symbol? vars)
+    (raise 'time "Invalid variable list ~a" vars))
+  (match-define `(bool flonum ...) (map read-from-string (hash-ref rec 'discs)))
+  (define discs (cons boolean-discretization (map (const flonum-discretization) (cdr exprs))))
+  (define start-compile (current-inexact-milliseconds))
+  (define machine (rival-compile exprs vars discs))
+  (define compile-time (- (current-inexact-milliseconds) start-compile))
+
+  (define times
+    (for/list ([pt (in-list (hash-ref rec 'points))])
+      (define start-apply (current-inexact-milliseconds))
+      (define status
+        (with-handlers ([exn:rival:invalid? (const 'invalid)]
+                        [exn:rival:unsamplable? (const 'unsamplable)])
+          (rival-apply machine (list->vector (map bf pt)))
+          'valid))
+      (define apply-time (- (current-inexact-milliseconds) start-apply))
+      (cons status apply-time)))
+
+  (cons (cons 'compile compile-time) times))
+
+(define (time-exprs data)
+  (define times
+    (for/hash ([group (in-list (group-by car data))])
+      (values (caar group) (map cdr group))))
+
+  (list (car (hash-ref times 'compile))
+        (length (hash-ref times 'valid '()))
+        (/ (apply + (hash-ref times 'valid '())) 1000)
+        (length (hash-ref times 'invalid '()))
+        (/ (apply + (hash-ref times 'invalid '())) 1000)
+        (length (hash-ref times 'unsamplable '()))
+        (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
+
+(define (run html? p)
+  (when html?
+    (printf "<!doctype html>")
+    (printf "<h1>Operation timings</h1>")
+    (printf "<table>")
+    (printf "<thead><tr><th>Operation<th colspan=2>Time ([min, max])")
+    (printf "<tbody>"))
+  (for ([rec (in-list (time-operations))])
+    (match-define (list ival-fn avg se) rec)
+    (define min-s (~r (* (- avg se se) 1000) #:precision '(= 3)))
+    (define max-s (~r (* (+ avg se se) 1000) #:precision '(= 3)))
+    (cond
+      [html?
+       (printf "<tr><td><code>~a</code></td>" (object-name ival-fn))
+       (printf "<td>~aµs<td>~aµs" min-s max-s)]
+      [else
+       (printf "~a [~a, ~a]µs\n"
+            (~a (object-name ival-fn) #:align 'left #:min-width 20)
+            (~a min-s #:min-width 8)
+            (~a max-s #:min-width 8))]))
+  (when html?
+    (printf "</table>"))
+
+  (when p
+    (cond
+      [html?
+       (printf "<h1>Expression Timing</h1>")
+       (printf "<table>")
+       (printf "<thead><tr><th>#<th>Compile (ms)<th colspan=2>Valid (#, ms)<th colspan=2>Invalid (#, ms)<th colspan=2>Unsamplable (#, ms)</thead>")]
+      [else
+       (newline)])
+    (define total-t 0.0)
+
+    (for ([rec (in-port read-json p)] [i (in-naturals)])
+      (match-define (list c-time v-num v-time i-num i-time u-num u-time)
+        (time-exprs (time-expr rec)))
+      (set! total-t (+ total-t c-time v-time i-time u-time))
+      
+      (cond
+        [html?
+         (printf "<tr><td>~a<td>~as" i (~r c-time #:precision '(= 3)))
+         (printf "<td>~a<td>~as" v-num (~r v-time #:precision '(= 3)))
+         (printf "<td>~a<td>~as" i-num (~r i-time #:precision '(= 3)))
+         (printf "<td>~a<td>~as" u-num (~r u-time #:precision '(= 3)))]
+        [else
+         (printf "~a ~ams v(~a: ~ams) i(~a: ~ams) u(~a: ~ams)\n"
+                 (~a i #:align 'left #:min-width 3)
+                 (~r c-time #:precision '(= 3) #:min-width 8)
+                 (~a v-num #:min-width 5)
+                 (~r v-time #:precision '(= 3) #:min-width 8)
+                 (~a i-num #:min-width 5)
+                 (~r i-time #:precision '(= 3) #:min-width 8)
+                 (~a u-num #:min-width 5)
+                 (~r u-time #:precision '(= 3) #:min-width 8))]))
+
+    (cond
+      [html?
+       (printf "</table>")
+       (printf "<dl><dt>Total Time:</dt><dd>~as</dd></dl>" (~r (/ total-t 1000) #:precision '(= 3)))]
+      [else
+       (printf "\nTotal Time: ~as\n" (~r (/ total-t 1000) #:precision '(= 3)))])))
+
 
 (module+ main
   (require racket/cmdline)
+  (define html? #f)
   (command-line
-   #:args ([n "1000"])
-   (sample-vals (string->number n))
-   (run)))
+   #:once-each
+   [("--html") "Produce HTML output"
+               (set! html? #t)]
+   #:args ([points "infra/points.json"])
+   (run html? (open-input-file points))))
