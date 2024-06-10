@@ -74,6 +74,7 @@
 (define (run html? p)
   (when html?
     (printf "<!doctype html>")
+    (printf "<meta charset=utf8>")
     (printf "<h1>Operation timings</h1>")
     (printf "<table>")
     (printf "<thead><tr><th>Operation<th colspan=2>Time ([min, max])")
