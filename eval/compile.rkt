@@ -20,6 +20,8 @@
       (match prog
         [`(pow ,arg 2)
          (list 'pow2 (munge arg))]
+        [`(fma ,x ,y ,z)
+         (list '+ (munge (list '* x y)) (munge z))]
         [(list op args ...)
          (cons op (map munge args))]
         [_
