@@ -113,6 +113,8 @@
     (define count-u 0.0)
 
     (for ([rec (in-port read-json p)] [i (in-naturals)] #:unless (and test-id (not (= i test-id))))
+      (when test-id
+        (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
         (time-exprs (time-expr rec)))
       (set! total-c (+ total-c c-time))
