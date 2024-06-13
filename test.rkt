@@ -3,7 +3,7 @@
 (require racket/math math/base math/flonum (rename-in math/bigfloat [bfremainder bffmod]))
 (require rackunit)
 (require "main.rkt")
-(provide ival-valid? function-table sample-interval slow-tests)
+(provide ival-valid? function-table sample-interval slow-tests sample-from)
 
 (define (ival-valid? ival)
   (if (ival-err ival)
@@ -241,16 +241,14 @@
         [(or (bf<= (ival-lo ival) 0.bf (ival-hi ival))
              (and (bfinfinite? (ival-lo ival)) (not (infinite? (bigfloat->flonum (ival-hi ival)))))
              (and (bfinfinite? (ival-hi ival)) (not (infinite? (bigfloat->flonum (ival-lo ival))))))
-         (define p (random))
          (define lo* (bigfloat->flonum (ival-lo ival)))
          (define hi* (bigfloat->flonum (ival-hi ival)))
          (define range (flonums-between lo* hi*))
-         (bf (flstep lo* (exact-floor (* p range))))]
+         (bf (flstep lo* (random-natural (+ range 1))))]
         [else
-         (define p (random))
          (define reduction (if (or (bfinfinite? (ival-lo ival)) (bfinfinite? (ival-hi ival))) 1 0))
          (define range (- (bigfloats-between (ival-lo ival) (ival-hi ival)) reduction))
-         (define offset (+ (if (bfinfinite? (ival-lo ival)) 1 0) (exact-floor (* p range))))
+         (define offset (+ (if (bfinfinite? (ival-lo ival)) 1 0) (random-natural (+ range 1))))
          (bfstep (ival-lo ival) offset)])
       (let ([p (random 0 2)])
         (if (= p 0) (ival-lo ival) (ival-hi ival)))))

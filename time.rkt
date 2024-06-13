@@ -6,30 +6,27 @@
 
 (define sample-vals (make-parameter 5000))
 
-(define (time-operation ival-fn itypes otype)
+(define (time-operation ival-fn bf-fn itypes otype)
   (define n
     (if (set-member? slow-tests ival-fn)
         (/ (sample-vals) 100) ; Gamma functions are super duper slow
         (sample-vals)))
-  (define times (make-vector n))
+  (define ivtime 0.0)
+  (define bftime 0.0)
   (for ([i (in-range n)])
     (define args
       (for/list ([itype (in-list itypes)])
         (sample-interval itype)))
     (define start (current-inexact-milliseconds))
     (apply ival-fn args)
-    (define dt (- (current-inexact-milliseconds) start))
-    (vector-set! times i dt))
-  (vector->list times))
-
-(define (time-operations)
-  (for/list ([fn (in-list function-table)])
-    (match-define (list ival-fn bf-fn itypes otype) fn)
-    (define t (time-operation ival-fn itypes otype))
-    (define avg (/ (apply + t) (length t)))
-    (define stdev (sqrt (/ (apply + (for/list ([v t]) (expt (- v avg) 2))) (- (length t) 1.5))))
-    (define serr (/ stdev (sqrt (length t))))
-    (list ival-fn avg serr)))
+    (define dt1 (- (current-inexact-milliseconds) start))
+    (set! ivtime (+ ivtime dt1))
+    (define start2 (current-inexact-milliseconds))
+    (apply bf-fn (map ival-lo args))
+    (apply bf-fn (map ival-hi args))
+    (define dt2 (- (current-inexact-milliseconds) start2))
+    (set! bftime (+ bftime dt2)))
+  (list (* 1000 (/ ivtime n)) (* 1000 (/ bftime n))))
 
 (define (read-from-string s)
   (read (open-input-string s)))
@@ -74,25 +71,33 @@
 (define (run html? test-id p)
   (when html? (printf "<!doctype html><meta charset=utf-8 />"))
   
-  (unless test-id
+  (when (or (not test-id) (equal? test-id "ops"))
     (when html?
       (printf "<h1>Operation timings</h1>")
       (printf "<table>")
-      (printf "<thead><tr><th>Operation<th colspan=2>Time ([min, max])")
+      (printf "<thead><tr><th>Operation<th>Time (256b, µs)<th>Slowdown (×)")
+      (printf "<th>Time (4kb, µs)<th>Slowdown (×)")
       (printf "<tbody>"))
-    (for ([rec (in-list (time-operations))])
-      (match-define (list ival-fn avg se) rec)
-      (define min-s (~r (* (- avg se se) 1000) #:precision '(= 3)))
-      (define max-s (~r (* (+ avg se se) 1000) #:precision '(= 3)))
+    (for ([fn (in-list function-table)])
+      (match-define (list ival-fn bf-fn itypes otype) fn)
+      (match-define (list iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
+      (match-define (list iv4k bf4k)
+        (parameterize ([bf-precision 4096])
+          (time-operation ival-fn bf-fn itypes otype)))
       (cond
         [html?
          (printf "<tr><td><code>~a</code></td>" (object-name ival-fn))
-         (printf "<td>~aµs<td>~aµs" min-s max-s)]
+         (printf "<td>~a" (~r iv256 #:precision '(= 3)))
+         (printf "<td>~a" (~r (/ iv256 bf256) #:precision '(= 2)))
+         (printf "<td>~a" (~r iv4k #:precision '(= 3)))
+         (printf "<td>~a" (~r (/ iv4k bf4k) #:precision '(= 2)))]
         [else
-         (printf "~a [~a, ~a]µs\n"
+         (printf "~a ~aµs ~a×\t~aµs ~a×\n"
               (~a (object-name ival-fn) #:align 'left #:min-width 20)
-              (~a min-s #:min-width 8)
-              (~a max-s #:min-width 8))]))
+              (~r iv256 #:precision '(= 3) #:min-width 8)
+              (~r (/ iv256 bf256) #:precision '(= 2) #:min-width 4)
+              (~r iv4k #:precision '(= 3) #:min-width 8)
+              (~r (/ iv4k bf4k) #:precision '(= 2) #:min-width 4))]))
     (when html?
       (printf "</table>")))
 
@@ -112,7 +117,8 @@
     (define total-u 0.0)
     (define count-u 0.0)
 
-    (for ([rec (in-port read-json p)] [i (in-naturals)] #:unless (and test-id (not (= i test-id))))
+    (for ([rec (in-port read-json p)] [i (in-naturals)]
+                                      #:unless (and test-id (not (equal? (~a i) test-id))))
       (when test-id
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
@@ -172,6 +178,6 @@
    [("--html") "Produce HTML output"
                (set! html? #t)]
    [("--id") ns "Run a single test"
-             (set! n (string->number ns))]
+             (set! n ns)]
    #:args ([points "infra/points.json"])
    (run html? n (open-input-file points))))
