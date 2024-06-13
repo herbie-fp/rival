@@ -72,7 +72,7 @@
         (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
 
 (define (run html? test-id p)
-  (when html? (printf "<!doctype html>"))
+  (when html? (printf "<!doctype html><meta charset=utf-8 />"))
   
   (unless test-id
     (when html?
