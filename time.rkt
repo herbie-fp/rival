@@ -82,8 +82,10 @@
       (match-define (list ival-fn bf-fn itypes otype) fn)
       (match-define (list iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
       (match-define (list iv4k bf4k)
-        (parameterize ([bf-precision 4096])
-          (time-operation ival-fn bf-fn itypes otype)))
+        (if (set-member? slow-tests ival-fn)
+            (list +inf.0 +inf.0)
+            (parameterize ([bf-precision 4096])
+              (time-operation ival-fn bf-fn itypes otype))))
       (cond
         [html?
          (printf "<tr><td><code>~a</code></td>" (object-name ival-fn))
