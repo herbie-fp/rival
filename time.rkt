@@ -75,7 +75,7 @@
     (define sortable-js "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js")
     (printf "<link href='~a' rel='stylesheet' />" sortable-css)
     (printf "<script src='~a' async defer></script>" sortable-js)
-    (printf "<style>tbody td::nth-child(1n+2) { text-align: right; }</style>"))
+    (printf "<style>tbody td:nth-child(1n+2) { text-align: right; }</style>"))
   
   (when (or (not test-id) (equal? test-id "ops"))
     (when html?
@@ -97,8 +97,8 @@
          (printf "<tr><td><code>~a</code></td>" (object-name ival-fn))
          (printf "<td data-sort=~a>~aµs" iv256 (~r iv256 #:precision '(= 3)))
          (printf "<td data-sort=~a>~a×" (/ iv256 bf256) (~r (/ iv256 bf256) #:precision '(= 2)))
-         (printf "<td data-sort=~a>~aµs" (if iv4k iv4k "1000000") (if iv4k (~r iv4k #:precision '(= 3)) ""))
-         (printf "<td data-sort=~a>~a×" (if (and iv4k bf4k) (/ iv4k bf4k) "1000000") (if (and iv4k bf4k) (~r (/ iv4k bf4k) #:precision '(= 2)) ""))]
+         (printf "<td data-sort=~a>~aµs" (if iv4k iv4k "1000000") (if iv4k (~r iv4k #:precision '(= 3)) "∞"))
+         (printf "<td data-sort=~a>~a×" (if (and iv4k bf4k) (/ iv4k bf4k) "1000000") (if (and iv4k bf4k) (~r (/ iv4k bf4k) #:precision '(= 2)) "∞"))]
         [else
          (printf "~a ~aµs ~a×\t~aµs ~a×\n"
               (~a (object-name ival-fn) #:align 'left #:min-width 20)
@@ -139,19 +139,20 @@
       (set! count-i (+ count-i i-num))
       (set! total-u (+ total-u u-time))
       (set! count-u (+ count-u u-num))
+      (define t-time (+ c-time v-time i-time u-time))
       
       (cond
         [html?
-         (printf "<tr><td>~a<td>~as" i (~r (+ c-time v-time i-time u-time) #:precision '(= 3)))
-         (printf "<td>~a" (~r c-time #:precision '(= 3)))
+         (printf "<tr><td title='~a'>~a<td data-sort=~a>~as" (second (hash-ref rec 'exprs)) i t-time (~r t-time #:precision '(= 3)))
+         (printf "<td data-sort~a>~a" c-time (~r c-time #:precision '(= 3)))
          (if (> v-num 0)
              (printf "<td>~a<td data-sort=~a>~as" v-num v-time (~r v-time #:precision '(= 3)))
              (printf "<td><td>"))
          (if (> i-num 0)
-             (printf "<td>~a<td data-sort=~a>~as" i-num v-time (~r i-time #:precision '(= 3)))
+             (printf "<td>~a<td data-sort=~a>~as" i-num i-time (~r i-time #:precision '(= 3)))
              (printf "<td><td>"))
          (if (> u-num 0)
-             (printf "<td>~a<td data-sort=~a>~as" u-num v-time (~r u-time #:precision '(= 3)))
+             (printf "<td>~a<td data-sort=~a>~as" u-num u-time (~r u-time #:precision '(= 3)))
              (printf "<td><td>"))]
         [else
          (printf "~a ~ams v(~a: ~ams) i(~a: ~ams) u(~a: ~ams)\n"
