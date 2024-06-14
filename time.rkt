@@ -69,7 +69,12 @@
         (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
 
 (define (run html? test-id p)
-  (when html? (printf "<!doctype html><meta charset=utf-8 />"))
+  (when html?
+    (printf "<!doctype html><meta charset=utf-8 />")
+    (define sortable-css "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.css")
+    (define sortable-js "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js")
+    (printf "<link href='~a' rel='stylesheet' />" sortable-css)
+    (printf "<script src='~a' async defer></script>" sortable-js))
   
   (when (or (not test-id) (equal? test-id "ops"))
     (when html?
