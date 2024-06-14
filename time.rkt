@@ -88,7 +88,7 @@
       (match-define (list iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
       (match-define (list iv4k bf4k)
         (if (set-member? slow-tests ival-fn)
-            (list +inf.0 +inf.0)
+            (list #f #f)
             (parameterize ([bf-precision 4096])
               (time-operation ival-fn bf-fn itypes otype))))
       (cond
@@ -96,8 +96,8 @@
          (printf "<tr><td><code>~a</code></td>" (object-name ival-fn))
          (printf "<td>~a" (~r iv256 #:precision '(= 3)))
          (printf "<td>~a" (~r (/ iv256 bf256) #:precision '(= 2)))
-         (printf "<td>~a" (~r iv4k #:precision '(= 3)))
-         (printf "<td>~a" (~r (/ iv4k bf4k) #:precision '(= 2)))]
+         (printf "<td>~a" (if iv4k (~r iv4k #:precision '(= 3)) ""))
+         (printf "<td>~a" (if (and iv4k bf4k) (~r (/ iv4k bf4k) #:precision '(= 2)) ""))]
         [else
          (printf "~a ~aµs ~a×\t~aµs ~a×\n"
               (~a (object-name ival-fn) #:align 'left #:min-width 20)
