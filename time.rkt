@@ -108,7 +108,8 @@
       [html?
        (printf "<h1>Expression Timing</h1>")
        (printf "<table>")
-       (printf "<thead><tr><th>#<th>Time (s)<th>Compile (s)<th colspan=2>Valid (#, s)<th colspan=2>Invalid (#, s)<th colspan=2>Unsamplable (#, s)</thead>")]
+       (printf "<thead><tr><th>#<th>Time (s)<th>Compile (s)<th colspan=2>Valid (#, s)<th colspan=2>Invalid (#, s)<th colspan=2>Unsamplable (#, s)</thead>")
+       (printf "<tbody>")]
       [else
        (newline)])
     (define total-c 0.0)
@@ -159,7 +160,7 @@
 
     (cond
       [html?
-       (printf "<tbody><tr><td>Total<td>~a<td>~a"
+       (printf "<tfoot><tr><td>Total<td>~a<td>~a"
                (~r (+ total-c total-v total-i total-u) #:precision '(= 3))
                (~r total-c #:precision '(= 3)))
        (printf "<td><td>~a<td><td>~a<td><td>~a"
