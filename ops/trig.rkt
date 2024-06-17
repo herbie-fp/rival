@@ -10,8 +10,8 @@
   (define period/4 (integer-length (exact-floor (/ period 4))))
   (define lo-exp (mpfr-exp xlo))
   (define hi-exp (mpfr-exp xhi))
-  (define lo-ulp (- lo-ulp (bigfloat-precision xlo)))
-  (define hi-ulp (- hi-ulp (bigfloat-precision xhi)))
+  (define lo-ulp (- lo-exp (bigfloat-precision xlo)))
+  (define hi-ulp (- hi-exp (bigfloat-precision xhi)))
   (cond
     [(or (bfinfinite? xlo) (bfinfinite? xhi)) 'too-wide]
     [(and (< lo-exp period/4) (< hi-exp period/4)) 'near-0]
