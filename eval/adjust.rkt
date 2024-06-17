@@ -2,7 +2,7 @@
 
 (require racket/function racket/list racket/match)
 (require (only-in math/private/bigfloat/mpfr bigfloat? mpfr-exp mpfr-sign bfnegative?))
-(require "../ops.rkt" "machine.rkt")
+(require "../ops/all.rkt" "machine.rkt")
 (provide backward-pass)
 
 (define (backward-pass machine)

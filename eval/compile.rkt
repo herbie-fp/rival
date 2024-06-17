@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?) racket/flonum)
-(require "../ops.rkt" "machine.rkt")
+(require "../ops/all.rkt" "machine.rkt")
 (provide rival-compile)
 
 (define (optimize expr)

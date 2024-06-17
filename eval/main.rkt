@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/flonum)
-(require "../ops.rkt" "machine.rkt" "compile.rkt" "run.rkt" "adjust.rkt")
+(require "../ops/all.rkt" "machine.rkt" "compile.rkt" "run.rkt" "adjust.rkt")
 
 (provide rival-compile rival-apply rival-analyze
          (struct-out exn:rival)
