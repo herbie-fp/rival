@@ -4,6 +4,13 @@
 (require "../ops.rkt" "machine.rkt")
 (provide rival-compile)
 
+(define (optimize expr)
+  (match expr
+    [`(pow ,arg 2)
+     `(pow2 ,arg)]
+    [`(fma ,x ,y ,z)
+     `(+ (* ,x ,y) ,z)]))
+
 (define (exprs->batch exprs vars)
   (define icache (reverse vars))
   (define exprhash
@@ -17,15 +24,9 @@
   ; Translates programs into an instruction sequence of operations
   (define (munge prog)
     (define node ; This compiles to the register machine
-      (match prog
-        [`(pow ,arg 2)
-         (list 'pow2 (munge arg))]
-        [`(fma ,x ,y ,z)
-         (list '+ (munge (list '* x y)) (munge z))]
-        [(list op args ...)
-         (cons op (map munge args))]
-        [_
-         prog]))
+      (match (optimize prog)
+        [(list op args ...) (cons op (map munge args))]
+        [_ prog]))
     (hash-ref! exprhash node
                (lambda ()
                  (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
