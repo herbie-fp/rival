@@ -1,11 +1,11 @@
 #lang racket/base
 
-(require racket/contract racket/match racket/function math/private/bigfloat/mpfr racket/list)
+(require racket/contract racket/match racket/function racket/list)
 (require (for-syntax racket/base))
+(require "../mpfr.rkt")
 
-(provide ival-lo-val ival-hi-val classify-ival rnd
+(provide ival-lo-val ival-hi-val classify-ival
          ival-exact-fabs ival-maybe
-         1.bf 2.bf 0.bf -1.bf 3.bf +nan.bf +inf.bf -inf.bf half.bf
          bf-return-exact? ival-lo-fixed? ival-hi-fixed?
          overflows-loose-at exp2-overflow-threshold)
 
@@ -59,16 +59,6 @@
 (define (ival-hi-fixed? ival)
   (endpoint-immovable? (ival-hi ival)))
 
-(define -inf.bf (bf -inf.0))
-(define -1.bf (bf -1))
-(define 0.bf (bf 0))
-(define half.bf (bf 0.5))
-(define 1.bf (bf 1))
-(define 2.bf (bf 2))
-(define 3.bf (bf 3))
-(define +inf.bf (bf +inf.0))
-(define +nan.bf (bf +nan.0))
-
 (define (mk-big-ival x y)
   (cond
    [(and (bigfloat? x) (bigfloat? y))
@@ -103,10 +93,6 @@
 (define ival-false (ival-bool #f))
 (define ival-uncertain (ival (endpoint #f #f) (endpoint #t #f) #f #f))
 (define ival-illegal (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t))
-
-(define-syntax-rule (rnd mode op args ...)
-  (parameterize ([bf-rounding-mode mode])
-    (op args ...)))
 
 (define (split-ival i val)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) i)
@@ -162,22 +148,6 @@
   (define args-bf (map endpoint-val args))
   (define-values (result exact?) (bf-return-exact? op args-bf))
   (endpoint result (and (andmap endpoint-immovable? args) exact?)))
-
-;; Some hairy code follows to access the MPFR "inexact" exception.
-;; It assumes no one else cares about the flag, so it clobbers it.
-(module hairy racket/base
-  (require ffi/unsafe math/private/bigfloat/mpfr)
-  (provide mpfr_clear_inexflag mpfr_get_inexflag)
-  (define mpfr_clear_inexflag (get-mpfr-fun 'mpfr_clear_inexflag (_fun -> _void)))
-  (define mpfr_get_inexflag (get-mpfr-fun 'mpfr_inexflag_p (_fun -> _int))))
-(require (submod "." hairy))
-
-(define (bf-return-exact? op args)
-  (mpfr_clear_inexflag)
-  (define out (apply op args))
-  (define exact? (= (mpfr_get_inexflag) 0))
-  (values out exact?))
-;; End hairy code
 
 ;; Endpoint computation for both `add`, `sub`, and `hypot` (which has an add inside)
 (define (eplinear bffn a-endpoint b-endpoint)

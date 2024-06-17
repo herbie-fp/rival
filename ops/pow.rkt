@@ -1,6 +1,6 @@
 #lang racket
 
-(require "core.rkt" (except-in math/private/bigfloat/mpfr -inf.bf 3.bf +inf.bf 0.bf 1.bf 2.bf +nan.bf -1.bf))
+(require "core.rkt" "../mpfr.rkt")
 (provide ival-pow ival-pow2)
 
 (define (classify-pos-ival-1 x) ;; Assumes x positive
