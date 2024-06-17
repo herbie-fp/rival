@@ -3,7 +3,7 @@
 (require math/bigfloat racket/contract)
 (define value? (or/c bigfloat? boolean?))
 
-(require "ops.rkt")
+(require "ops/all.rkt")
 (define ival-list? (listof ival?))
 
 (provide ival? ival
