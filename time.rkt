@@ -71,7 +71,7 @@
         (length (hash-ref times 'unsamplable '()))
         (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
 
-(define (run html? p)
+(define (run html? test-id p)
   (when html?
     (printf "<!doctype html>")
     (printf "<meta charset=utf8>")
