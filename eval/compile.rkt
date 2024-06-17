@@ -163,7 +163,7 @@
 
   (rival-machine
    (list->vector vars) instructions roots (list->vector discs)
-   registers repeats precisions initial-precisions
+   registers repeats precisions initial-precisions (make-vector (vector-length roots))
    0 0 0
    (make-vector (*rival-profile-executions*))
    (make-vector (*rival-profile-executions*))

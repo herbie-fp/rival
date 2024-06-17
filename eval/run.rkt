@@ -1,7 +1,7 @@
 #lang racket/base
 
-(require "machine.rkt" "adjust.rkt")
 (require (only-in math/private/bigfloat/mpfr bf-precision) racket/match racket/function racket/flonum)
+(require "machine.rkt" "adjust.rkt" "../ops.rkt")
 (provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust)
 
 (define (rival-machine-load machine args)
@@ -70,10 +70,29 @@
   (define discs (rival-machine-discs machine))
   (define vregs (rival-machine-registers machine))
   (define rootvec (rival-machine-outputs machine))
+  (define slackvec (rival-machine-output-distance machine))
   #;(set-rival-machine-iteration! machine (add1 (rival-machine-iteration machine)))
-  (for/vector #:length (vector-length rootvec)
-              ([root (in-vector rootvec)] [disc (in-vector discs)])
-    (vector-ref vregs root)))
+  (define good? #t)
+  (define ovec (make-vector (vector-length rootvec)))
+  (define stuck? #f)
+  (define bad? #f)
+  (define fvec
+    (for/vector #:length (vector-length rootvec)
+                ([root (in-vector rootvec)] [disc (in-vector discs)] [n (in-naturals)])
+      (define out (vector-ref vregs root))
+      (define lo ((discretization-convert disc) (ival-lo out)))
+      (define hi ((discretization-convert disc) (ival-hi out)))
+      (define distance ((discretization-distance disc) lo hi))
+      (unless (= distance 0)
+        (set! good? #f)
+        (when (and (ival-lo-fixed? out) (ival-hi-fixed? out))
+          (set! bad? #t)))
+      (cond
+        [(ival-err out) (set! bad? #t)]
+        [(ival-err? out) (set! good? #f)])
+      (vector-set! slackvec n (= distance 1))
+      lo))
+  (values good? bad? stuck? fvec))
 
 (define (rival-machine-adjust machine)
   (define iter (rival-machine-iteration machine))
