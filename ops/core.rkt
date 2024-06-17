@@ -303,7 +303,7 @@
   (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) y)
   (ival (endpoint ylo (or ylo! (bflte? xhi lo) (and (bflte? xlo lo) xlo!)))
         (endpoint yhi (or yhi! (bflte? xhi lo) (bfgte? xlo hi) (and (bfgte? xhi hi) xhi!)))
-        xerr? xerr))
+        yerr? yerr))
 
 (define* ival-neg (comonotonic bfneg))
 
