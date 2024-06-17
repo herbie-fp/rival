@@ -100,22 +100,43 @@
       [html?
        (printf "<h1>Expression Timing</h1>")
        (printf "<table>")
-       (printf "<thead><tr><th>#<th>Compile (ms)<th colspan=2>Valid (#, ms)<th colspan=2>Invalid (#, ms)<th colspan=2>Unsamplable (#, ms)</thead>")]
+       (printf "<thead><tr><th>#<th>Time (s)<th>Compile (s)<th colspan=2>Valid (#, s)<th colspan=2>Invalid (#, s)<th colspan=2>Unsamplable (#, s)</thead>")]
       [else
        (newline)])
-    (define total-t 0.0)
+    (define total-c 0.0)
+    (define total-v 0.0)
+    (define count-v 0.0)
+    (define total-i 0.0)
+    (define count-i 0.0)
+    (define total-u 0.0)
+    (define count-u 0.0)
 
-    (for ([rec (in-port read-json p)] [i (in-naturals)])
+    (for ([rec (in-port read-json p)] [i (in-naturals)] #:unless (and test-id (not (= i test-id))))
+      (when test-id
+        (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
         (time-exprs (time-expr rec)))
-      (set! total-t (+ total-t c-time v-time i-time u-time))
+      (set! total-c (+ total-c c-time))
+      (set! total-v (+ total-v v-time))
+      (set! count-v (+ count-v v-num))
+      (set! total-i (+ total-i i-time))
+      (set! count-i (+ count-i i-num))
+      (set! total-u (+ total-u u-time))
+      (set! count-u (+ count-u u-num))
       
       (cond
         [html?
-         (printf "<tr><td>~a<td>~as" i (~r c-time #:precision '(= 3)))
-         (printf "<td>~a<td>~as" v-num (~r v-time #:precision '(= 3)))
-         (printf "<td>~a<td>~as" i-num (~r i-time #:precision '(= 3)))
-         (printf "<td>~a<td>~as" u-num (~r u-time #:precision '(= 3)))]
+         (printf "<tr><td>~a<td>~as" i (+ c-time v-time i-time u-time))
+         (printf "<td>~a" (~r c-time #:precision '(= 3)))
+         (if (> v-num 0)
+             (printf "<td>~a<td>~as" v-num (~r v-time #:precision '(= 3)))
+             (printf "<td><td>"))
+         (if (> i-num 0)
+             (printf "<td>~a<td>~as" i-num (~r i-time #:precision '(= 3)))
+             (printf "<td><td>"))
+         (if (> u-num 0)
+             (printf "<td>~a<td>~as" u-num (~r u-time #:precision '(= 3)))
+             (printf "<td><td>"))]
         [else
          (printf "~a ~ams v(~a: ~ams) i(~a: ~ams) u(~a: ~ams)\n"
                  (~a i #:align 'left #:min-width 3)
@@ -129,18 +150,27 @@
 
     (cond
       [html?
-       (printf "</table>")
-       (printf "<dl><dt>Total Time:</dt><dd>~as</dd></dl>" (~r (/ total-t 1000) #:precision '(= 3)))]
+       (printf "<tbody><tr><td>Total<td>~a<td>~a"
+               (~r (+ total-c total-v total-i total-u) #:precision '(= 3))
+               (~r total-c #:precision '(= 3)))
+       (printf "<td><td>~a<td><td>~a<td><td>~a"
+               (~r total-v #:precision '(= 3))
+               (~r total-i #:precision '(= 3))
+               (~r total-u #:precision '(= 3)))
+       (printf "</table>")]
       [else
-       (printf "\nTotal Time: ~as\n" (~r (/ total-t 1000) #:precision '(= 3)))])))
+       (printf "\nTotal Time: ~as\n" (~r (+ total-c total-v total-i total-u) #:precision '(= 3)))])))
 
 
 (module+ main
   (require racket/cmdline)
   (define html? #f)
+  (define n #f)
   (command-line
    #:once-each
    [("--html") "Produce HTML output"
                (set! html? #t)]
+   [("--id") ns "Run a single test"
+             (set! n (string->number ns))]
    #:args ([points "infra/points.json"])
-   (run html? (open-input-file points))))
+   (run html? n (open-input-file points))))
