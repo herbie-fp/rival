@@ -30,12 +30,12 @@
   (match (classify-ival-periodic x (* 2 pi))
     ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
     ['near-0
-     (if (= (mpfr-sign xlo) (mpfr-sign xhi))
-         (if (< (mpfr-sign xlo) 0)
-             ((monotonic->ival bfcos) x)    ; negative
-             ((comonotonic->ival bfcos) x)) ; positive
-         (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
-               (endpoint 1.bf #f) (ival-err? x) (ival-err x)))]
+     (match (classify-ival x)
+       [-1 ((monotonic->ival bfcos) x)]
+       [ 1 ((comonotonic->ival bfcos) x)]
+       [else
+        (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+              (endpoint 1.bf #f) (ival-err? x) (ival-err x))])]
     ['range-reduce
      (match-define (ival (endpoint a _) (endpoint b _) _ _)
        (parameterize ([bf-precision (range-reduce-precision xlo xhi)])
