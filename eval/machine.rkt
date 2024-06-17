@@ -1,6 +1,5 @@
 #lang racket/base
 
-(require "../ops.rkt")
 (provide (struct-out discretization) (struct-out rival-machine)
          *rival-max-precision* *rival-max-iterations* *rival-profile-executions*
          *ampl-tuning-bits* *sampling-iteration* *base-tuning-precision*)
