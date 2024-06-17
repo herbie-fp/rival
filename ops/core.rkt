@@ -5,6 +5,7 @@
 
 (provide ival-lo-val ival-hi-val classify-ival rnd
          ival-exact-fabs ival-maybe
+         1.bf 2.bf 0.bf -1.bf 3.bf +nan.bf +inf.bf -inf.bf half.bf
          bf-return-exact? ival-lo-fixed? ival-hi-fixed?
          overflows-loose-at exp2-overflow-threshold)
 

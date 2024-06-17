@@ -1,6 +1,6 @@
 #lang racket
 
-(require "core.rkt" math/private/bigfloat/mpfr)
+(require "core.rkt" (except-in math/private/bigfloat/mpfr -inf.bf 3.bf +inf.bf 0.bf 1.bf 2.bf +nan.bf -1.bf))
 (provide ival-pow ival-pow2)
 
 (define (classify-pos-ival-1 x) ;; Assumes x positive
@@ -80,11 +80,9 @@
   ((monotonic->ival (lambda (x) (bfmul x x))) (ival-exact-fabs x)))
 
 (define (ival-pow x y)
-  (cond
-   [(and (bf=? (ival-hi-val y) 2.bf) (bf=? (ival-lo-val y) 2.bf))
-    (ival-pow2 x)]
-   [(and (= (mpfr-sign (ival-hi-val x)) -1) (not (bfzero? (ival-hi-val x)))) (ival-pow-neg x y)]
-   [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-hi-val x))) (ival-pow-pos x y)]
-   [else
+  (match (classify-ival x)
+   [-1 (ival-pow-neg x y)]
+   [1 (ival-pow-pos x y)]
+   [0
     (define-values (neg pos) (ival-split x 0.bf))
     (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
