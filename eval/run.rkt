@@ -1,7 +1,7 @@
 #lang racket/base
 
-(require (only-in math/private/bigfloat/mpfr bf-precision) racket/match racket/function)
 (require "machine.rkt" "adjust.rkt")
+(require (only-in math/private/bigfloat/mpfr bf-precision) racket/match racket/function racket/flonum)
 (provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust)
 
 (define (rival-machine-load machine args)
@@ -18,7 +18,7 @@
     (vector-set! profile-instruction profile-ptr name)
     (vector-set! profile-number profile-ptr number)
     (vector-set! profile-precision profile-ptr precision)
-    (vector-set! profile-time profile-ptr time)
+    (flvector-set! profile-time profile-ptr time)
     (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
 
 (define (rival-machine-run machine)

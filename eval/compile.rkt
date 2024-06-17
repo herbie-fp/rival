@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?))
+(require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?) racket/flonum)
 (require "../ops.rkt" "machine.rkt")
 (provide rival-compile)
 
@@ -167,7 +167,7 @@
    0 0 0
    (make-vector (*rival-profile-executions*))
    (make-vector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))
+   (make-flvector (*rival-profile-executions*))
    (make-vector (*rival-profile-executions*))))
 
 ; Function sets up vstart-precs vector, where all the precisions

@@ -1,5 +1,6 @@
 #lang racket
 
+(require racket/flonum)
 (require "../ops.rkt" "machine.rkt" "compile.rkt" "run.rkt" "adjust.rkt")
 
 (provide rival-compile rival-apply rival-analyze
@@ -67,7 +68,7 @@
                      ([instruction (in-vector profile-instruction 0 profile-ptr)]
                       [number (in-vector profile-number 0 profile-ptr)]
                       [precision (in-vector profile-precision 0 profile-ptr)]
-                      [time (in-vector profile-time 0 profile-ptr)])
+                      [time (in-flvector profile-time 0 profile-ptr)])
            (execution instruction number precision time))
        (set-rival-machine-profile-ptr! machine 0))]))
 
