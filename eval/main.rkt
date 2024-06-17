@@ -80,4 +80,4 @@
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
-  (ival (not good?) (or bad? stuck?)))
+  (ival (or bad? stuck?) (not good?)))
