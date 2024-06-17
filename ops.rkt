@@ -9,7 +9,8 @@
  ival-illegal ival-pi ival-e ival-bool
  ival-add ival-sub ival-neg ival-mult ival-div ival-fma       
  ival-fabs ival-sqrt ival-cbrt ival-hypot ival-exp ival-exp2 ival-expm1
- ival-log ival-log2 ival-log10 ival-log1p ival-logb ival-pow ival-sin ival-cos ival-tan       
+ ival-log ival-log2 ival-log10 ival-log1p ival-logb ival-pow ival-pow2
+ ival-sin ival-cos ival-tan       
  ival-asin ival-acos ival-atan ival-atan2 ival-sinh ival-cosh ival-tanh
  ival-asinh ival-acosh ival-atanh ival-erf ival-erfc ival-lgamma ival-tgamma    
  ival-fmod ival-remainder ival-rint ival-round ival-ceil ival-floor ival-trunc     
@@ -115,8 +116,8 @@
 
 (define (classify-ival x)
   (cond
-    [(= (mpfr-sign (ival-lo-val x)) 1) 1]
-    [(= (mpfr-sign (ival-hi-val x)) -1) -1]
+    [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-lo-val x))) 1]
+    [(or (= (mpfr-sign (ival-hi-val x)) -1) (bfzero? (ival-hi-val x))) -1]
     [else 0]))
 
 (define (classify-pos-ival-1 x) ;; Assumes x positive
@@ -328,9 +329,9 @@
 ;; + 1 . 0000000000000000000000 e MINEXP
 ;;       Adding more 0s does not change value
 
-(define ((overflows-loose-at fn lo hi) x)
+(define ((overflows-loose-at lo hi) x y)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) (fn x))
+  (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) y)
   (ival (endpoint ylo (or ylo! (bflte? xhi lo) (and (bflte? xlo lo) xlo!)))
         (endpoint yhi (or yhi! (bflte? xhi lo) (bfgte? xlo hi) (and (bfgte? xhi hi) xhi!)))
         xerr? xerr))
@@ -376,18 +377,20 @@
 (define exp-overflow-threshold  (bfadd (bflog (bfprev +inf.bf)) 1.bf))
 (define exp2-overflow-threshold (bfadd (bflog2 (bfprev +inf.bf)) 1.bf))
 
-(define* ival-exp
-  (overflows-loose-at (monotonic bfexp) (bfneg exp-overflow-threshold) exp-overflow-threshold))
+(define (ival-exp x)
+  (define y ((monotonic bfexp) x))
+  ((overflows-loose-at (bfneg exp-overflow-threshold) exp-overflow-threshold) x y))
 (define* ival-expm1
   (overflows-at (monotonic bfexpm1) (bfneg exp-overflow-threshold) exp-overflow-threshold))
-(define* ival-exp2
-  (overflows-loose-at (monotonic bfexp2) (bfneg exp2-overflow-threshold) exp2-overflow-threshold))
+(define (ival-exp2 x)
+  (define y ((monotonic bfexp2) x))
+  ((overflows-loose-at (bfneg exp2-overflow-threshold) exp2-overflow-threshold) x y))
 
 (define* ival-log (compose (monotonic bflog) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log2 (compose (monotonic bflog2) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log10 (compose (monotonic bflog10) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log1p (compose (monotonic bflog1p) (clamp-strict -1.bf +inf.bf)))
-(define* ival-logb (compose ival-floor ival-log2 ival-exact-fabs))
+[define* ival-logb (compose ival-floor ival-log2 ival-exact-fabs)]
 
 (define* ival-sqrt (compose (monotonic bfsqrt) (clamp 0.bf +inf.bf)))
 (define* ival-cbrt (monotonic bfcbrt))
@@ -433,8 +436,9 @@
             (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (not (= y-class 1))))
             (or xerr yerr (and (bfzero? (endpoint-val xhi)) (= y-class -1)))))
     (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
-      (ival-copy-movability out (ival-exp (ival-mult y (ival-log x))))
-      out))
+        ((overflows-loose-at (bfneg exp2-overflow-threshold) exp2-overflow-threshold)
+         (ival-mult y (ival-log2 x)) out)
+        out))
 
   (match* (x-class y-class)
     [( 1  1) (mk-pow xlo ylo xhi yhi)]
@@ -471,8 +475,8 @@
   (cond
    [(and (bf=? (ival-hi-val y) 2.bf) (bf=? (ival-lo-val y) 2.bf))
     (ival-pow2 x)]
-   [(bflt? (ival-hi-val x) 0.bf) (ival-pow-neg x y)]
-   [(bfgte? (ival-lo-val x) 0.bf) (ival-pow-pos x y)]
+   [(and (= (mpfr-sign (ival-hi-val x)) -1) (not (bfzero? (ival-hi-val x)))) (ival-pow-neg x y)]
+   [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-hi-val x))) (ival-pow-pos x y)]
    [else
     (define-values (neg pos) (split-ival x 0.bf))
     (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
