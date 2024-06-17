@@ -116,8 +116,8 @@
 
 (define (classify-ival x)
   (cond
-    [(= (mpfr-sign (ival-lo-val x)) 1) 1]
-    [(= (mpfr-sign (ival-hi-val x)) -1) -1]
+    [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-lo-val x))) 1]
+    [(or (= (mpfr-sign (ival-hi-val x)) -1) (bfzero? (ival-hi-val x))) -1]
     [else 0]))
 
 (define (classify-pos-ival-1 x) ;; Assumes x positive
@@ -475,8 +475,8 @@
   (cond
    [(and (bf=? (ival-hi-val y) 2.bf) (bf=? (ival-lo-val y) 2.bf))
     (ival-pow2 x)]
-   [(= (mpfr-sign (ival-hi-val x)) -1) (ival-pow-neg x y)]
-   [(= (mpfr-sign (ival-lo-val x)) 1) (ival-pow-pos x y)]
+   [(and (= (mpfr-sign (ival-hi-val x)) -1) (not (bfzero? (ival-hi-val x)))) (ival-pow-neg x y)]
+   [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-hi-val x))) (ival-pow-pos x y)]
    [else
     (define-values (neg pos) (split-ival x 0.bf))
     (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
