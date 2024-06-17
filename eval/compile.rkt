@@ -9,7 +9,8 @@
     [`(pow ,arg 2)
      `(pow2 ,arg)]
     [`(fma ,x ,y ,z)
-     `(+ (* ,x ,y) ,z)]))
+     `(+ (* ,x ,y) ,z)]
+    [_ expr]))
 
 (define (exprs->batch exprs vars)
   (define icache (reverse vars))
