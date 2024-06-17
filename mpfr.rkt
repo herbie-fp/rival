@@ -31,5 +31,17 @@
   (values out exact?))
 ;; End hairy code
 
-(provide bf bigfloat? bf=? bfnan? bfinfinite? pi.bf bfexp bflte? bfgte? mpfr-sign bfzero? bfmin2 bfmax2 bfadd bfsub bfmul bfdiv bflt? bfgt? bfgte? bfneg bigfloat-exponent bfrint bfround bfceiling bffloor bftruncate bfabs bigfloat-precision bf-precision bflog bfprev bfnext bfexp bfexp2 bfexpm1 bflog2 bflog1p bflog10 bfsqrt bfcbrt bfexpt bfhypot bfcos bfeven? bfodd? bfsin bftan bfcos bfsinh bfcosh bftanh bfasin bfacos bfatan bfatan2 bfasinh bfacosh bfatanh bfstep bigfloats-between bflog-gamma bfpositive? bfinteger? bferf bferfc bfcopy mpfr-exp)
+(provide
+ bf bigfloat? mpfr-sign bigfloat-exponent bigfloat-precision bf-precision mpfr-exp
+ bfpositive? bfinteger? bfzero? bfnan? bfinfinite? bfeven? bfodd? 
+ bfcopy bfstep bigfloats-between bfprev bfnext 
+ bf=? bflte? bfgte? bflt? bfgt? bfgte? 
+ pi.bf bfmin2 bfmax2
+ bfabs bfadd bfsub bfneg bfmul bfdiv
+ bfrint bfround bfceiling bffloor bftruncate
+ bfexp bflog bfexp2 bfexpm1 bflog2 bflog1p bflog10 bfexpt 
+ bfsqrt bfcbrt bfhypot 
+ bfsin bfcos bftan bfsinh bfcosh bftanh
+ bfasin bfacos bfatan bfatan2 bfasinh bfacosh bfatanh
+ bflog-gamma bferf bferfc)
 
