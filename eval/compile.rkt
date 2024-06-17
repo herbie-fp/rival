@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?))
+(require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?) racket/flonum)
 (require "../ops/all.rkt" "machine.rkt")
 (provide rival-compile)
 
@@ -163,11 +163,11 @@
 
   (rival-machine
    (list->vector vars) instructions roots (list->vector discs)
-   registers repeats precisions initial-precisions
+   registers repeats precisions initial-precisions (make-vector (vector-length roots))
    0 0 0
    (make-vector (*rival-profile-executions*))
    (make-vector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))
+   (make-flvector (*rival-profile-executions*))
    (make-vector (*rival-profile-executions*))))
 
 ; Function sets up vstart-precs vector, where all the precisions

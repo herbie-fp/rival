@@ -1,5 +1,6 @@
 #lang racket
 
+(require racket/flonum)
 (require "../ops/all.rkt" "machine.rkt" "compile.rkt" "run.rkt" "adjust.rkt")
 
 (provide rival-compile rival-apply rival-analyze
@@ -24,30 +25,11 @@
   (rival-machine-adjust machine)
   (rival-machine-load machine inputs)
   (rival-machine-run machine)
-  (define outvec (rival-machine-return machine))
-  (define outlen (vector-length outvec))
-  (define discs (rival-machine-discs machine))
-  (for/vector #:length outlen ([y (in-vector outvec)] [disc (in-vector discs)])
-    (ival-then
-     ; The two `invalid` ones have to go first, because later checks
-     ; can error if the input is erroneous
-     (ival-assert (ival-not (ival-error? y)) 'invalid)
-     ; 'infinte case handle in `ival-eval`
-     (ival-assert
-      (if (ground-truth-require-convergence)
-          (is-samplable-interval disc y)
-          (ival (ival-hi (is-samplable-interval disc y))))
-      'unsamplable)
-     y)))
+  (rival-machine-return machine))
 
 (struct exn:rival exn:fail ())
 (struct exn:rival:invalid exn:rival (pt))
 (struct exn:rival:unsamplable exn:rival (pt))
-
-(define (ival-any-error? ivals)
-  (for/fold ([out (ival-error? (vector-ref ivals 0))])
-            ([iv (in-vector ivals 1)])
-    (ival-or out (ival-error? iv))))
 
 (struct execution (name number precision time) #:prefab)
 
@@ -67,7 +49,7 @@
                      ([instruction (in-vector profile-instruction 0 profile-ptr)]
                       [number (in-vector profile-number 0 profile-ptr)]
                       [precision (in-vector profile-precision 0 profile-ptr)]
-                      [time (in-vector profile-time 0 profile-ptr)])
+                      [time (in-flvector profile-time 0 profile-ptr)])
            (execution instruction number precision time))
        (set-rival-machine-profile-ptr! machine 0))]))
 
@@ -78,26 +60,24 @@
   (define discs (rival-machine-discs machine))
   (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
-    (define exs
+    (define-values (good? bad? stuck? fvec)
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
         (rival-machine-full machine (vector-map ival-real pt))))
-    (match-define (ival err err?) (ival-any-error? exs))
     (cond
-      [err
+      [good? fvec]
+      [bad?
        (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
-      [(not err?)
-       (for/vector #:length (vector-length discs) ([ex (in-vector exs)] [disc (in-vector discs)])
-         ; We are promised at this point that (distance (convert lo) (convert hi)) = 0 so use lo
-         ([discretization-convert disc] (ival-lo ex)))]
+      [stuck?
+       (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [(>= iter (*rival-max-iterations*))
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else
        (loop (+ 1 iter))])))
 
 (define (rival-analyze machine rect)
-  (define res
+  (define-values (good? bad? stuck? fvec)
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
-  (ival-any-error? res))
+  (ival (not good?) (or bad? stuck?)))
