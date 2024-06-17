@@ -6,30 +6,27 @@
 
 (define sample-vals (make-parameter 5000))
 
-(define (time-operation ival-fn itypes otype)
+(define (time-operation ival-fn bf-fn itypes otype)
   (define n
     (if (set-member? slow-tests ival-fn)
         (/ (sample-vals) 100) ; Gamma functions are super duper slow
         (sample-vals)))
-  (define times (make-vector n))
+  (define ivtime 0.0)
+  (define bftime 0.0)
   (for ([i (in-range n)])
     (define args
       (for/list ([itype (in-list itypes)])
         (sample-interval itype)))
     (define start (current-inexact-milliseconds))
     (apply ival-fn args)
-    (define dt (- (current-inexact-milliseconds) start))
-    (vector-set! times i dt))
-  (vector->list times))
-
-(define (time-operations)
-  (for/list ([fn (in-list function-table)])
-    (match-define (list ival-fn bf-fn itypes otype) fn)
-    (define t (time-operation ival-fn itypes otype))
-    (define avg (/ (apply + t) (length t)))
-    (define stdev (sqrt (/ (apply + (for/list ([v t]) (expt (- v avg) 2))) (- (length t) 1.5))))
-    (define serr (/ stdev (sqrt (length t))))
-    (list ival-fn avg serr)))
+    (define dt1 (- (current-inexact-milliseconds) start))
+    (set! ivtime (+ ivtime dt1))
+    (define start2 (current-inexact-milliseconds))
+    (apply bf-fn (map ival-lo args))
+    (apply bf-fn (map ival-hi args))
+    (define dt2 (- (current-inexact-milliseconds) start2))
+    (set! bftime (+ bftime dt2)))
+  (list (* 1000 (/ ivtime n)) (* 1000 (/ bftime n))))
 
 (define (read-from-string s)
   (read (open-input-string s)))
@@ -72,27 +69,43 @@
         (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
 
 (define (run html? test-id p)
-  (when html? (printf "<!doctype html>"))
+  (when html?
+    (printf "<!doctype html><meta charset=utf-8 />")
+    (define sortable-css "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.css")
+    (define sortable-js "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js")
+    (printf "<link href='~a' rel='stylesheet' />" sortable-css)
+    (printf "<script src='~a' async defer></script>" sortable-js)
+    (printf "<style>tbody td:nth-child(1n+2) { text-align: right; }</style>"))
   
-  (unless test-id
+  (when (or (not test-id) (equal? test-id "ops"))
     (when html?
       (printf "<h1>Operation timings</h1>")
-      (printf "<table>")
-      (printf "<thead><tr><th>Operation<th colspan=2>Time ([min, max])")
+      (printf "<table class=sortable>")
+      (printf "<thead><tr><th>Operation<th>Time, 256b<th>Slowdown")
+      (printf "<th>Time, 4kb<th>Slowdown")
       (printf "<tbody>"))
-    (for ([rec (in-list (time-operations))])
-      (match-define (list ival-fn avg se) rec)
-      (define min-s (~r (* (- avg se se) 1000) #:precision '(= 3)))
-      (define max-s (~r (* (+ avg se se) 1000) #:precision '(= 3)))
+    (for ([fn (in-list function-table)])
+      (match-define (list ival-fn bf-fn itypes otype) fn)
+      (match-define (list iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
+      (match-define (list iv4k bf4k)
+        (if (set-member? slow-tests ival-fn)
+            (list #f #f)
+            (parameterize ([bf-precision 4096])
+              (time-operation ival-fn bf-fn itypes otype))))
       (cond
         [html?
          (printf "<tr><td><code>~a</code></td>" (object-name ival-fn))
-         (printf "<td>~aµs<td>~aµs" min-s max-s)]
+         (printf "<td data-sort=~a>~aµs" iv256 (~r iv256 #:precision '(= 3)))
+         (printf "<td data-sort=~a>~a×" (/ iv256 bf256) (~r (/ iv256 bf256) #:precision '(= 2)))
+         (printf "<td data-sort=~a>~aµs" (if iv4k iv4k "1000000") (if iv4k (~r iv4k #:precision '(= 3)) "∞"))
+         (printf "<td data-sort=~a>~a×" (if (and iv4k bf4k) (/ iv4k bf4k) "1000000") (if (and iv4k bf4k) (~r (/ iv4k bf4k) #:precision '(= 2)) "∞"))]
         [else
-         (printf "~a [~a, ~a]µs\n"
+         (printf "~a ~aµs ~a×\t~aµs ~a×\n"
               (~a (object-name ival-fn) #:align 'left #:min-width 20)
-              (~a min-s #:min-width 8)
-              (~a max-s #:min-width 8))]))
+              (~r iv256 #:precision '(= 3) #:min-width 8)
+              (~r (/ iv256 bf256) #:precision '(= 2) #:min-width 4)
+              (~r iv4k #:precision '(= 3) #:min-width 8)
+              (~r (/ iv4k bf4k) #:precision '(= 2) #:min-width 4))]))
     (when html?
       (printf "</table>")))
 
@@ -100,8 +113,9 @@
     (cond
       [html?
        (printf "<h1>Expression Timing</h1>")
-       (printf "<table>")
-       (printf "<thead><tr><th>#<th>Time (s)<th>Compile (s)<th colspan=2>Valid (#, s)<th colspan=2>Invalid (#, s)<th colspan=2>Unsamplable (#, s)</thead>")]
+       (printf "<table class=sortable>")
+       (printf "<thead><tr><th>#<th>Time (s)<th>Compile (s)<th>Valid<th>(s)<th>Invalid<th>(s)<th>Unsamplable<th>(s)</thead>")
+       (printf "<tbody>")]
       [else
        (newline)])
     (define total-c 0.0)
@@ -112,7 +126,8 @@
     (define total-u 0.0)
     (define count-u 0.0)
 
-    (for ([rec (in-port read-json p)] [i (in-naturals)] #:unless (and test-id (not (= i test-id))))
+    (for ([rec (in-port read-json p)] [i (in-naturals)]
+                                      #:unless (and test-id (not (equal? (~a i) test-id))))
       (when test-id
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
@@ -124,19 +139,20 @@
       (set! count-i (+ count-i i-num))
       (set! total-u (+ total-u u-time))
       (set! count-u (+ count-u u-num))
+      (define t-time (+ c-time v-time i-time u-time))
       
       (cond
         [html?
-         (printf "<tr><td>~a<td>~as" i (+ c-time v-time i-time u-time))
-         (printf "<td>~a" (~r c-time #:precision '(= 3)))
+         (printf "<tr><td title='~a'>~a<td data-sort=~a>~as" (second (hash-ref rec 'exprs)) i t-time (~r t-time #:precision '(= 3)))
+         (printf "<td data-sort~a>~a" c-time (~r c-time #:precision '(= 3)))
          (if (> v-num 0)
-             (printf "<td>~a<td>~as" v-num (~r v-time #:precision '(= 3)))
+             (printf "<td>~a<td data-sort=~a>~as" v-num v-time (~r v-time #:precision '(= 3)))
              (printf "<td><td>"))
          (if (> i-num 0)
-             (printf "<td>~a<td>~as" i-num (~r i-time #:precision '(= 3)))
+             (printf "<td>~a<td data-sort=~a>~as" i-num i-time (~r i-time #:precision '(= 3)))
              (printf "<td><td>"))
          (if (> u-num 0)
-             (printf "<td>~a<td>~as" u-num (~r u-time #:precision '(= 3)))
+             (printf "<td>~a<td data-sort=~a>~as" u-num u-time (~r u-time #:precision '(= 3)))
              (printf "<td><td>"))]
         [else
          (printf "~a ~ams v(~a: ~ams) i(~a: ~ams) u(~a: ~ams)\n"
@@ -151,7 +167,7 @@
 
     (cond
       [html?
-       (printf "<tbody><tr><td>Total<td>~a<td>~a"
+       (printf "<tfoot><tr><td>Total<td>~a<td>~a"
                (~r (+ total-c total-v total-i total-u) #:precision '(= 3))
                (~r total-c #:precision '(= 3)))
        (printf "<td><td>~a<td><td>~a<td><td>~a"
@@ -172,6 +188,6 @@
    [("--html") "Produce HTML output"
                (set! html? #t)]
    [("--id") ns "Run a single test"
-             (set! n (string->number ns))]
+             (set! n ns)]
    #:args ([points "infra/points.json"])
    (run html? n (open-input-file points))))
