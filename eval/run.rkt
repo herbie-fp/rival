@@ -1,7 +1,7 @@
 #lang racket/base
 
-(require (only-in math/private/bigfloat/mpfr bf-precision) racket/match racket/function racket/flonum)
-(require "machine.rkt" "adjust.rkt" "../ops.rkt")
+(require racket/match racket/function racket/flonum)
+(require "machine.rkt" "adjust.rkt" "../mpfr.rkt" "../ops/all.rkt")
 (provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust)
 
 (define (rival-machine-load machine args)
