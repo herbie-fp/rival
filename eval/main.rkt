@@ -53,7 +53,7 @@
   (define discs (rival-machine-discs machine))
   (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
-    (define-values (good? bad? done? stuck? fvec)
+    (define-values (good? done? bad? stuck? fvec)
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
         (rival-machine-full machine (vector-map ival-real pt))))
@@ -70,7 +70,7 @@
        (loop (+ 1 iter))])))
 
 (define (rival-analyze machine rect)
-  (define-values (good? bad? stuck? fvec)
+  (define-values (good? done? bad? stuck? fvec)
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
