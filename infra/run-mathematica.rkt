@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat "../main.rkt")
-(provide math-path wolfram-apply wolfram-compile time-expr-math wolfram-log)
+(provide math-path wolfram-apply wolfram-compile wolfram-log wolfram-profile wolfram-shutdown!)
 
 (define function->wolfram
   (make-hash
@@ -161,7 +161,7 @@
     (flush-output (wolfram-machine-in machine)))
 
   (define start (current-inexact-milliseconds))
-  (ffprintf "TimeConstrained[FullForm[N[f[~a], 20]], 1]\n"
+  (ffprintf "TimeConstrained[FullForm[N[f[~a], 16]], 1]\n"
             (string-join (map (compose number->wolfram bigfloat->rational) (vector->list pt)) ", "))
   (let loop ([i 0])
     (define step (read-bytes-avail!* buffer (wolfram-machine-out machine) i))
@@ -188,6 +188,10 @@
           (parse-number s)])]
       [else
        (loop (+ i step))])))
+
+(define (wolfram-profile machine type)
+  (match type
+    ['time 0.0]))
 
 (define (parse-output s)
   (define lines (string-split s "\n" #:repeat? #t))

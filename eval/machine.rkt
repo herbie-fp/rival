@@ -13,7 +13,7 @@
 (struct rival-machine
   (arguments instructions outputs discs
    registers repeats precisions initial-precisions output-distance
-   [iteration #:mutable] [bumps #:mutable]
+   [iteration #:mutable] [bumps #:mutable] [last-time #:mutable]
    [profile-ptr #:mutable]
    profile-instruction profile-number profile-time profile-precision))
 

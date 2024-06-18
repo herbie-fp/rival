@@ -31,6 +31,7 @@
     ['instructions (vector-length (rival-machine-instructions machine))]
     ['iterations (rival-machine-iteration machine)]
     ['bumps (rival-machine-bumps machine)]
+    ['time (rival-machine-last-time machine)]
     ['executions
      (define profile-ptr (rival-machine-profile-ptr machine))
      (define profile-instruction (rival-machine-profile-instruction machine))
@@ -51,6 +52,7 @@
 
 (define (rival-apply machine pt)
   (define discs (rival-machine-discs machine))
+  (define start (current-inexact-milliseconds))
   (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
@@ -59,12 +61,16 @@
         (rival-machine-full machine (vector-map ival-real pt))))
     (cond
       [bad?
+       (set-rival-machine-last-time! (- (current-inexact-milliseconds) start))
        (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done?
+       (set-rival-machine-last-time! (- (current-inexact-milliseconds) start))
        fvec]
       [stuck?
+       (set-rival-machine-last-time! (- (current-inexact-milliseconds) start))
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [(>= iter (*rival-max-iterations*))
+       (set-rival-machine-last-time! (- (current-inexact-milliseconds) start))
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else
        (loop (+ 1 iter))])))

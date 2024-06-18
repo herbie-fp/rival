@@ -10,8 +10,11 @@
   (rival-compile progs exprs (cons boolean-discretization (map (const flonum-discretization) (cdr progs)))))
 
 (define backends
-  (list (list "Rival" my-rival-compile rival-apply)
-        (list "Wolfram" wolfram-compile wolfram-apply)))
+  (filter
+   identity
+   (list (list "Rival" my-rival-compile rival-apply rival-profile identity)
+         (and math-path
+              (list "Wolfram" wolfram-compile wolfram-apply wolfram-profile wolfram-shutdown!)))))
 
 (define (compare-backends html? p)
   (for ([rec (in-port read-json p)] [i (in-naturals)])
@@ -23,27 +26,26 @@
 
     (define machines
       (for/list ([backend (in-list backends)])
-        (match-define (list name b-compile b-app) backend)
+        (match-define (list name b-compile b-app b-profile b-shutdown!) backend)
         (b-compile exprs vars)))
 
     (define timess
       (for/list ([backend (in-list backends)] [machine (in-list machines)])
-        (match-define (list name b-compile b-app) backend)
+        (match-define (list name b-compile b-app b-profile b-shutdown!) backend)
         (for/list ([pt (in-list (hash-ref rec 'points))])
-          (define start-apply (current-inexact-milliseconds))
           (define status
             (with-handlers ([exn:rival:invalid? (const 'invalid)]
                             [exn:rival:unsamplable? (const 'unsamplable)])
               (b-app machine (list->vector (map bf pt)))
               'valid))
-          (define apply-time (- (current-inexact-milliseconds) start-apply))
-          (cons status apply-time))))
+          (cons status (b-profile 'time)))))
 
     (when html?
       (printf "<pre>\n"))
     (printf "~a:" (~a i #:align 'left #:min-width 3))
-    (for ([times (in-list timess)] [backend (in-list backends)])
-      (match-define (list name b-compile b-app) backend)
+    (for ([times (in-list timess)] [backend (in-list backends)] [machine (in-list machines)])
+      (match-define (list name b-compile b-app b-profile b-shutdown!) backend)
+      (b-shutdown! machine)
       (printf "~a: ~ams"
               (~a name #:align 'right #:min-width 8)
               (~r (apply + (map cdr times)) #:precision '(= 3))))

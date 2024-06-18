@@ -168,7 +168,8 @@
    (make-vector (*rival-profile-executions*))
    (make-vector (*rival-profile-executions*))
    (make-flvector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))))
+   (make-vector (*rival-profile-executions*))
+   0.0))
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
