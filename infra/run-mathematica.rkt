@@ -106,7 +106,7 @@
 
 (define (log fmt . vs)
   (when (wolfram-log)
-    (apply fprintf (wolfram-log) fms vs)))
+    (apply fprintf (wolfram-log) fmt vs)))
 
 (define (wolfram-compile exprs vars)
   (define-values (process m-out m-in m-err)
