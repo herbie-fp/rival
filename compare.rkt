@@ -1,9 +1,16 @@
 #lang racket
 
+(require json math/bigfloat)
 (require "main.rkt" "infra/run-mathematica.rkt")
 
+(define (read-from-string s)
+  (read (open-input-string s)))
+
+(define (my-rival-compile progs exprs)
+  (rival-compile progs exprs (cons boolean-discretization (map (const flonum-discretization) (cdr progs)))))
+
 (define backends
-  (list (list "Rival" rival-compile rival-apply)
+  (list (list "Rival" my-rival-compile rival-apply)
         (list "Wolfram" wolfram-compile wolfram-apply)))
 
 (define (compare-backends html? p)
@@ -53,5 +60,5 @@
    [("--html") "Produce HTML output"
                (set! html? #t)]
    #:args ([points "infra/points.json"])
-   (run html? (open-input-file points))))
+   (compare-backends html? (open-input-file points))))
 
