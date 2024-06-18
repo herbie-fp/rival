@@ -164,12 +164,11 @@
   (rival-machine
    (list->vector vars) instructions roots (list->vector discs)
    registers repeats precisions initial-precisions (make-vector (vector-length roots))
-   0 0 0
+   0 0 0.0 0
    (make-vector (*rival-profile-executions*))
    (make-vector (*rival-profile-executions*))
    (make-flvector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))
-   0.0))
+   (make-vector (*rival-profile-executions*))))
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
