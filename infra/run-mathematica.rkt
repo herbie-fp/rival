@@ -167,15 +167,15 @@
       [(string-contains? s "\nIn")
        (match (parse-output s)
          ['invalid
-          (raise (exn:rival:invalid "Invalid input" pt))]
+          (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
          ['memory
-          (raise (exn:rival:unsamplable "Out of memory" pt))]
+          (raise (exn:rival:unsamplable "Out of memory" (current-continuation-marks) pt))]
          ['timeout
-          (raise (exn:rival:unsamplable "Timeout" pt))]
+          (raise (exn:rival:unsamplable "Timeout" (current-continuation-marks) pt))]
          ['unsamplable
-          (raise (exn:rival:unsamplable "Indeterminate" pt))]
+          (raise (exn:rival:unsamplable "Indeterminate" (current-continuation-marks) pt))]
          ['unknown
-          (raise (exn:rival:unsamplable "Unknown" pt))]
+          (raise (exn:rival:unsamplable "Unknown" (current-continuation-marks) pt))]
          [(regexp #rx"[0-9]+(\\.[0-9]+)?(`[0-9]*)?(\\*\\^q-?[0-9]+)?" (list s _))
           (parse-number s)])]
       [else
