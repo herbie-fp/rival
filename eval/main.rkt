@@ -61,16 +61,16 @@
         (rival-machine-full machine (vector-map ival-real pt))))
     (cond
       [bad?
-       (set-rival-machine-last-time! (- (current-inexact-milliseconds) start))
+       (set-rival-machine-last-time! machine (- (current-inexact-milliseconds) start))
        (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done?
-       (set-rival-machine-last-time! (- (current-inexact-milliseconds) start))
+       (set-rival-machine-last-time! machine (- (current-inexact-milliseconds) start))
        fvec]
       [stuck?
-       (set-rival-machine-last-time! (- (current-inexact-milliseconds) start))
+       (set-rival-machine-last-time! machine (- (current-inexact-milliseconds) start))
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [(>= iter (*rival-max-iterations*))
-       (set-rival-machine-last-time! (- (current-inexact-milliseconds) start))
+       (set-rival-machine-last-time! machine (- (current-inexact-milliseconds) start))
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else
        (loop (+ 1 iter))])))
