@@ -100,7 +100,9 @@
    "Hypot[x_, y_] := Sqrt[x*x + y*y]"
    "checkReal[a_] := If[Or[Internal`RealValuedNumericQ[a], BooleanQ[a]],a, Throw[\"domain-error\", BadValue]]"))
 
-(define (wolfram-compile exprs vars #:backup [backup #f])
+(define wolfram-log (make-parameter #f))
+
+(define (wolfram-compile exprs vars)
   (define-values (process m-out m-in m-err)
     (subprocess #f #f #f math-path))
 
@@ -108,7 +110,7 @@
 
   (define (ffprintf fmt . vs)
     (apply fprintf m-in fmt vs)
-    (when backup (apply fprintf backup fmt vs))
+    (when (wolfram-log) (apply fprintf (wolfram-log) fmt vs))
     (flush-output m-in))
 
   (for ([line (in-list headers)])
@@ -124,29 +126,28 @@
 
   (wolfram-machine exprs vars process m-out m-in m-err))
 
-(define (wolfram-reset! machine #:backup [backup #f])
+(define (wolfram-reset! machine)
   (subprocess-kill (wolfram-machine-proc machine) true)
   (match-define (wolfram-machine exprs vars proc in out err)
     (wolfram-compile (wolfram-machine-exprs machine)
-                     (wolfram-machine-vars machine)
-                     #:backup backup))
+                     (wolfram-machine-vars machine)))
   (set-wolfram-machine-proc! machine proc)
   (set-wolfram-machine-in! machine in)
   (set-wolfram-machine-out! machine out)
   (set-wolfram-machine-err! machine err))
 
-(define (wolfram-shutdown! machine #:backup [backup #f])
+(define (wolfram-shutdown! machine)
   (fprintf (wolfram-machine-in machine) "Exit[]\n")
-  (when backup (fprintf backup "Exit[]\n"))
+  (when (wolfram-log) (fprintf (wolfram-log) "Exit[]\n"))
   (flush-output (wolfram-machine-in machine))
   (subprocess-wait (wolfram-machine-proc machine))
   (subprocess-status (wolfram-machine-proc machine)))
 
-(define (wolfram-apply machine pt #:backup [backup #f])
+(define (wolfram-apply machine pt)
   (define buffer (make-bytes 65536 0))
   (define (ffprintf fmt . vs)
     (apply fprintf (wolfram-machine-in machine) fmt vs)
-    (when backup (apply fprintf backup fmt vs))
+    (when (wolfram-log) (apply fprintf (wolfram-log) fmt vs))
     (flush-output (wolfram-machine-in machine)))
 
   (define start (current-inexact-milliseconds))
@@ -159,7 +160,7 @@
       [(> (- (current-inexact-milliseconds) start) 2000.0)
        (eprintf "Killing and restarting Mathematica\n")
        (eprintf "~s\n" s)
-       (wolfram-reset! machine #:backup backup)
+       (wolfram-reset! machine)
        (raise (exn:rival:unsamplable "Freeze" pt))]
       [(string-contains? s "\nIn")
        (match (parse-output s)
