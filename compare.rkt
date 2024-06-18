@@ -1,6 +1,6 @@
 #lang racket
 
-(require "time.rkt" "infra/run-mathematica.rkt")
+(require "main.rkt" "infra/run-mathematica.rkt")
 
 (define backends
   (list (list "Rival" rival-compile rival-apply)
