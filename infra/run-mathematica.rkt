@@ -93,6 +93,14 @@
 
 (struct wolfram-machine (exprs vars proc out in err) #:mutable)
 
+(define headers
+  (list
+   "$MaxExtraPrecision=3100"
+   "flConst[x_] := Rationalize[SetPrecision[x, 60]]"
+   "FMA[x_, y_, z_] := x * y + z"
+   "Hypot[x_, y_] := Sqrt[x*x + y*y]"
+   "checkReal[a_] := If[Or[Internal`RealValuedNumericQ[a], BooleanQ[a]],a, Throw[\"domain-error\", BadValue]]"))
+
 (define (wolfram-compile exprs vars #:backup [backup #f])
   (define-values (process m-out m-in m-err)
     (subprocess #f #f #f math-path))
@@ -104,7 +112,8 @@
     (when backup (apply fprintf backup fmt vs))
     (flush-output m-in))
 
-  (ffprintf "~a\n" (call-with-input-file "headers.wls" port->string))
+  (for ([line (in-list headers)])
+    (ffprintf "~a\n" line))
   (ffprintf "~a\n" (program->wolfram exprs vars))
   (ffprintf "Print[\"Rival\" <> \"Ready\"]\n")
   (let loop ([i 0])
