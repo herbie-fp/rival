@@ -60,7 +60,7 @@
 ;; exp2, expm1, 
 
 (define (number->wolfram num)
-  (format "Divide[~a, ~a]" (numerator num2) (denominator num2)))
+  (format "Divide[~a, ~a]" (numerator num) (denominator num)))
 
 (define (expr->wolfram expr)
   (match expr
