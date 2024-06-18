@@ -86,7 +86,7 @@
       (unless (= distance 0)
         (set! good? #f)
         (when (and (ival-lo-fixed? out) (ival-hi-fixed? out))
-          (set! bad? #t)))
+          (set! stuck? #t)))
       (cond
         [(ival-err out) (set! bad? #t)]
         [(ival-err? out) (set! good? #f)])
