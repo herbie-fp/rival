@@ -60,7 +60,6 @@
 ;; exp2, expm1, 
 
 (define (number->wolfram num)
-  (define num2 (bigfloat->rational num))
   (format "Divide[~a, ~a]" (numerator num2) (denominator num2)))
 
 (define (expr->wolfram expr)
@@ -152,7 +151,7 @@
 
   (define start (current-inexact-milliseconds))
   (ffprintf "TimeConstrained[FullForm[N[f[~a], 20]], 1]\n"
-            (string-join (map number->wolfram (vector->list pt)) ", "))
+            (string-join (map (compose number->wolfram bigfloat->rational) (vector->list pt)) ", "))
   (let loop ([i 0])
     (define step (read-bytes-avail!* buffer (wolfram-machine-out machine) i))
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
