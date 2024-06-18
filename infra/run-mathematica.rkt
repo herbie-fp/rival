@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat "../main.rkt")
-(provide math-path wolfram-apply wolfram-compile time-expr-math)
+(provide math-path wolfram-apply wolfram-compile time-expr-math wolfram-log)
 
 (define function->wolfram
   (make-hash
