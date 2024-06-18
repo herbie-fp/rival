@@ -104,6 +104,10 @@
 
 (define wolfram-log (make-parameter #f))
 
+(define (log fmt . vs)
+  (when (wolfram-log)
+    (apply fprintf (wolfram-log) fms vs)))
+
 (define (wolfram-compile exprs vars)
   (define-values (process m-out m-in m-err)
     (subprocess #f #f #f math-path))
@@ -112,7 +116,7 @@
 
   (define (ffprintf fmt . vs)
     (apply fprintf m-in fmt vs)
-    (when (wolfram-log) (apply fprintf (wolfram-log) fmt vs))
+    (apply log fmt vs)
     (flush-output m-in))
 
   (for ([line (in-list headers)])
@@ -123,7 +127,7 @@
     (define step (read-bytes-avail! buffer m-out i))
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
     (if (regexp-match #rx".*RivalReady.*In\\[[0-9]+\\].*" s)
-        (eprintf "Mathematica started for ~a\n" exprs)
+        (log "(* Mathematica started for ~a *)\n" exprs)
         (loop (+ i step))))
 
   (wolfram-machine exprs vars process m-out m-in m-err))
@@ -160,8 +164,8 @@
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
     (cond
       [(> (- (current-inexact-milliseconds) start) 2000.0)
-       (eprintf "Killing and restarting Mathematica\n")
-       (eprintf "~s\n" s)
+       (log "(* Killing and restarting Mathematica *)\n")
+       (log "(* ~s *)\n" s)
        (wolfram-reset! machine)
        (raise (exn:rival:unsamplable "Freeze" pt))]
       [(string-contains? s "\nIn")
@@ -227,7 +231,7 @@
       "   The current computation was aborted because there was insufficient memory"
       "    available to complete the computation."
       _ ...)
-     (eprintf "Mathematica ran out of memory!\n")
+     (log "(* Mathematica ran out of memory! *)\n")
      'memory]
     [(list
       _ ...

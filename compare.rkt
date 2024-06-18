@@ -9,8 +9,6 @@
 (define (my-rival-compile progs exprs)
   (rival-compile progs exprs (cons boolean-discretization (map (const flonum-discretization) (cdr progs)))))
 
-(wolfram-log (current-error-port))
-
 (define backends
   (list (list "Rival" my-rival-compile rival-apply)
         (list "Wolfram" wolfram-compile wolfram-apply)))
