@@ -53,14 +53,15 @@
   (define discs (rival-machine-discs machine))
   (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
-    (define-values (good? bad? stuck? fvec)
+    (define-values (good? bad? done? stuck? fvec)
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
         (rival-machine-full machine (vector-map ival-real pt))))
     (cond
       [bad?
        (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
-      [good? fvec]
+      [done?
+       fvec]
       [stuck?
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [(>= iter (*rival-max-iterations*))
@@ -73,4 +74,4 @@
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
-  (ival (or bad? stuck?) (or bad? stuck?)))
+  (ival (or bad? stuck?) (not good?)))

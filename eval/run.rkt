@@ -72,10 +72,11 @@
   (define rootvec (rival-machine-outputs machine))
   (define slackvec (rival-machine-output-distance machine))
   #;(set-rival-machine-iteration! machine (add1 (rival-machine-iteration machine)))
-  (define good? #t)
   (define ovec (make-vector (vector-length rootvec)))
-  (define stuck? #f)
+  (define good? #t)
+  (define done? #t)
   (define bad? #f)
+  (define stuck? #f)
   (define fvec
     (for/vector #:length (vector-length rootvec)
                 ([root (in-vector rootvec)] [disc (in-vector discs)] [n (in-naturals)])
@@ -84,7 +85,7 @@
       (define hi ((discretization-convert disc) (ival-hi out)))
       (define distance ((discretization-distance disc) lo hi))
       (unless (= distance 0)
-        (set! good? #f)
+        (set! done? #f)
         (when (and (ival-lo-fixed? out) (ival-hi-fixed? out))
           (set! stuck? #t)))
       (cond
@@ -92,7 +93,7 @@
         [(ival-err? out) (set! good? #f)])
       (vector-set! slackvec n (= distance 1))
       lo))
-  (values good? bad? stuck? fvec))
+  (values good? done? bad? stuck? fvec))
 
 (define (rival-machine-adjust machine)
   (define iter (rival-machine-iteration machine))
