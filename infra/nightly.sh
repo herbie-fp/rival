@@ -59,6 +59,7 @@ function perf {
     clean
     xz -d -k -f infra/points.json.xz
     racket -y time.rkt --html infra/points.json > "$REPORTDIR"/index.html
+    racket -y compare.rkt --html infra/points.json >> "$REPORTDIR"/index.html
 }
 
 for cmd in $@; do

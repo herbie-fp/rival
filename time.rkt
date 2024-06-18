@@ -2,7 +2,8 @@
 
 (require racket/math math/base math/flonum math/bigfloat racket/random)
 (require json)
-(require "main.rkt" "test.rkt")
+(require "main.rkt" "test.rkt" "infra/run-mathematica.rkt")
+(provide time-expr)
 
 (define sample-vals (make-parameter 5000))
 
@@ -76,7 +77,7 @@
     (printf "<link href='~a' rel='stylesheet' />" sortable-css)
     (printf "<script src='~a' async defer></script>" sortable-js)
     (printf "<style>tbody td:nth-child(1n+2) { text-align: right; }</style>"))
-  
+
   (when (or (not test-id) (equal? test-id "ops"))
     (when html?
       (printf "<h1>Operation timings</h1>")
