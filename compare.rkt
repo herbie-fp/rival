@@ -38,7 +38,7 @@
                             [exn:rival:unsamplable? (const 'unsamplable)])
               (b-app machine (list->vector (map bf pt)))
               'valid))
-          (cons status (b-profile 'time)))))
+          (cons status (b-profile machine 'time)))))
 
     (when html?
       (printf "<pre>\n"))
