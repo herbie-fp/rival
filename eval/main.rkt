@@ -13,13 +13,6 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (is-samplable-interval disc interval)
-  (define convert (discretization-convert disc))
-  (define distance (discretization-distance disc))
-  (define (close-enough? lo hi)
-    (= (distance (convert lo) (convert hi)) 0))
-  ((close-enough->ival close-enough?) interval))
-
 (define (rival-machine-full machine inputs)
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine)
@@ -65,9 +58,9 @@
                      [ground-truth-require-convergence #t])
         (rival-machine-full machine (vector-map ival-real pt))))
     (cond
-      [good? fvec]
       [bad?
        (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
+      [good? fvec]
       [stuck?
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [(>= iter (*rival-max-iterations*))
@@ -80,4 +73,4 @@
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
-  (ival (or bad? stuck?) (not good?)))
+  (ival (or bad? stuck?) (or bad? stuck?)))
