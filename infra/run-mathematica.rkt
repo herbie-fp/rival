@@ -69,10 +69,14 @@
     [(list op (app expr->wolfram args) ...)
      (define fn (hash-ref function->wolfram op))
      (format "checkReal[~a[~a]]" fn (string-join args ", "))]
-    ['PI
+    ['(PI)
      "Pi"]
-    ['E
+    ['(E)
      "E"]
+    ['(TRUE)
+     "True"]
+    ['(FALSE)
+     "False"]
     [(? symbol?)
      (regexp-replace #rx"[*._-]" (symbol->string expr) "AWeirdSymbol")]
     [(? number?)
