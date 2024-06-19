@@ -1,7 +1,16 @@
 #lang racket
+<<<<<<< HEAD
 
 (require math/bigfloat "../main.rkt")
 (provide math-path wolfram-apply wolfram-compile wolfram-log wolfram-profile wolfram-shutdown!)
+=======
+(require racket/engine)
+(require math/bigfloat)
+
+
+(require "./interval-evaluate.rkt")
+(require "./run-mpfi.rkt")
+>>>>>>> pavels-crap
 
 (define function->wolfram
   (make-hash
@@ -116,21 +125,27 @@
   (define-values (process m-out m-in m-err)
     (subprocess #f #f #f math-path))
 
-  (define buffer (make-bytes 65536 0))
+  (define (m-run fmt . args)
+    (define nonce (random 1 65536))
+    (define str
+      (format "Print[\"<\" <> \"~a>\"]; ~a\nPrint[\"</\" <> \"~a>\"]\n"
+              nonce (apply format fmt args) nonce))
+    (fprintf m-in "~a" str)
+    (when backup
+      (fprintf backup "~a" str)
+      (flush-output backup))
+    (flush-output m-in)
 
+<<<<<<< HEAD
   (define (ffprintf fmt . vs)
     (apply fprintf m-in fmt vs)
     (apply log fmt vs)
     (flush-output m-in))
 
-  (ffprintf "~a\n" "RELAX")
   (for ([line (in-list headers)])
     (ffprintf "~a\n" line))
   (ffprintf "~a\n" (program->wolfram exprs vars))
-  (ffprintf "~a\n" "OK")
-  
   (ffprintf "Print[\"Rival\" <> \"Ready\"]\n")
-  
   (let loop ([i 0])
     (define step (read-bytes-avail! buffer m-out i))
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
@@ -142,11 +157,6 @@
 
 (define (wolfram-reset! machine)
   (subprocess-kill (wolfram-machine-proc machine) true)
-  ; to avoid "too many files open" error
-  (close-output-port (wolfram-machine-in machine))
-  (close-input-port (wolfram-machine-out machine))
-  (close-input-port (wolfram-machine-err machine))
-  
   (match-define (wolfram-machine exprs vars proc in out err)
     (wolfram-compile (wolfram-machine-exprs machine)
                      (wolfram-machine-vars machine)))
@@ -160,9 +170,6 @@
   (when (wolfram-log) (fprintf (wolfram-log) "Exit[]\n"))
   (flush-output (wolfram-machine-in machine))
   (subprocess-wait (wolfram-machine-proc machine))
-  (close-output-port (wolfram-machine-in machine))
-  (close-input-port (wolfram-machine-out machine))
-  (close-input-port (wolfram-machine-err machine))
   (subprocess-status (wolfram-machine-proc machine)))
 
 (define (wolfram-apply machine pt)
@@ -172,10 +179,9 @@
     (when (wolfram-log) (apply fprintf (wolfram-log) fmt vs))
     (flush-output (wolfram-machine-in machine)))
 
+  (define start (current-inexact-milliseconds))
   (ffprintf "TimeConstrained[FullForm[N[f[~a], 16]], 1]\n"
             (string-join (map (compose number->wolfram bigfloat->rational) (vector->list pt)) ", "))
-  (define start (current-inexact-milliseconds))
-  
   (let loop ([i 0])
     (define step (read-bytes-avail!* buffer (wolfram-machine-out machine) i))
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
@@ -205,6 +211,62 @@
 (define (wolfram-profile machine type)
   (match type
     ['time 0.0]))
+=======
+    (define rx (regexp (format "<~a>(.*)</~a>" nonce nonce)))
+
+    (define buffer (make-bytes 65536 0))
+    (let loop ([i 0])
+      (define step (read-bytes-avail!* buffer m-out i))
+      (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
+      (match (regexp-match rx s)
+        [(list _ lines)
+         (string-split lines "\n" #:repeat? #t)]
+        [#f
+         (loop (+ i step))])))
+
+  (m-run "RELAX\n~a\n~a\nOK" (call-with-input-file "headers.wls" port->string) (program->wolfram prog))
+  (values process m-run))
+
+(define (result->icon x)
+  (match x
+    ['invalid "*"]
+    ['memory "M"]
+    ['timeout "T"]
+    ['unsamplable "!"]
+    ['unknown "?"]
+    [(? number?) "."]))
+
+(define (run-mathematica prog pts #:backup [backup #f] #:timeout [timeout 2000])
+  (define-values (process m-run)
+    (make-mathematica prog #:backup backup))
+  (eprintf "Mathematica started for ~a\n" prog)
+
+  (define out
+    (for/list ([pt (in-list pts)])
+      (define eng
+        (engine
+         (λ (_)
+           (m-run "Print[TimeConstrained[FullForm[N[f[~a], 20]], 1]]"
+                  (string-join (map number->wolfram pt) ", ")))))
+      (define start (current-inexact-milliseconds))
+      (cond
+       [(engine-run timeout eng) 
+        (define res (parse-output (engine-result eng)))
+        (printf (result->icon res))
+        (flush-output)
+        (cons (- (current-inexact-milliseconds) start)
+              res)]
+       [else
+        (printf "T")
+        (flush-output)
+        (subprocess-kill process true)
+        (define-values (process2 m-run2) (make-mathematica prog #:backup backup))
+        (set! process process2)
+        (set! m-run m-run2)
+        (cons timeout 'timeout)])))
+  (subprocess-kill process false)
+  out)
+>>>>>>> pavels-crap
 
 (define (parse-output lines)
   (with-handlers ([exn:misc:match? (λ (e)
@@ -246,7 +308,10 @@
       "   The current computation was aborted because there was insufficient memory"
       "    available to complete the computation."
       _ ...)
+<<<<<<< HEAD
      (log "(* Mathematica ran out of memory! *)\n")
+=======
+>>>>>>> pavels-crap
      'memory]
     [(list
       _ ...
@@ -298,7 +363,35 @@
       _ ...)
      'unknown]))
 
+<<<<<<< HEAD
 ;; TODO: Use Timing[] for timing
+=======
+(define (count-results out)
+  (define sampled 0)
+  (define invalid 0)
+  (define unsamplable 0)
+  (define unknown 0)
+  (define crash 0)
+  (define timeout 0)
+  (for ([val out])
+    (match (cdr val)
+      ['invalid
+       (set! invalid (add1 invalid))]
+      ['memory
+       (set! unknown (add1 unknown))
+       (set! crash (add1 crash))]
+      ['timeout
+       (set! unknown (add1 unknown))
+       (set! timeout (add1 timeout))]
+      ['unsamplable
+       (set! unsamplable (add1 unsamplable))]
+      ['unknown
+       (set! unknown (add1 unknown))]
+      [(? number?)
+       (set! sampled (add1 sampled))]
+      ))
+  (list sampled invalid unsamplable unknown crash timeout))
+>>>>>>> pavels-crap
 
 (define (parse-number s) 1.0) ; fake
 
@@ -321,6 +414,7 @@
         (define machine (wolfram-compile exprs vars))
         (define compile-time (- (current-inexact-milliseconds) start-compile))
 
+<<<<<<< HEAD
         (define times
           (for/list ([pt (in-list (hash-ref rec 'points))])
             (define start-apply (current-inexact-milliseconds))
@@ -333,3 +427,21 @@
             (cons status apply-time)))
 
         (cons (cons 'compile compile-time) times)))]))
+=======
+        (define out (run-mathematica prog pts #:backup p))
+        (set! results (add-results results (count-results out)))
+        (print-results results))))
+    results)
+
+(module+ main
+  (define skip 0)
+  (command-line
+   #:program "run-mathematica"
+   #:once-each
+   [("--skip") n "How many points to skip"
+    (set! skip (or (string->number n) skip))]
+   #:args (points-file)
+   (define points (call-with-input-file points-file load-points))
+   (printf "Loaded ~a points\n" (apply + (map length (hash-values points))))
+   (go points skip)))
+>>>>>>> pavels-crap
