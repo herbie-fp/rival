@@ -206,7 +206,8 @@
   (match type
     ['time 0.0]))
 
-(define (parse-output lines)
+(define (parse-output s)
+  (define lines (string-split s "\n" #:repeat? #t))
   (with-handlers ([exn:misc:match? (λ (e)
     (newline)
     (printf "Could not parse results:\n")
@@ -216,19 +217,24 @@
     (match-lines lines)))
 
 (define (match-lines lines)
-  (match lines
-    [(list (regexp #rx"In\\[[0-9]+\\]:= ") rest ...)
+ (match lines
+    [(list
+      (regexp #rx"In\\[[0-9]+\\]:= ")
+      rest ...)
      (match-lines rest)]
-    [(list rest ... (regexp #rx"In\\[[0-9]+\\]:= "))
+    [(list
+      rest ...
+      (regexp #rx"In\\[[0-9]+\\]:= "))
      (match-lines rest)]
-    [(list (regexp #rx"\\$Aborted"))
+    [(list (regexp #rx"Out\\[[0-9]+\\]= \\$Aborted"))
      'timeout]
-    [(list (regexp #rx"([0-9]+(\\.[0-9]*)?)(`[0-9]*\\.?)?(\\*\\^(-?[0-9]+))?" (list x m _ _ _ e)))
-     (define s (if e (format "~ae~a" m e) m))
-     (unless (string->number s)
-       (eprintf "Invalid number ~a\n" s)
-       (exit))
-     (string->number s)]
+    [(list (regexp #rx"Out\\[[0-9]+\\]//FullForm= (.+)" (list _ x)))
+     x]
+    [(list
+      (regexp #rx"Out\\[[0-9]+\\]//FullForm= ")
+      " "
+      (regexp #rx"> +[0-9-](.+)" (list _ x)))
+     x]
     [(list
       "Throw::nocatch: Uncaught Throw[domain-error, BadValue] returned to top level."
       _ ...)
