@@ -26,7 +26,7 @@
     (apply bf-fn (map ival-hi args))
     (define dt2 (- (current-inexact-milliseconds) start2))
     (set! bftime (+ bftime dt2)))
-  (list (* 1000 (/ ivtime n)) (* 1000 (/ bftime n))))
+  (values (* 1000 (/ ivtime n)) (* 1000 (/ bftime n))))
 
 (define (read-from-string s)
   (read (open-input-string s)))
@@ -68,56 +68,82 @@
         (length (hash-ref times 'unsamplable '()))
         (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
 
-(define (run html? test-id p)
-  (when html?
-    (printf "<!doctype html><meta charset=utf-8 />")
-    (define sortable-css "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.css")
-    (define sortable-js "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js")
-    (printf "<link href='~a' rel='stylesheet' />" sortable-css)
-    (printf "<script src='~a' async defer></script>" sortable-js)
-    (printf "<style>tbody td:nth-child(1n+2) { text-align: right; }</style>"))
+(define (html-write port)
+  (define sortable-css "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.css")
+  (define sortable-js "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js")
+  (when port
+    (fprintf port "<!doctype html><meta charset=utf-8 />")
+    (fprintf port "<link href='~a' rel='stylesheet' />" sortable-css)
+    (fprintf port "<script src='~a' async defer></script>" sortable-js)
+    (fprintf port "<style>tbody td:nth-child(1n+2) { text-align: right; }</style>")))
+
+(define current-heading #f)
+
+(define (html-write-table port name cols)
+  (set! current-heading cols)
+  (when port
+    (fprintf port "<h1>~a</h1>" name)
+    (fprintf port "<table class=sortable>")
+    (fprintf port "<thead><tr>")
+    (for ([col (in-list cols)]) (fprintf port "<th>~a</th>" col))
+    (fprintf port "</tr></thead><tbody>")))
+
+(define (html-write-row port row)
+  (when port
+    (fprintf port "<tr>")
+    (for ([cell (in-list row)] [heading (in-list current-heading)])
+      (define unit (match heading [(list _ s) s] [_ ""]))
+      (cond
+        [(zero? cell)
+         (fprintf port "<td></td>")]
+        [(integer? cell)
+         (fprintf port "<td>~a~a</td>" cell unit)]
+        [(real? cell)
+         (fprintf port "<td data-sort=~a>~a~a</td>" cell (~r cell #:precision '(= 1)) unit)]
+        [else
+         (fprintf port "<td><code>~a</code></td>" cell)]))
+    (fprintf port "</tr>")))
+
+(define (html-end-table port)
+  (when port
+    (fprintf "</table>")))
+
+(define (html-write-footer port row)
+  (when port
+    (fprintf port "<tfoot>")
+    (html-write-row row)))
+
+(define (run html-port test-id p)
+  (html-write html-port)
   
   (when (or (not test-id) (equal? test-id "ops"))
-    (when html?
-      (printf "<h1>Operation timings</h1>")
-      (printf "<table class=sortable>")
-      (printf "<thead><tr><th>Operation<th>Time, 256b<th>Slowdown")
-      (printf "<th>Time, 4kb<th>Slowdown")
-      (printf "<tbody>"))
+    (define cols
+      '("Operation" ("Time, 256b" "µs")  ("Slowdown" "×") ("Time, 4kb" "µs") ("Slowdown" "×")))
+    (html-write-table html-port "Operation timing" cols)
     (for ([fn (in-list function-table)])
       (match-define (list ival-fn bf-fn itypes otype) fn)
-      (match-define (list iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
-      (match-define (list iv4k bf4k)
+      (define-values (iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
+      (define-values (iv4k bf4k)
         (if (set-member? slow-tests ival-fn)
-            (list #f #f)
+            (values 1000000 1)
             (parameterize ([bf-precision 4096])
               (time-operation ival-fn bf-fn itypes otype))))
-      (cond
-        [html?
-         (printf "<tr><td><code>~a</code></td>" (object-name ival-fn))
-         (printf "<td data-sort=~a>~aµs" iv256 (~r iv256 #:precision '(= 3)))
-         (printf "<td data-sort=~a>~a×" (/ iv256 bf256) (~r (/ iv256 bf256) #:precision '(= 2)))
-         (printf "<td data-sort=~a>~aµs" (if iv4k iv4k "1000000") (if iv4k (~r iv4k #:precision '(= 3)) "∞"))
-         (printf "<td data-sort=~a>~a×" (if (and iv4k bf4k) (/ iv4k bf4k) "1000000") (if (and iv4k bf4k) (~r (/ iv4k bf4k) #:precision '(= 2)) "∞"))]
-        [else
-         (printf "~a ~aµs ~a×\t~aµs ~a×\n"
+      (html-write-row html-port
+                      (list (object-name ival-fn) iv256 (/ iv256 bf256) iv4k (/ iv4k bf4k)))
+      (printf "~a ~aµs (~a×)\t~aµs (~a×)\n"
               (~a (object-name ival-fn) #:align 'left #:min-width 20)
               (~r iv256 #:precision '(= 3) #:min-width 8)
               (~r (/ iv256 bf256) #:precision '(= 2) #:min-width 4)
               (~r iv4k #:precision '(= 3) #:min-width 8)
-              (~r (/ iv4k bf4k) #:precision '(= 2) #:min-width 4))]))
-    (when html?
-      (printf "</table>")))
+              (~r (/ iv4k bf4k) #:precision '(= 2) #:min-width 4)))
+    (html-end-table html-port))
 
   (when p
-    (cond
-      [html?
-       (printf "<h1>Expression Timing</h1>")
-       (printf "<table class=sortable>")
-       (printf "<thead><tr><th>#<th>Time (s)<th>Compile (s)<th>Valid<th>(s)<th>Invalid<th>(s)<th>Unsamplable<th>(s)</thead>")
-       (printf "<tbody>")]
-      [else
-       (newline)])
+    (newline)
+    (define cols
+      '("#" ("Total" "s") ("Compile" "s")
+            "Valid" ("(s)" "s") "Invalid" ("(s)" "s") "Unable" ("(s)" "s")))
+    (html-write-table html-port "Expression timing" cols)
     (define total-c 0.0)
     (define total-v 0.0)
     (define count-v 0.0)
@@ -141,53 +167,29 @@
       (set! count-u (+ count-u u-num))
       (define t-time (+ c-time v-time i-time u-time))
       
-      (cond
-        [html?
-         (printf "<tr><td title='~a'>~a<td data-sort=~a>~as" (second (hash-ref rec 'exprs)) i t-time (~r t-time #:precision '(= 3)))
-         (printf "<td data-sort~a>~a" c-time (~r c-time #:precision '(= 3)))
-         (if (> v-num 0)
-             (printf "<td>~a<td data-sort=~a>~as" v-num v-time (~r v-time #:precision '(= 3)))
-             (printf "<td><td>"))
-         (if (> i-num 0)
-             (printf "<td>~a<td data-sort=~a>~as" i-num i-time (~r i-time #:precision '(= 3)))
-             (printf "<td><td>"))
-         (if (> u-num 0)
-             (printf "<td>~a<td data-sort=~a>~as" u-num u-time (~r u-time #:precision '(= 3)))
-             (printf "<td><td>"))]
-        [else
-         (printf "~a ~ams v(~a: ~ams) i(~a: ~ams) u(~a: ~ams)\n"
-                 (~a i #:align 'left #:min-width 3)
-                 (~r c-time #:precision '(= 3) #:min-width 8)
-                 (~a v-num #:min-width 5)
-                 (~r v-time #:precision '(= 3) #:min-width 8)
-                 (~a i-num #:min-width 5)
-                 (~r i-time #:precision '(= 3) #:min-width 8)
-                 (~a u-num #:min-width 5)
-                 (~r u-time #:precision '(= 3) #:min-width 8))]))
+      (html-write-row html-port (list i t-time c-time v-num v-time i-num i-time u-num u-time))
+      (printf "~a: ~as ~as ~as ~as\n"
+              (~a i #:align 'left #:min-width 3)
+              (~r t-time #:precision '(= 3) #:min-width 8)
+              (~r v-time #:precision '(= 3) #:min-width 8)
+              (~r i-time #:precision '(= 3) #:min-width 8)
+              (~r u-time #:precision '(= 3) #:min-width 8)))
 
-    (cond
-      [html?
-       (printf "<tfoot><tr><td>Total<td>~a<td>~a"
-               (~r (+ total-c total-v total-i total-u) #:precision '(= 3))
-               (~r total-c #:precision '(= 3)))
-       (printf "<td><td>~a<td><td>~a<td><td>~a"
-               (~r total-v #:precision '(= 3))
-               (~r total-i #:precision '(= 3))
-               (~r total-u #:precision '(= 3)))
-       (printf "</table>")]
-      [else
-       (printf "\nTotal Time: ~as\n" (~r (+ total-c total-v total-i total-u) #:precision '(= 3)))])))
+    (define total-t (+ total-c total-v total-i total-u))
+    (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
+    (html-write-footer html-port (list "Total" total-t total-c total-v total-i total-u))
+    (html-end-table html-port)))
 
 
 (module+ main
   (require racket/cmdline)
-  (define html? #f)
+  (define html-port #f)
   (define n #f)
   (command-line
    #:once-each
-   [("--html") "Produce HTML output"
-               (set! html? #t)]
+   [("--html") fn "Produce HTML output"
+               (set! html-port (open-output-file fn #:mode 'text #:exists 'replace))]
    [("--id") ns "Run a single test"
              (set! n ns)]
    #:args ([points "infra/points.json"])
-   (run html? n (open-input-file points))))
+   (run html-port n (open-input-file points))))
