@@ -24,7 +24,7 @@
   ; Step 1. Adding slack in case of a rounding boundary issue
   (for/vector #:length rootlen
               ([root-reg (in-vector rootvec)] [disc (in-vector discs)]
-               #:when (>= root-reg varc))                           ; when root is not a variable
+               #:when (>= root-reg varc))          ; when root is not a variable
     (when (bigfloat? (ival-lo (vector-ref vregs root-reg)))         ; when root is a real op
       (define result (vector-ref vregs root-reg))
       (when
@@ -34,8 +34,8 @@
                 ((discretization-convert disc) (ival-hi result))))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
 
-  ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs)
+  ; Step 2. Exponents calculation
+  (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
 
   ; Step 3. Repeating precisions check
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -65,11 +65,11 @@
       (when (equal? prec* (*rival-max-precision*)) (*sampling-iteration* (*rival-max-iterations*)))
       (vector-set! vprecs n prec*))))
 
-; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
+; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
 ; Roughly speaking:
-;   vprecs-new[i] = min( *rival-max-precision* max( *base-tuning-precision* (+ ampls-from-above vstart-precs[i])),
-;   ampls-from-above = get-ampls(parent)
-(define (precision-tuning ivec vregs vprecs-new varc vstart-precs)
+;   vprecs-new[i] = min( *rival-max-precision* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
+;   exponents-from-above = get-exponent(parent)
+(define (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])           ; reversed over indices of vregs
 
@@ -78,29 +78,27 @@
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers)) ; tail of the current instr
     (define output (vector-ref vregs n))                            ; output of the current instr
     
-    (define ampls-from-above (vector-ref vprecs-new (- n varc)))    ; vprecs-new is shifted by varc elements from vregs
-    (define ampls (get-ampls op output srcs))
+    (define exps-from-above (vector-ref vprecs-new (- n varc)))     ; vprecs-new is shifted by varc elements from vregs
+    (define new-exponents (get-exponent op output srcs))
 
-    (define final-parent-precision (max (+ ampls-from-above
+    (define final-parent-precision (max (+ exps-from-above
                                            (vector-ref vstart-precs (- n varc)))
                                         (*base-tuning-precision*)))
 
     ; This case is weird. if we have a cancellation in fma -> ival-mult in fma should be in higher precision
     (when (equal? op ival-fma)
-      (set! final-parent-precision (+ final-parent-precision (car ampls))))
+      (set! final-parent-precision (+ final-parent-precision (car new-exponents))))
     
     (when (>= final-parent-precision (*rival-max-precision*))         ; Early stopping
       (*sampling-iteration* (*rival-max-iterations*)))
-    
-    ; Final precision assignment
     (vector-set! vprecs-new (- n varc) (min final-parent-precision (*rival-max-precision*)))
 
     (for ([x (in-list tail-registers)]
-          [ampl (in-list ampls)]
+          [new-exp (in-list new-exponents)]
           #:when (>= x varc)) ; when tail register is not a variable
       ; check whether this op already has a precision that is higher
-      (when (> (+ ampls-from-above ampl) (vector-ref vprecs-new (- x varc)))
-        (vector-set! vprecs-new (- x varc) (+ ampls-from-above ampl))))))
+      (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc)))
+        (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp))))))
 
 (define (ival-max-log2-approx x)
   (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
@@ -110,7 +108,7 @@
 ; Function calculates an exponent per input for a certain output and inputs using condition formulas,
 ;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
 ;   that the output will be fixed in its precision when evaluating again
-(define (get-ampls op output srcs)
+(define (get-exponent op output srcs)
   (case (object-name  op)
     [(ival-mult ival-div ival-sqrt ival-cbrt)
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
