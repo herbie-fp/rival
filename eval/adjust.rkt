@@ -247,10 +247,12 @@
     [(ival-cosh)
      ; maxlog(x) + logspan(z) + min(maxlog(x), 0)
      (define x (first srcs))
-     (list (+ (maxlog x) (logspan z) (min (minlog x) 0)))]
+     (list (+ (maxlog x) (logspan z) (min (maxlog x) 0)))]
     
     [(ival-log ival-log2 ival-log10)
-     ; logspan(x) - minlog(z)
+     ; log:   logspan(x) - minlog(z)
+     ; log2:  logspan(x) - minlog(z) + 1
+     ; log10: logspan(x) - minlog(z) - 1
      (define x (first srcs))
      (define zlo (ival-lo z))
      (define zhi (ival-hi z))
@@ -259,7 +261,7 @@
                        0
                        (get-slack)))                  ; output crosses 0 - uncertainty
      
-     (list (+ (- (logspan x) (minlog z)) slack))]
+     (list (+ (- (logspan x) (minlog z)) slack 1))]
 
     ; asin and acos has not been changed
     [(ival-asin ival-acos)
