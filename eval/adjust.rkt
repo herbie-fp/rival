@@ -133,6 +133,10 @@
           (- (max lo-exp hi-exp) 1))))
 
 (define (logspan x)
+  0)
+
+
+#;(define (logspan x)
   (define lo-exp (mpfr-exp (ival-lo x)))
   (define hi-exp (mpfr-exp (ival-hi x)))
   (if (or (<= lo-exp -9223372036854775805)            ; if log2 of any endpoint is undefined (0 or inf)
@@ -140,6 +144,22 @@
       (get-slack)
       (+ (abs (- lo-exp hi-exp)) 1)))
 
+#;(define (maxlog x)
+  (+ (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))) 1))
+
+#;(define (minlog x)
+  (- (min (log2-approx (ival-hi x)) (log2-approx (ival-lo x))) 1))
+
+#;(define (logspan x)
+   (abs (- (log2-approx (ival-hi x)) (log2-approx (ival-lo x)))))
+
+#;(define (log2-approx x)
+  (define exp (mpfr-exp x))
+  (if (or (equal? exp -9223372036854775807) (equal? exp -1073741823))
+      (- (get-slack))  ; 0.bf/min.bf
+      (if (<= 1073741823 (abs exp))
+          (get-slack)  ; max.bf/inf.bf/nan.bf
+          (+ exp 1)))) ; +1 because mantissa is not considered
 
 ; Function calculates an exponent per input for a certain output and inputs using condition formulas,
 ;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
