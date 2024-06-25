@@ -300,13 +300,12 @@
                          x-slack                
                          (+ x-slack (get-slack))))    ; y crosses zero
      
-     (list (+ (- (maxlog x) (minlog z)) 1 x-slack)            ; exponent per x
-           (+ (- (maxlog x) (minlog z)) 1 y-slack))]          ; exponent per y
+     (list (+ (- (maxlog x) (minlog z)) x-slack)            ; exponent per x
+           (+ (- (maxlog x) (minlog z)) y-slack))]          ; exponent per y
 
 
-    ; has not been changed
     [(ival-fma)
-     ; fma(x, y, t)
+     ; z = fma(x, y, t)
      ; k = 1 = 2 = 3: max(maxlog(x) + maxlog(y), maxlog(t)) - minlog(z)
      (define x (first srcs))
      (define y (second srcs))
@@ -320,7 +319,6 @@
      
      (make-list 3 (+ (- (max (+ (maxlog x) (maxlog y)) (maxlog t)) (minlog z)) slack))]
 
-    ; has not been changed
     [(ival-hypot)
      ; hypot = sqrt(x^2+y^2)
      ; 2 * (1 + max(maxlog(x), maxlog(y)) - minlog(z))
