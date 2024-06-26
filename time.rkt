@@ -122,11 +122,12 @@
 (define (run html-port test-id p)
   (html-write html-port)
   
-  (when (or (not test-id) (equal? test-id "ops"))
+  (when (or (not test-id) (not (string->number test-id)))
     (define cols
       '("Operation" ("Time, 256b" "µs")  ("Slowdown" "×") ("Time, 4kb" "µs") ("Slowdown" "×")))
     (html-write-table html-port "Operation timing" cols)
-    (for ([fn (in-list function-table)])
+    (for ([fn (in-list function-table)]
+          #:when (or (not test-id) (equal? test-id (~a (object-name (first fn))))))
       (match-define (list ival-fn bf-fn itypes otype) fn)
       (define-values (iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
       (define-values (iv4k bf4k)
@@ -144,7 +145,7 @@
               (~r (/ iv4k bf4k) #:precision '(= 2) #:min-width 4)))
     (html-end-table html-port))
 
-  (when p
+  (when (and p (or (not test-id) (string->number test-id)))
     (newline)
     (define cols
       '("#" ("Total" "s") ("Compile" "s")
