@@ -42,10 +42,26 @@
       (ival (endpoint lo lo!) (endpoint hi hi!)
             (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (not (= y-class 1))))
             (or xerr yerr (and (bfzero? (endpoint-val xhi)) (= y-class -1)))))
-    (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
-        ((overflows-loose-at (bfneg exp2-overflow-threshold) exp2-overflow-threshold)
-         (ival-mult y (ival-log2 x)) out)
-        out))
+
+    (cond
+      [(or (bfzero? lo) (bfinfinite? hi))
+       (match-define (ival (endpoint tlo tlo!) (endpoint thi thi!) _ _)
+         (ival-mult (ival b d #f #f)
+                    (ival (endpoint (rnd 'zero bflog2 (endpoint-val a)) (endpoint-immovable? a))
+                          (endpoint (rnd 'zero bflog2 (endpoint-val c)) (endpoint-immovable? c))
+                          #f #f)))
+
+       (define hi-bar exp2-overflow-threshold)
+       (define must-overflow
+         (and (bfinfinite? hi) (= (mpfr-sign tlo) 1) (> (mpfr-exp tlo) (mpfr-exp hi-bar))))
+       (define must-underflow
+         (and (bfzero? hi) (= (mpfr-sign thi) -1) (> (mpfr-exp thi) (mpfr-exp hi-bar))))
+
+       (ival (endpoint lo (or lo! must-underflow (and (bfzero? lo) tlo!)))
+             (endpoint hi (or hi! must-underflow must-overflow (and (bfinfinite? hi) thi!)))
+             (ival-err? out) (ival-err out))]
+      [else
+       out]))
 
   (match* (x-class y-class)
     [( 1  1) (mk-pow xlo ylo xhi yhi)]
