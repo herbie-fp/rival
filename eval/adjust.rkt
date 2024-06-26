@@ -37,11 +37,14 @@
   (for ([instr (in-vector ivec)]
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
         [prec-new (in-vector vprecs-new)]
+        [result-old (in-vector vregs varc)]
         [n (in-naturals)])
     (define repeat
-      (and (<= prec-new prec-old)
-           (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
-                   (cdr instr))))
+      (or
+       (and (ival-lo-fixed? result-old) (ival-hi-fixed? result-old))
+       (and (<= prec-new prec-old)
+            (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
+                    (cdr instr)))))
     (set! any-false? (or any-false? (not repeat)))
     (vector-set! vrepeats n repeat))
 
