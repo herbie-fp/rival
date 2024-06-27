@@ -14,6 +14,10 @@
      `(expm1 ,x)]
     [`(- 1 (exp ,x))
      `(neg (expm1 ,x))]
+    [`(log (+ 1 ,x))
+     `(log1p ,x)]
+    [`(log (+ ,x 1))
+     `(log1p ,x)]
     [`(- ,x)
      `(neg ,x)]
     [`(sqrt (+ (* ,x ,x) (* ,y ,y)))
