@@ -67,8 +67,8 @@
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking:
-;   vprecs-new[i] = min( *rival-max-precision* max( *base-tuning-precision* (+ ampls-from-above vstart-precs[i])),
-;   ampls-from-above = get-ampls(parent)
+;   vprecs-new[i] = min( *rival-max-precision* max( *base-tuning-precision* (+ intro vstart-precs[i])),
+;   intro = get-ampls(parent)
 (define (precision-tuning ivec vregs vprecs-new varc vstart-precs)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])           ; reversed over indices of vregs
@@ -78,10 +78,10 @@
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers)) ; tail of the current instr
     (define output (vector-ref vregs n))                            ; output of the current instr
     
-    (define ampls-from-above (vector-ref vprecs-new (- n varc)))    ; vprecs-new is shifted by varc elements from vregs
-    (define ampls (get-ampls op output srcs))
+    (define intro (vector-ref vprecs-new (- n varc)))               ; intro for the current instruction
+    (define ampls (get-ampls op output srcs))                       ; ampls for the tail instructions
 
-    (define final-parent-precision (max (+ ampls-from-above
+    (define final-parent-precision (max (+ intro
                                            (vector-ref vstart-precs (- n varc)))
                                         (*base-tuning-precision*)))
 
@@ -89,18 +89,19 @@
     (when (equal? op ival-fma)
       (set! final-parent-precision (+ final-parent-precision (car ampls))))
     
-    (when (>= final-parent-precision (*rival-max-precision*))         ; Early stopping
+    (when (>= final-parent-precision (*rival-max-precision*))       ; Early stopping
       (*sampling-iteration* (*rival-max-iterations*)))
     
     ; Final precision assignment
     (vector-set! vprecs-new (- n varc) (min final-parent-precision (*rival-max-precision*)))
 
+    ; Intro and ampl propogation for each tail instruction
     (for ([x (in-list tail-registers)]
           [ampl (in-list ampls)]
           #:when (>= x varc)) ; when tail register is not a variable
       ; check whether this op already has a precision that is higher
-      (when (> (+ ampls-from-above ampl) (vector-ref vprecs-new (- x varc)))
-        (vector-set! vprecs-new (- x varc) (+ ampls-from-above ampl))))))
+      (when (> (+ intro ampl) (vector-ref vprecs-new (- x varc)))
+        (vector-set! vprecs-new (- x varc) (+ intro ampl))))))
 
 (define (exp-is-inf? x)
   (equal? x -9223372036854775805))
@@ -147,22 +148,30 @@
 (define (get-ampls op z srcs)
   (case (object-name  op)
     [(ival-mult)
+     ; k = 1: logspan(y)
+     ; k = 2: logspan(x)
      (define x (first srcs))
      (define y (second srcs))
      (list (logspan y)                                ; exponent per x
            (logspan x))]                              ; exponent per y
     
     [(ival-div)
+     ; k = 1: logspan(y)
+     ; k = 2: logspan(x) + 2 * logspan(y)
      (define x (first srcs))
      (define y (second srcs))
      (list (logspan y)                                ; exponent per x
            (+ (logspan x) (* 2 (logspan y))))]        ; exponent per y
 
     [(ival-sqrt ival-cbrt)
+     ; sqrt: logspan(x)/2 - 1
+     ; cbrt: logspan(x)*2/3 - 1
      (define x (first srcs))
-     (list (quotient (logspan x) 2))] ; which is [logspan(x)/2 - 1] or [logspan(x)*2/3 - 1]
+     (list (quotient (logspan x) 2))]
     
     [(ival-add ival-sub)
+     ; k = 1: maxlog(x) - minlog(z)
+     ; k = 2: maxlog(y) - minlog(z)
      (define x (first srcs))
      (define y (second srcs))
      (define zlo (ival-lo z))
@@ -379,19 +388,20 @@
      (list (- slack (minlog z)))]
 
     [(ival-pow2)
+     ; same as multiplication
      (define x (first srcs))
      (list (logspan x))]
     
     ; TODO
     [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb)
      (list (get-slack))]
+    ; TODO
     [(ival-ceil ival-floor ival-rint ival-round ival-trunc)
      (list (get-slack))]
     [else (map (const 0) srcs)]))        ; exponents for argumetns
 
 (define (get-slack)
   (match (*sampling-iteration*)
-    [0 256]
     [1 512]
     [2 1024]
     [3 2048]
