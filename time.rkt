@@ -68,6 +68,67 @@
         (length (hash-ref times 'unsamplable '()))
         (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
 
+(define (make-operation-table test-id)
+  (for/list ([fn (in-list function-table)]
+             #:when (or (not test-id) (equal? test-id (~a (object-name (first fn))))))
+    (match-define (list ival-fn bf-fn itypes otype) fn)
+    (define-values (iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
+    (define-values (iv4k bf4k)
+      (if (set-member? slow-tests ival-fn)
+          (values 1000000 1)
+          (parameterize ([bf-precision 4096])
+            (time-operation ival-fn bf-fn itypes otype))))
+    (printf "~a ~aµs (~a×)\t~aµs (~a×)\n"
+            (~a (object-name ival-fn) #:align 'left #:min-width 20)
+            (~r iv256 #:precision '(= 3) #:min-width 8)
+            (~r (/ iv256 bf256) #:precision '(= 2) #:min-width 4)
+            (~r iv4k #:precision '(= 3) #:min-width 8)
+            (~r (/ iv4k bf4k) #:precision '(= 2) #:min-width 4))
+    
+    (list (object-name ival-fn) iv256 (/ iv256 bf256) iv4k (/ iv4k bf4k))))
+
+(define (make-expression-table points test-id)
+  (newline)
+  (define total-c 0.0)
+  (define total-v 0.0)
+  (define count-v 0.0)
+  (define total-i 0.0)
+  (define count-i 0.0)
+  (define total-u 0.0)
+  (define count-u 0.0)
+
+  (define table
+    (for/list ([rec (in-port read-json points)] 
+               [i (in-naturals)]
+               #:break (and test-id (> i (string->number test-id)))
+               #:unless (and test-id (not (equal? (~a i) test-id)))
+               )
+      (when test-id
+        (pretty-print (map read-from-string (hash-ref rec 'exprs))))
+      (match-define (list c-time v-num v-time i-num i-time u-num u-time)
+        (time-exprs (time-expr rec)))
+      (set! total-c (+ total-c c-time))
+      (set! total-v (+ total-v v-time))
+      (set! count-v (+ count-v v-num))
+      (set! total-i (+ total-i i-time))
+      (set! count-i (+ count-i i-num))
+      (set! total-u (+ total-u u-time))
+      (set! count-u (+ count-u u-num))
+      (define t-time (+ c-time v-time i-time u-time))
+      (printf "~a: ~as ~as ~as ~as\n"
+              (~a i #:align 'left #:min-width 3)
+              (~r t-time #:precision '(= 3) #:min-width 8)
+              (~r v-time #:precision '(= 3) #:min-width 8)
+              (~r i-time #:precision '(= 3) #:min-width 8)
+              (~r u-time #:precision '(= 3) #:min-width 8))
+      (list i t-time c-time v-num v-time i-num i-time u-num u-time)))
+  
+  (define total-t (+ total-c total-v total-i total-u))
+  (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
+  (define footer
+    (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u))
+  (values table footer))
+
 (define (html-write port)
   (define sortable-css "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.css")
   (define sortable-js "https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js")
@@ -121,75 +182,42 @@
     (fprintf port "<section id='profile'><h1>Profiling</h1>")
     (fprintf port "<p class='load-text'>Loading profile data...</p></section>")))
 
-(define (run html-port test-id p)
+(define (run test-id p)
+  (define operation-table
+    (and
+     (or (not test-id) (not (string->number test-id)))
+     (make-operation-table test-id)))
+  (define-values (expression-table expression-footer)
+    (if (and p (or (not test-id) (string->number test-id)))
+        (make-expression-table p test-id)
+        (values #f #f)))
+  (values operation-table expression-table expression-footer))
+
+(define (generate-html html-port profile-port operation-table expression-table expression-footer)
   (html-write html-port)
-  
-  (when (or (not test-id) (not (string->number test-id)))
+
+  (when operation-table
     (define cols
       '("Operation" ("Time, 256b" "µs")  ("Slowdown" "×") ("Time, 4kb" "µs") ("Slowdown" "×")))
     (html-write-table html-port "Operation timing" cols)
-    (for ([fn (in-list function-table)]
-          #:when (or (not test-id) (equal? test-id (~a (object-name (first fn))))))
-      (match-define (list ival-fn bf-fn itypes otype) fn)
-      (define-values (iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
-      (define-values (iv4k bf4k)
-        (if (set-member? slow-tests ival-fn)
-            (values 1000000 1)
-            (parameterize ([bf-precision 4096])
-              (time-operation ival-fn bf-fn itypes otype))))
-      (html-write-row html-port
-                      (list (object-name ival-fn) iv256 (/ iv256 bf256) iv4k (/ iv4k bf4k)))
-      (printf "~a ~aµs (~a×)\t~aµs (~a×)\n"
-              (~a (object-name ival-fn) #:align 'left #:min-width 20)
-              (~r iv256 #:precision '(= 3) #:min-width 8)
-              (~r (/ iv256 bf256) #:precision '(= 2) #:min-width 4)
-              (~r iv4k #:precision '(= 3) #:min-width 8)
-              (~r (/ iv4k bf4k) #:precision '(= 2) #:min-width 4)))
-    (html-end-table html-port))
+    (for ([row (in-list operation-table)])
+      (match-define (list name iv256 su256 iv4k su4k) row)
+      (html-write-row html-port (list name iv256 su256 iv4k su4k))
+      (html-end-table html-port)))
 
-  (when (and p (or (not test-id) (string->number test-id)))
-    (newline)
+  (when expression-table
     (define cols
       '("#" ("Total" "s") ("Compile" "s")
             "Valid" ("(s)" "s") "Invalid" ("(s)" "s") "Unable" ("(s)" "s")))
     (html-write-table html-port "Expression timing" cols)
-    (define total-c 0.0)
-    (define total-v 0.0)
-    (define count-v 0.0)
-    (define total-i 0.0)
-    (define count-i 0.0)
-    (define total-u 0.0)
-    (define count-u 0.0)
-
-    (for ([rec (in-port read-json p)] [i (in-naturals)]
-                                      #:unless (and test-id (not (equal? (~a i) test-id))))
-      (when test-id
-        (pretty-print (map read-from-string (hash-ref rec 'exprs))))
-      (match-define (list c-time v-num v-time i-num i-time u-num u-time)
-        (time-exprs (time-expr rec)))
-      (set! total-c (+ total-c c-time))
-      (set! total-v (+ total-v v-time))
-      (set! count-v (+ count-v v-num))
-      (set! total-i (+ total-i i-time))
-      (set! count-i (+ count-i i-num))
-      (set! total-u (+ total-u u-time))
-      (set! count-u (+ count-u u-num))
-      (define t-time (+ c-time v-time i-time u-time))
-      
-      (html-write-row html-port (list i t-time c-time v-num v-time i-num i-time u-num u-time))
-      (printf "~a: ~as ~as ~as ~as\n"
-              (~a i #:align 'left #:min-width 3)
-              (~r t-time #:precision '(= 3) #:min-width 8)
-              (~r v-time #:precision '(= 3) #:min-width 8)
-              (~r i-time #:precision '(= 3) #:min-width 8)
-              (~r u-time #:precision '(= 3) #:min-width 8)))
-
-    (define total-t (+ total-c total-v total-i total-u))
-    (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
-    (html-write-footer html-port (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u))
+    (for ([row (in-list expression-table)])
+      (html-write-row html-port row))
+    (when expression-footer
+      (html-write-footer html-port expression-footer))
     (html-end-table html-port))
 
-  (html-write-profile html-port))
+  (when profile-port
+    (html-write-profile html-port)))
 
 
 (module+ main
@@ -206,10 +234,7 @@
    [("--id") ns "Run a single test"
              (set! n ns)]
    #:args ([points "infra/points.json"])
-   (if profile-port
-       (profile-thunk
-        (λ () (run html-port n (open-input-file points)))
-        #:order 'total
-        #:delay 0.001
-        #:render (λ (p order) (when profile-port (write-json (profile->json p) profile-port))))
-       (run html-port n (open-input-file points)))))
+   (define-values (op-t ex-t ex-f)
+     (run n (open-input-file points)))
+   (when html-port
+     (generate-html html-port profile-port op-t ex-t ex-f))))
