@@ -235,6 +235,12 @@
              (set! n ns)]
    #:args ([points "infra/points.json"])
    (define-values (op-t ex-t ex-f)
-     (run n (open-input-file points)))
+     (if profile-port
+         (profile-thunk
+          (λ () (run n (open-input-file points)))
+          #:order 'total
+          #:delay 0.001
+          #:render (λ (p order) (when profile-port (write-json (profile->json p) profile-port))))
+         (run n (open-input-file points))))
    (when html-port
      (generate-html html-port profile-port op-t ex-t ex-f))))
