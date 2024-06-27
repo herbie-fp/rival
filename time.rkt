@@ -76,7 +76,7 @@
     (fprintf port "<link href='~a' rel='stylesheet' />" sortable-css)
     (fprintf port "<script src='profile.js' defer></script>")
     (fprintf port "<script src='~a' async defer></script>" sortable-js)
-    (fprintf port "<style>td:nth-child(1n+2) { text-align: right; }</style>")))
+    (fprintf port "<style>body { max-width: 100ex; margins: 1em auto; } td:nth-child(1n+2) { text-align: right; }</style>")))
 
 (define current-heading #f)
 
@@ -206,9 +206,10 @@
    [("--id") ns "Run a single test"
              (set! n ns)]
    #:args ([points "infra/points.json"])
-   (run html-port n (open-input-file points))
-   #;(profile-thunk
-    (λ () (run html-port n (open-input-file points)))
-    #:order 'total
-    #:delay 0.001
-    #:render (λ (p order) (when profile-port (write-json (profile->json p) profile-port))))))
+   (if profile-port
+       (profile-thunk
+        (λ () (run html-port n (open-input-file points)))
+        #:order 'total
+        #:delay 0.001
+        #:render (λ (p order) (when profile-port (write-json (profile->json p) profile-port))))
+       (run html-port n (open-input-file points)))))
