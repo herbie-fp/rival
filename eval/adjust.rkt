@@ -2,7 +2,7 @@
 
 (require racket/function racket/list racket/match)
 (require (only-in math/private/bigfloat/mpfr bigfloat? mpfr-exp mpfr-sign bfnegative?))
-(require "../ops.rkt" "machine.rkt")
+(require "../ops/all.rkt" "machine.rkt")
 (provide backward-pass)
 
 (define (backward-pass machine)
@@ -10,6 +10,7 @@
   (define args (rival-machine-arguments machine))
   (define ivec (rival-machine-instructions machine))
   (define rootvec (rival-machine-outputs machine))
+  (define slackvec (rival-machine-output-distance machine))
   (define discs (rival-machine-discs machine))
   (define vregs (rival-machine-registers machine))
   (define vrepeats (rival-machine-repeats machine))
@@ -19,20 +20,12 @@
   (define bumps (rival-machine-bumps machine))
 
   (define varc (vector-length args))
-  (define rootlen (vector-length rootvec))
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
+
   ; Step 1. Adding slack in case of a rounding boundary issue
-  (for/vector #:length rootlen
-              ([root-reg (in-vector rootvec)] [disc (in-vector discs)]
-               #:when (>= root-reg varc))                           ; when root is not a variable
-    (when (bigfloat? (ival-lo (vector-ref vregs root-reg)))         ; when root is a real op
-      (define result (vector-ref vregs root-reg))
-      (when
-          ; 1 ulp apart means double rounding issue possible
-          (= 1 ((discretization-distance disc)
-                ((discretization-convert disc) (ival-lo result))
-                ((discretization-convert disc) (ival-hi result))))
-        (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
+  (for ([root-reg (in-vector rootvec)] [disc (in-vector discs)] [out-dr? (in-vector slackvec)]
+        #:when (>= root-reg varc) #:when out-dr?)
+    (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
   ; Step 2. Precision tuning
   (precision-tuning ivec vregs vprecs-new varc vstart-precs)
