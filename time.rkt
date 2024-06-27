@@ -1,8 +1,8 @@
 #lang racket
 
-(require racket/math math/base math/flonum math/bigfloat racket/random)
+(require racket/math math/base math/flonum math/bigfloat racket/random profile)
 (require json)
-(require "main.rkt" "test.rkt")
+(require "main.rkt" "test.rkt" "profile.rkt")
 
 (define sample-vals (make-parameter 5000))
 
@@ -74,8 +74,9 @@
   (when port
     (fprintf port "<!doctype html><meta charset=utf-8 />")
     (fprintf port "<link href='~a' rel='stylesheet' />" sortable-css)
+    (fprintf port "<script src='profile.js' defer></script>")
     (fprintf port "<script src='~a' async defer></script>" sortable-js)
-    (fprintf port "<style>tbody td:nth-child(1n+2) { text-align: right; }</style>")))
+    (fprintf port "<style>td:nth-child(1n+2) { text-align: right; }</style>")))
 
 (define current-heading #f)
 
@@ -96,10 +97,10 @@
     (for ([cell (in-list row)] [heading (in-list current-heading)])
       (define unit (match heading [(list _ s) s] [_ ""]))
       (cond
-        [(zero? cell)
+        [(and (number? cell) (zero? cell))
          (fprintf port "<td></td>")]
         [(integer? cell)
-         (fprintf port "<td>~a~a</td>" cell unit)]
+         (fprintf port "<td>~a~a</td>" (~r cell #:group-sep " ") unit)]
         [(real? cell)
          (fprintf port "<td data-sort=~a>~a~a</td>" cell (~r cell #:precision '(= 2)) unit)]
         [else
@@ -108,21 +109,27 @@
 
 (define (html-end-table port)
   (when port
-    (fprintf "</table>")))
+    (fprintf port "</table>")))
 
 (define (html-write-footer port row)
   (when port
     (fprintf port "<tfoot>")
-    (html-write-row row)))
+    (html-write-row port row)))
+
+(define (html-write-profile port)
+  (when port
+    (fprintf port "<section id='profile'><h1>Profiling</h1>")
+    (fprintf port "<p class='load-text'>Loading profile data...</p></section>")))
 
 (define (run html-port test-id p)
   (html-write html-port)
   
-  (when (or (not test-id) (equal? test-id "ops"))
+  (when (or (not test-id) (not (string->number test-id)))
     (define cols
       '("Operation" ("Time, 256b" "µs")  ("Slowdown" "×") ("Time, 4kb" "µs") ("Slowdown" "×")))
     (html-write-table html-port "Operation timing" cols)
-    (for ([fn (in-list function-table)])
+    (for ([fn (in-list function-table)]
+          #:when (or (not test-id) (equal? test-id (~a (object-name (first fn))))))
       (match-define (list ival-fn bf-fn itypes otype) fn)
       (define-values (iv256 bf256) (time-operation ival-fn bf-fn itypes otype))
       (define-values (iv4k bf4k)
@@ -140,7 +147,7 @@
               (~r (/ iv4k bf4k) #:precision '(= 2) #:min-width 4)))
     (html-end-table html-port))
 
-  (when p
+  (when (and p (or (not test-id) (string->number test-id)))
     (newline)
     (define cols
       '("#" ("Total" "s") ("Compile" "s")
@@ -180,18 +187,28 @@
     (define total-t (+ total-c total-v total-i total-u))
     (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
     (html-write-footer html-port (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u))
-    (html-end-table html-port)))
+    (html-end-table html-port))
+
+  (html-write-profile html-port))
 
 
 (module+ main
   (require racket/cmdline)
   (define html-port #f)
+  (define profile-port #f)
   (define n #f)
   (command-line
    #:once-each
    [("--html") fn "Produce HTML output"
                (set! html-port (open-output-file fn #:mode 'text #:exists 'replace))]
+   [("--profile") fn "Produce a JSON profile"
+                  (set! profile-port (open-output-file fn #:mode 'text #:exists 'replace))]
    [("--id") ns "Run a single test"
              (set! n ns)]
    #:args ([points "infra/points.json"])
-   (run html-port n (open-input-file points))))
+   (run html-port n (open-input-file points))
+   #;(profile-thunk
+    (λ () (run html-port n (open-input-file points)))
+    #:order 'total
+    #:delay 0.001
+    #:render (λ (p order) (when profile-port (write-json (profile->json p) profile-port))))))
