@@ -191,7 +191,7 @@
     (if (and p (or (not test-id) (string->number test-id)))
         (make-expression-table p test-id)
         (values #f #f)))
-  (values operation-table expression-table expression-footer))
+  (list operation-table expression-table expression-footer))
 
 (define (generate-html html-port profile-port operation-table expression-table expression-footer)
   (html-write html-port)
@@ -219,6 +219,9 @@
   (when profile-port
     (html-write-profile html-port)))
 
+(define (profile-json-renderer profile-port)
+  (lambda (p order)
+    (when profile-port (write-json (profile->json p) profile-port))))
 
 (module+ main
   (require racket/cmdline)
@@ -234,13 +237,10 @@
    [("--id") ns "Run a single test"
              (set! n ns)]
    #:args ([points "infra/points.json"])
-   (define-values (op-t ex-t ex-f)
+   (match-define (list op-t ex-t ex-f)
      (if profile-port
-         (profile-thunk
-          (λ () (run n (open-input-file points)))
-          #:order 'total
-          #:delay 0.001
-          #:render (λ (p order) (when profile-port (write-json (profile->json p) profile-port))))
+         (profile #:order 'total #:delay 0.001 #:render profile-json-renderer
+          (run n (open-input-file points)))
          (run n (open-input-file points))))
    (when html-port
      (generate-html html-port profile-port op-t ex-t ex-f))))
