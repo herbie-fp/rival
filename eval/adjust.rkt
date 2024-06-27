@@ -84,10 +84,6 @@
     (define final-parent-precision (max (+ intro
                                            (vector-ref vstart-precs (- n varc)))
                                         (*base-tuning-precision*)))
-
-    ; This case is weird. if we have a cancellation in fma -> ival-mult in fma should be in higher precision
-    (when (equal? op ival-fma)
-      (set! final-parent-precision (+ final-parent-precision (car ampls))))
     
     (when (>= final-parent-precision (*rival-max-precision*))       ; Early stopping
       (*sampling-iteration* (*rival-max-iterations*)))
@@ -311,30 +307,7 @@
      
      (list (+ (- (maxlog x) (minlog z)) x-slack)            ; exponent per x
            (+ (- (maxlog x) (minlog z)) y-slack))]          ; exponent per y
-
-
-    [(ival-fma)
-     ; z = fma(x, y, t)
-     ; k = 1 = 2 = 3: max(maxlog(x) + maxlog(y), maxlog(t)) - minlog(z)
-     (define x (first srcs))
-     (define y (second srcs))
-     (define t (third srcs))
-     (define zlo (ival-lo z))
-     (define zhi (ival-hi z))
-     
-     (define slack (if (equal? (mpfr-sign zhi) (mpfr-sign zlo))
-                                0
-                                (get-slack)))         ; cancellation when output crosses 0
-     
-     (make-list 3 (+ (- (max (+ (maxlog x) (maxlog y)) (maxlog t)) (minlog z)) slack))]
-
-    [(ival-hypot)
-     ; hypot = sqrt(x^2+y^2)
-     ; 2 * (1 + max(maxlog(x), maxlog(y)) - minlog(z))
-     (define x (first srcs))
-     (define y (second srcs))
-     (make-list 2 (* 2 (- (+ 1 (max (maxlog x) (maxlog y))) (minlog z))))]
-
+    
     ; Currently log1p has a very poor approximation
     [(ival-log1p)
      ; maxlog(x) - log[1+x] - minlog(z)
@@ -398,6 +371,29 @@
     ; TODO
     [(ival-ceil ival-floor ival-rint ival-round ival-trunc)
      (list (get-slack))]
+    
+    #;[(ival-fma)
+     ; z = fma(x, y, t)
+     ; k = 1 = 2 = 3: max(maxlog(x) + maxlog(y), maxlog(t)) - minlog(z)
+     (define x (first srcs))
+     (define y (second srcs))
+     (define t (third srcs))
+     (define zlo (ival-lo z))
+     (define zhi (ival-hi z))
+     
+     (define slack (if (equal? (mpfr-sign zhi) (mpfr-sign zlo))
+                                0
+                                (get-slack)))         ; cancellation when output crosses 0
+     
+     (make-list 3 (+ (- (max (+ (maxlog x) (maxlog y)) (maxlog t)) (minlog z)) slack))]
+
+    #;[(ival-hypot)
+     ; hypot = sqrt(x^2+y^2)
+     ; 2 * (1 + max(maxlog(x), maxlog(y)) - minlog(z))
+     (define x (first srcs))
+     (define y (second srcs))
+     (make-list 2 (* 2 (- (+ 1 (max (maxlog x) (maxlog y))) (minlog z))))]
+    
     [else (map (const 0) srcs)]))        ; exponents for argumetns
 
 (define (get-slack)
