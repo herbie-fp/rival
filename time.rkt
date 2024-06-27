@@ -189,7 +189,7 @@
     (html-write-footer html-port (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u))
     (html-end-table html-port))
 
-  (html-write-profile html-port)))
+  (html-write-profile html-port))
 
 
 (module+ main
