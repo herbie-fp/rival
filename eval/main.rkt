@@ -8,7 +8,7 @@
          (struct-out exn:rival:invalid)
          (struct-out exn:rival:unsamplable)
          (struct-out discretization)
-         *rival-max-precision* *rival-max-iterations*
+         *rival-max-precision* *rival-max-iterations* *rival-use-shorthands*
          rival-profile (struct-out execution) *rival-profile-executions*)
 
 (define ground-truth-require-convergence (make-parameter #t))
