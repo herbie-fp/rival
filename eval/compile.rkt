@@ -5,11 +5,33 @@
 (provide rival-compile)
 
 (define (optimize expr)
-  (match expr
-    [`(pow ,arg 2)
-     `(pow2 ,arg)]
+  (match (and (*rival-use-shorthands*) expr)
     [`(fma ,x ,y ,z)
      `(+ (* ,x ,y) ,z)]
+    [`(- (exp ,x) 1)
+     `(expm1 ,x)]
+    [`(- 1 (exp ,x))
+     `(neg (expm1 ,x))]
+    [`(- ,x)
+     `(neg ,x)]
+    [`(sqrt (+ (* ,x ,x) (* ,y ,y)))
+     `(hypot ,x ,y)]
+    [`(sqrt (+ (* ,x ,x) 1))
+     `(hypot ,x 1)]
+    [`(sqrt (+ 1 (* ,x ,x)))
+     `(hypot 1 ,x)]
+    [`(pow ,arg 2)
+     `(pow2 ,arg)]
+    [`(pow ,x ,(? rational? y))
+     (cond
+       [(integer? y)
+        `(pow ,x ,y)] ; Not optimal but probably fine
+       [(and (even? (numerator y)) (odd? (denominator y)))
+        `(pow (fabs ,x) ,y)]
+       [(and (even? (numerator y)) (odd? (denominator y)))
+        `(copysign (pow (fabs ,x) ,y) ,x)]
+       [else
+        `(pow ,x ,y)])]
     [_ expr]))
 
 (define (exprs->batch exprs vars)

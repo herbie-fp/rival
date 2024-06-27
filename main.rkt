@@ -96,6 +96,7 @@
          (struct-out discretization)
          (struct-out exn:rival) (struct-out exn:rival:invalid) (struct-out exn:rival:unsamplable)
          *rival-max-precision* *rival-max-iterations* *rival-profile-executions*
+         *rival-use-shorthands*
          (struct-out execution)
          (contract-out
           [rival-profile (-> rival-machine? symbol? any/c)]))

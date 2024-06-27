@@ -7,6 +7,7 @@
 (define *rival-max-precision* (make-parameter 10000))
 (define *rival-max-iterations* (make-parameter 5))
 (define *rival-profile-executions* (make-parameter 1000))
+(define *rival-use-shorthands* (make-parameter #t))
 
 (struct discretization (convert distance))
 
