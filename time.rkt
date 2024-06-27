@@ -85,7 +85,9 @@
     (fprintf port "<h1>~a</h1>" name)
     (fprintf port "<table class=sortable>")
     (fprintf port "<thead><tr>")
-    (for ([col (in-list cols)]) (fprintf port "<th>~a</th>" col))
+    (for ([col (in-list cols)])
+      (define name (match col [(list name _) name] [name name]))
+      (fprintf port "<th>~a</th>" col))
     (fprintf port "</tr></thead><tbody>")))
 
 (define (html-write-row port row)
@@ -99,7 +101,7 @@
         [(integer? cell)
          (fprintf port "<td>~a~a</td>" cell unit)]
         [(real? cell)
-         (fprintf port "<td data-sort=~a>~a~a</td>" cell (~r cell #:precision '(= 1)) unit)]
+         (fprintf port "<td data-sort=~a>~a~a</td>" cell (~r cell #:precision '(= 2)) unit)]
         [else
          (fprintf port "<td><code>~a</code></td>" cell)]))
     (fprintf port "</tr>")))
@@ -177,7 +179,7 @@
 
     (define total-t (+ total-c total-v total-i total-u))
     (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
-    (html-write-footer html-port (list "Total" total-t total-c total-v total-i total-u))
+    (html-write-footer html-port (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u))
     (html-end-table html-port)))
 
 
