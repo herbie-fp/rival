@@ -100,7 +100,7 @@
         [(and (number? cell) (zero? cell))
          (fprintf port "<td></td>")]
         [(integer? cell)
-         (fprintf port "<td>~a~a</td>" cell unit)]
+         (fprintf port "<td>~a~a</td>" (~r cell #:group-sep " ") unit)]
         [(real? cell)
          (fprintf port "<td data-sort=~a>~a~a</td>" cell (~r cell #:precision '(= 2)) unit)]
         [else
