@@ -2,7 +2,9 @@
 
 (require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?) racket/flonum)
 (require "../ops/all.rkt" "machine.rkt")
-(provide rival-compile)
+(provide rival-compile *rival-use-shorthands*)
+
+(define *rival-use-shorthands* (make-parameter #t))
 
 (define (optimize expr)
   (match (and (*rival-use-shorthands*) expr)
