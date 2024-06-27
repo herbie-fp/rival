@@ -40,11 +40,9 @@
         [result-old (in-vector vregs varc)]
         [n (in-naturals)])
     (define repeat
-      (or
-       (and (ival-lo-fixed? result-old) (ival-hi-fixed? result-old))
-       (and (<= prec-new prec-old)
-            (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
-                    (cdr instr)))))
+      (and (<= prec-new prec-old)
+           (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
+                   (cdr instr))))
     (set! any-false? (or any-false? (not repeat)))
     (vector-set! vrepeats n repeat))
 
@@ -87,7 +85,8 @@
     
     (when (>= final-parent-precision (*rival-max-precision*))         ; Early stopping
       (*sampling-iteration* (*rival-max-iterations*)))
-    (vector-set! vprecs-new (- n varc) (min final-parent-precision (*rival-max-precision*)))
+    (unless (and (ival-lo-fixed? output) (ival-hi-fixed? output))
+      (vector-set! vprecs-new (- n varc) (min final-parent-precision (*rival-max-precision*))))
 
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
