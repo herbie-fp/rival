@@ -103,31 +103,25 @@
   (equal? x -9223372036854775805))
 (define (exp-is-0? x)
   (equal? x -9223372036854775807))
-(define (exp-is-max? x)
-  (equal? x 1073741823))
-(define (exp-is-min? x)
-  (equal? x -1073741823))
+(define (crosses-zero? x)
+  (not (equal? (mpfr-sign (ival-lo x)) (mpfr-sign (ival-hi x)))))
 
 ; We assume that NaNs can not be at this step in the interval
 (define (maxlog x)
   (define lo-exp (mpfr-exp (ival-lo x)))
   (define hi-exp (mpfr-exp (ival-hi x)))
   (if (exp-is-inf? hi-exp)                            ; no upper bound is defined
-      (get-slack)
-       ; this check is crucial because we have (abs maxlog) in formulas
-      (if (and (exp-is-0? lo-exp) (exp-is-min? hi-exp)) ; underflow
-          (- (get-slack))          
-          (+ (max lo-exp hi-exp) 1))))
+      (+ (max lo-exp 0) (get-slack))                  ; max in case if lo-exp is negative
+      (+ (max lo-exp hi-exp) 1)))
 
 (define (minlog x)
   (define lo-exp (mpfr-exp (ival-lo x)))
   (define hi-exp (mpfr-exp (ival-hi x)))
-  (if (exp-is-0? lo-exp)                              ; no lower bound is defined
-      (- (get-slack))
-      ; this check is crucial because we have (abs minlog) in formulas
-      (if (and (exp-is-max? lo-exp) (exp-is-inf? hi-exp)) ; overflow
-          (get-slack)             
-          (- (max lo-exp hi-exp) 1))))
+  (if (exp-is-0? lo-exp)                              ; lower bound is undefined
+      (- (min hi-exp 0) (get-slack))                  ; min in case if hi-exp is positive
+      (if (crosses-zero? x)
+          (- (min lo-exp hi-exp 0) (get-slack))       ; lower bound is undefined
+          (- (min lo-exp hi-exp) 1))))
 
 (define (logspan x)
   #;(define lo-exp (mpfr-exp (ival-lo x)))
@@ -170,30 +164,21 @@
      ; k = 2: maxlog(y) - minlog(z)
      (define x (first srcs))
      (define y (second srcs))
-     (define zlo (ival-lo z))
-     (define zhi (ival-hi z))
      
-     (define slack (if (equal? (mpfr-sign zlo) (mpfr-sign zhi))
-                       0
-                       (get-slack)))
-     
-     (list (+ (- (maxlog x) (minlog z)) slack)   ; exponent per x
-           (+ (- (maxlog y) (minlog z)) slack))] ; exponent per y 
+     (list (- (maxlog x) (minlog z))                  ; exponent per x
+           (- (maxlog y) (minlog z)))]                ; exponent per y 
     
     [(ival-pow)
      ; k = 1: maxlog(y) + logspan(x) + logspan(z)
      ; k = 2: maxlog(y) + |maxlog(x)| - 1 + logspan(z)
      (define x (first srcs))
      (define y (second srcs))
-     (define zlo (ival-lo z))
-     (define zhi (ival-hi z))
      
      ; when output crosses zero and x is negative - means that y was fractional and not fixed
      ; solution - add more slack for y to converge
-     (define slack (if (and (not (equal? (mpfr-sign zlo) (mpfr-sign zhi)))
-                              (bfnegative? (ival-lo x)))
-                         (get-slack)
-                         0))
+     (define slack (if (and (crosses-zero? z) (bfnegative? (ival-lo x)))
+                       (get-slack)
+                       0))
         
      (list (+ (maxlog y) (logspan x) (logspan z))     ; exponent per x
            (+ (maxlog y) (abs (maxlog x)) (logspan z) -1 slack))]  ; exponent per y
@@ -204,14 +189,12 @@
      (list (+ (maxlog x) (logspan z)))]
     
     [(ival-tan)
-     ; maxlog(x) + |maxlog(z)| + logspan(z) + 1
+     ; maxlog(x) + |maxlog(z)| + logspan(z) + 1         | if z does not crosses zero
+     ; maxlog(x) + |maxlog(z)| + logspan(z) + 1 + slack | otherwise
      (define x (first srcs))
-     (define zlo (ival-lo z))
-     (define zhi (ival-hi z))
      
-     (define slack (if (and
-                        (not (equal? (mpfr-sign zlo) (mpfr-sign zhi)))
-                        (>= (maxlog x) 2))            ; x >= 1.bf, ideally x > pi.bf
+     (define slack (if (and (crosses-zero? z)
+                            (>= (maxlog x) 2))        ; x >= 1.bf, ideally x > pi.bf/2
                        (get-slack)                    ; tan is (-inf, +inf) or around zero (but x != 0)
                        0))
      
@@ -220,29 +203,12 @@
     [(ival-sin)
      ; maxlog(x) - minlog(z)
      (define x (first srcs))
-     (define zlo (ival-lo z))
-     (define zhi (ival-hi z))
-     
-     (define slack (if (and
-                        (not (equal? (mpfr-sign zlo) (mpfr-sign zhi)))
-                        (>= (maxlog x) 2))
-                       (get-slack)
-                       0))
-     
-     (list (+ (- (maxlog x) (minlog z)) slack))]
+     (list (- (maxlog x) (minlog z)))]
 
     [(ival-cos)
      ; maxlog(x) - minlog(z) + min(maxlog(x), 0)
      (define x (first srcs))
-     (define zlo (ival-lo z))
-     (define zhi (ival-hi z))
-     
-     (define slack (if (not (equal? (mpfr-sign zlo) (mpfr-sign zhi)))
-                       (get-slack)
-                       0))
-
-     (list (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0) slack))]
-
+     (list (- (maxlog x) (minlog z)) (min (maxlog x) 0))]
 
     [(ival-sinh)
      ; maxlog(x) + logspan(z) - min(minlog(x), 0)
@@ -259,14 +225,7 @@
      ; log2:  logspan(x) - minlog(z) + 1
      ; log10: logspan(x) - minlog(z) - 1
      (define x (first srcs))
-     (define zlo (ival-lo z))
-     (define zhi (ival-hi z))
-     
-     (define slack (if (equal? (mpfr-sign zlo) (mpfr-sign zhi))
-                       0
-                       (get-slack)))                  ; output crosses 0 - uncertainty
-     
-     (list (+ (- (logspan x) (minlog z)) slack 1))]
+     (list (- (logspan x) (minlog z)) 1)]
 
     [(ival-asin ival-acos)
      ; asin: maxlog(x) - log[1-x^2]/2 - minlog(z)
@@ -292,21 +251,13 @@
      ;                           conditions of uncertainty
      (define x (first srcs))
      (define y (second srcs))
-     (define ylo (ival-lo y))
-     (define yhi (ival-hi y))
-     (define zlo (ival-lo z))
-     (define zhi (ival-hi z))
      
-     (define x-slack (if (equal? (mpfr-sign zlo) (mpfr-sign zhi))
-                         0                
-                         (get-slack)))                ; output crosses 0
+     (define slack (if (crosses-zero? y)
+                       0                
+                       (get-slack)))                  ; y crosses zero
      
-     (define y-slack (if (equal? (mpfr-sign ylo) (mpfr-sign yhi))
-                         x-slack                
-                         (+ x-slack (get-slack))))    ; y crosses zero
-     
-     (list (+ (- (maxlog x) (minlog z)) x-slack)            ; exponent per x
-           (+ (- (maxlog x) (minlog z)) y-slack))]          ; exponent per y
+     (list (- (maxlog x) (minlog z))                  ; exponent per x
+           (+ (- (maxlog x) (minlog z)) slack))]      ; exponent per y
     
     ; Currently log1p has a very poor approximation
     [(ival-log1p)
@@ -353,12 +304,12 @@
 
     [(ival-acosh)
      ; log[Гacosh] = log[x / (sqrt(x-1) * sqrt(x+1) * acosh)] <= -minlog(z) + slack
-     (define out-exp (minlog z))
-     (define slack (if (< out-exp 2)                  ; when acosh(x) < 1
+     (define z-exp (minlog z))
+     (define slack (if (< z-exp 2)                    ; when acosh(x) < 1
                        (get-slack)
                        0))
      
-     (list (- slack (minlog z)))]
+     (list (- slack z-exp))]
 
     [(ival-pow2)
      ; same as multiplication
@@ -394,7 +345,7 @@
      (define y (second srcs))
      (make-list 2 (* 2 (- (+ 1 (max (maxlog x) (maxlog y))) (minlog z))))]
     
-    [else (map (const 0) srcs)]))        ; exponents for argumetns
+    [else (map (const 0) srcs)]))        ; exponents for arguments
 
 (define (get-slack)
   (match (*sampling-iteration*)
