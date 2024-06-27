@@ -101,8 +101,7 @@
     (for/list ([rec (in-port read-json points)] 
                [i (in-naturals)]
                #:break (and test-id (> i (string->number test-id)))
-               #:unless (and test-id (not (equal? (~a i) test-id)))
-               )
+               #:unless (and test-id (not (equal? (~a i) test-id))))
       (when test-id
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
@@ -137,7 +136,7 @@
     (fprintf port "<link href='~a' rel='stylesheet' />" sortable-css)
     (fprintf port "<script src='profile.js' defer></script>")
     (fprintf port "<script src='~a' async defer></script>" sortable-js)
-    (fprintf port "<style>body { max-width: 100ex; margins: 1em auto; } td:nth-child(1n+2) { text-align: right; }</style>")))
+    (fprintf port "<style>body { max-width: 100ex; margin: 3em auto; } td:nth-child(1n+2) { text-align: right; }</style>")))
 
 (define current-heading #f)
 
@@ -201,9 +200,8 @@
       '("Operation" ("Time, 256b" "µs")  ("Slowdown" "×") ("Time, 4kb" "µs") ("Slowdown" "×")))
     (html-write-table html-port "Operation timing" cols)
     (for ([row (in-list operation-table)])
-      (match-define (list name iv256 su256 iv4k su4k) row)
-      (html-write-row html-port (list name iv256 su256 iv4k su4k))
-      (html-end-table html-port)))
+      (html-write-row html-port row))
+    (html-end-table html-port))
 
   (when expression-table
     (define cols
