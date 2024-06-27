@@ -103,6 +103,10 @@
   (equal? x -9223372036854775805))
 (define (exp-is-0? x)
   (equal? x -9223372036854775807))
+(define (exp-is-max? x)
+  (equal? x 1073741823))
+(define (exp-is-min? x)
+  (equal? x -1073741823))
 (define (crosses-zero? x)
   (not (equal? (mpfr-sign (ival-lo x)) (mpfr-sign (ival-hi x)))))
 
@@ -194,7 +198,7 @@
      (define x (first srcs))
      
      (define slack (if (and (crosses-zero? z)
-                            (>= (maxlog x) 2))        ; x >= 1.bf, ideally x > pi.bf/2
+                            (>= (maxlog x) 2))        ; x >= 1.bf, ideally x > pi.bf
                        (get-slack)                    ; tan is (-inf, +inf) or around zero (but x != 0)
                        0))
      
@@ -208,7 +212,7 @@
     [(ival-cos)
      ; maxlog(x) - minlog(z) + min(maxlog(x), 0)
      (define x (first srcs))
-     (list (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0)))]
+     (list (- (maxlog x) (minlog z)) (min (maxlog x) 0))]
 
     [(ival-sinh)
      ; maxlog(x) + logspan(z) - min(minlog(x), 0)
@@ -225,7 +229,7 @@
      ; log2:  logspan(x) - minlog(z) + 1
      ; log10: logspan(x) - minlog(z) - 1
      (define x (first srcs))
-     (list (+ (- (logspan x) (minlog z)) 1))]
+     (list (- (logspan x) (minlog z)) 1)]
 
     [(ival-asin ival-acos)
      ; asin: maxlog(x) - log[1-x^2]/2 - minlog(z)
