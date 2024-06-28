@@ -42,20 +42,23 @@
     (define-values (real-lo! real-hi!)
       (cond
         [(or (bfzero? lo) (bfinfinite? hi))
+         (match-define (endpoint aval a!) a)
+         (match-define (endpoint bval b!) b)
+         (match-define (endpoint cval c!) c)
+         (match-define (endpoint dval d!) d)
 
-         (define hi-bar exp2-overflow-threshold)
          ;; Important: exp2-overflow-threshold is an exact power of 2, so we can use >=
          (define must-overflow
            (and (bfinfinite? hi) (= (* x-class y-class) 1)
-                (>= (+ (mpfr-exp (endpoint-val b)) (mpfr-exp (rnd 'zero bflog2 (endpoint-val a))))
-                    (mpfr-exp hi-bar))))
+                (>= (+ (mpfr-exp bval) (mpfr-exp (rnd 'zero bflog2 aval)))
+                    (mpfr-exp exp2-overflow-threshold))))
          (define must-underflow
            (and (bfzero? lo) (= (* x-class y-class) -1)
-                (>= (+ (mpfr-exp (endpoint-val d)) (mpfr-exp (rnd 'zero bflog2 (endpoint-val c))))
-                    (mpfr-exp hi-bar))))
+                (>= (+ (mpfr-exp dval) (mpfr-exp (rnd 'zero bflog2 cval)))
+                    (mpfr-exp exp2-overflow-threshold))))
 
-         (define real-lo! (or lo! must-underflow (and (bfzero? lo) (endpoint-immovable? a) (endpoint-immovable? b))))
-         (define real-hi! (or hi! must-underflow must-overflow (and (bfinfinite? hi) (endpoint-immovable? c) (endpoint-immovable? d))))
+         (define real-lo! (or lo! must-underflow (and (bfzero? lo) a! b!)))
+         (define real-hi! (or hi! must-underflow must-overflow (and (bfinfinite? hi) c! d!)))
 
          #|
          ;; BEGIN DEBUGGING CODE
@@ -70,7 +73,7 @@
            (eprintf "a: ~a\nc: ~a\n\n" a c)
            (eprintf "tlo: ~a\nthi: ~a\n" tlo thi)
            (eprintf "must: uflow ~a, oflow: ~a\n\n" must-underflow must-overflow)
-           (eprintf "hi-bar: ~a\n" hi-bar)
+           (eprintf "hi-bar: ~a\n" exp2-overflow-threshold)
            (error "Bad flags"))
 
          (unless (and (or (< -5 (- (mpfr-exp (ival-lo-val other-base)) tlo) 5)
