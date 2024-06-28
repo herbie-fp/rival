@@ -38,14 +38,65 @@
   (define (mk-pow a b c d)
     (match-define (endpoint lo lo!) (rnd 'down eppow a b x-class y-class))
     (match-define (endpoint hi hi!) (rnd 'up   eppow c d x-class y-class))
-    (define out
-      (ival (endpoint lo lo!) (endpoint hi hi!)
-            (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (not (= y-class 1))))
-            (or xerr yerr (and (bfzero? (endpoint-val xhi)) (= y-class -1)))))
-    (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
-        ((overflows-loose-at (bfneg exp2-overflow-threshold) exp2-overflow-threshold)
-         (ival-mult y (ival-log2 x)) out)
-        out))
+
+    (define-values (real-lo! real-hi!)
+      (cond
+        [(or (bfzero? lo) (bfinfinite? hi))
+         (match-define (endpoint aval a!) a)
+         (match-define (endpoint bval b!) b)
+         (match-define (endpoint cval c!) c)
+         (match-define (endpoint dval d!) d)
+
+         ;; Important: exp2-overflow-threshold is an exact power of 2, so we can use >=
+         (define must-overflow
+           (and (bfinfinite? hi) (= (* x-class y-class) 1)
+                (>= (+ (mpfr-exp bval) (mpfr-exp (rnd 'zero bflog2 aval)))
+                    (mpfr-exp exp2-overflow-threshold))))
+         (define must-underflow
+           (and (bfzero? lo) (= (* x-class y-class) -1)
+                (>= (+ (mpfr-exp dval) (mpfr-exp (rnd 'zero bflog2 cval)))
+                    (mpfr-exp exp2-overflow-threshold))))
+
+         (define real-lo! (or lo! must-underflow (and (bfzero? lo) a! b!)))
+         (define real-hi! (or hi! must-underflow must-overflow (and (bfinfinite? hi) c! d!)))
+
+         #|
+         ;; BEGIN DEBUGGING CODE
+         (define other-base (ival-mult y (ival-log x)))
+         (define other-option (ival-exp other-base))
+         (define best-lo! (ival-lo-fixed? other-option))
+         (define best-hi! (ival-hi-fixed? other-option))
+
+         (unless (and (implies best-lo! real-lo!) (implies best-hi! real-hi!))
+           (eprintf "Bad flags: [~a ~a] us vs [~a ~a] best\n" real-lo! best-lo! real-hi! best-hi!)
+           (eprintf "  pow(~a, ~a)\n" x y)
+           (eprintf "a: ~a\nc: ~a\n\n" a c)
+           (eprintf "tlo: ~a\nthi: ~a\n" tlo thi)
+           (eprintf "must: uflow ~a, oflow: ~a\n\n" must-underflow must-overflow)
+           (eprintf "hi-bar: ~a\n" exp2-overflow-threshold)
+           (error "Bad flags"))
+
+         (unless (and (or (< -5 (- (mpfr-exp (ival-lo-val other-base)) tlo) 5)
+                          (bfzero? (ival-lo-val other-base))
+                          (bfinfinite? (ival-lo-val other-base)))
+                      (or (< -5 (- (mpfr-exp (ival-hi-val other-base)) thi) 5)
+                          (bfzero? (ival-hi-val other-base))
+                          (bfinfinite? (ival-lo-val other-base))))
+           (eprintf "lo: ~a\n" tlo)
+           (eprintf " -> exp ~a, val ~a\n" (mpfr-exp (ival-lo-val other-base)) (ival-lo-val other-base))
+           (eprintf "hi: ~a\n" thi)
+           (eprintf " -> exp ~a, val ~a\n" (mpfr-exp (ival-hi-val other-base)) (ival-hi-val other-base))
+           (error "Bad result"))
+         ;; END DEBUGGING CODE
+         |#
+
+         (values real-lo! real-hi!)]
+        [else
+         (values lo! hi!)]))
+
+    (ival (endpoint lo real-lo!) (endpoint hi real-hi!)
+          (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (not (= y-class 1))))
+          (or xerr yerr (and (bfzero? (endpoint-val xhi)) (= y-class -1)))))
 
   (match* (x-class y-class)
     [( 1  1) (mk-pow xlo ylo xhi yhi)]
