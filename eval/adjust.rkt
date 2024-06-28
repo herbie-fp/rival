@@ -93,28 +93,43 @@
         (vector-set! vprecs-new (- x varc) (+ intro ampl))))))
 
 (define (exp-is-inf? x)
-  (equal? x -9223372036854775805))
+  (equal? x 9223372036854775805))
 (define (exp-is-0? x)
   (equal? x -9223372036854775807))
+; this function imitates an exponent of infinity as 9223372036854775805
+(define (replace-inf x)
+  (if (equal? x -9223372036854775805)
+      (abs x)
+      x))
 (define (crosses-zero? x)
   (not (equal? (mpfr-sign (ival-lo x)) (mpfr-sign (ival-hi x)))))
 
 ; We assume that NaNs can not be at this step in the interval
 (define (maxlog x)
-  (define lo-exp (mpfr-exp (ival-lo x)))
-  (define hi-exp (mpfr-exp (ival-hi x)))
-  (if (exp-is-inf? hi-exp)                            ; no upper bound is defined
-      (+ (max lo-exp 0) (get-slack))                  ; max in case if lo-exp is negative
-      (+ (max lo-exp hi-exp) 1)))
+  (define lo-exp (replace-inf (mpfr-exp (ival-lo x))))
+  (define hi-exp (replace-inf (mpfr-exp (ival-hi x))))
+  (cond
+    [(and (exp-is-inf? hi-exp) (exp-is-inf? lo-exp))  ; x = [-inf, inf]
+     (get-slack)]
+    [(exp-is-inf? hi-exp)                             ; x = [..., inf]
+     (+ (max lo-exp 0) (get-slack))]
+    [(exp-is-inf? lo-exp)
+     (+ (max hi-exp 0) (get-slack))]                  ; x = [-inf, ...]
+    [else
+     (+ (max lo-exp hi-exp) 1)]))                     ; x does not contain inf, safe with respect to 0.bf
 
 (define (minlog x)
-  (define lo-exp (mpfr-exp (ival-lo x)))
-  (define hi-exp (mpfr-exp (ival-hi x)))
-  (if (exp-is-0? lo-exp)                              ; lower bound is undefined
-      (- (min hi-exp 0) (get-slack))                  ; min in case if hi-exp is positive
-      (if (crosses-zero? x)
-          (- (min lo-exp hi-exp 0) (get-slack))       ; lower bound is undefined
-          (- (min lo-exp hi-exp) 1))))
+  (define lo-exp (replace-inf (mpfr-exp (ival-lo x))))
+  (define hi-exp (replace-inf (mpfr-exp (ival-hi x))))
+  (cond
+    [(exp-is-0? lo-exp)                               ; x = [0.bf, ...]
+     (- (min hi-exp 0) (get-slack))]
+    [(exp-is-0? hi-exp)                               ; x = [..., 0.bf]
+     (- (min lo-exp 0) (get-slack))]
+    [(crosses-zero? x)                                ; x = [-..., +...]
+     (- (min lo-exp hi-exp 0) (get-slack))]
+    [else
+     (- (min lo-exp hi-exp) 1)]))                     ; x does not contain zero, safe with respect to inf
 
 (define (logspan x)
   #;(define lo-exp (mpfr-exp (ival-lo x)))
@@ -163,7 +178,7 @@
     
     [(ival-pow)
      ; k = 1: maxlog(y) + logspan(x) + logspan(z)
-     ; k = 2: maxlog(y) + |maxlog(x)| - 1 + logspan(z)
+     ; k = 2: maxlog(y) + |maxlog(x)| + logspan(z)
      (define x (first srcs))
      (define y (second srcs))
      
@@ -174,13 +189,13 @@
                        0))
         
      (list (+ (maxlog y) (logspan x) (logspan z))     ; exponent per x
-           (+ (maxlog y) (abs (maxlog x)) (logspan z) -1 slack))]  ; exponent per y
+           (+ (maxlog y) (abs (maxlog x)) (logspan z) slack))]  ; exponent per y
      
     [(ival-exp ival-exp2)
      ; maxlog(x) + logspan(z)
      (define x (car srcs))
      (list (+ (maxlog x) (logspan z)))]
-    
+
     [(ival-tan)
      ; maxlog(x) + |maxlog(z)| + logspan(z) + 1         | if z does not crosses zero
      ; maxlog(x) + |maxlog(z)| + logspan(z) + 1 + slack | otherwise
