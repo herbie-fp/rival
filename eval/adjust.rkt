@@ -56,8 +56,7 @@
           [n (in-range (vector-length vprecs))])
       (define prec* (min (*rival-max-precision*) (+ prec slack)))
       (when (equal? prec* (*rival-max-precision*)) (*sampling-iteration* (*rival-max-iterations*)))
-      (vector-set! vprecs n prec*))
-    #;(vector-fill! vrepeats #f)))
+      (vector-set! vprecs n prec*))))
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking:
@@ -179,11 +178,11 @@
     
     [(ival-pow)
      ; k = 1: maxlog(y) + logspan(x) + logspan(z)
-     ; k = 2: maxlog(y) + |maxlog(x)| + logspan(z)
+     ; k = 2: maxlog(y) + max(|minlog(x)|,|maxlog(x)|) + logspan(z)
      (define x (first srcs))
      (define y (second srcs))
      
-     ; when output crosses zero and x is negative - means that y was fractional and not fixed
+     ; when output crosses zero and x is negative - means that y was fractional and not fixed (specific of Rival)
      ; solution - add more slack for y to converge
      (define slack (if (and (crosses-zero? z) (bfnegative? (ival-lo x)))
                        (get-slack)
@@ -198,16 +197,9 @@
      (list (+ (maxlog x) (logspan z)))]
 
     [(ival-tan)
-     ; maxlog(x) + |maxlog(z)| + logspan(z) + 1         | if z does not crosses zero
-     ; maxlog(x) + |maxlog(z)| + logspan(z) + 1 + slack | otherwise
+     ; maxlog(x) + max(|minlog(z)|,|maxlog(z)|) + logspan(z) + 1
      (define x (first srcs))
-     
-     #;(define slack (if (and (crosses-zero? z)
-                            (>= (maxlog x) 2))        ; x >= 1.bf, ideally x > pi.bf/2
-                       (get-slack)                    ; tan is (-inf, +inf) or around zero (but x != 0)
-                       0))
-     
-     (list (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1 #;slack))]
+     (list (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1))]
 
     [(ival-sin)
      ; maxlog(x) - minlog(z)
