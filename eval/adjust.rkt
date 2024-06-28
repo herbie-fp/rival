@@ -56,7 +56,8 @@
           [n (in-range (vector-length vprecs))])
       (define prec* (min (*rival-max-precision*) (+ prec slack)))
       (when (equal? prec* (*rival-max-precision*)) (*sampling-iteration* (*rival-max-iterations*)))
-      (vector-set! vprecs n prec*))))
+      (vector-set! vprecs n prec*))
+    (vector-fill! vrepeats #f)))
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking:
@@ -132,13 +133,12 @@
      (- (min lo-exp hi-exp) 1)]))                     ; x does not contain zero, safe with respect to inf
 
 (define (logspan x)
-  #;(define lo-exp (mpfr-exp (ival-lo x)))
-  #;(define hi-exp (mpfr-exp (ival-hi x)))
-  #;(if (or (<= lo-exp -9223372036854775805)            ; if log2 of any endpoint is undefined (0 or inf)
+  (define lo-exp (mpfr-exp (ival-lo x)))
+  (define hi-exp (mpfr-exp (ival-hi x)))
+  (if (or (<= lo-exp -9223372036854775805)            ; if log2 of any endpoint is undefined (0 or inf)
           (<= hi-exp -9223372036854775805))           ; then logspan is undefined as well - use slack
       (get-slack)
-      (+ (abs (- lo-exp hi-exp)) 1))
-  0)
+      (+ (abs (- lo-exp hi-exp)) 1)))
 
 ; Function calculates an ampl factor per input for a certain output and inputs using condition formulas,
 ;   where an ampl is an additional precision that needs to be added to srcs evaluation so,
@@ -327,7 +327,6 @@
     ; TODO
     [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb)
      (list (get-slack))]
-    
     ; TODO
     [(ival-ceil ival-floor ival-rint ival-round ival-trunc)
      (list (get-slack))]
