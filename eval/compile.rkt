@@ -28,13 +28,19 @@
      `(hypot 1 ,x)]
     [`(pow ,arg 2)
      `(pow2 ,arg)]
+    [`(pow ,arg 1/3)
+     `(cbrt ,arg)]
+    [`(pow ,arg 1/2)
+     `(sqrt ,arg)]
+    [`(pow (fabs ,x) ,y)
+     `(pow (fabs ,x) ,y)]
     [`(pow ,x ,(? rational? y))
      (cond
        [(integer? y)
         `(pow ,x ,y)] ; Not optimal but probably fine
        [(and (even? (numerator y)) (odd? (denominator y)))
         `(pow (fabs ,x) ,y)]
-       [(and (even? (numerator y)) (odd? (denominator y)))
+       [(and (odd? (numerator y)) (odd? (denominator y)))
         `(copysign (pow (fabs ,x) ,y) ,x)]
        [else
         `(pow ,x ,y)])]
