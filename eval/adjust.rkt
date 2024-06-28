@@ -327,31 +327,10 @@
     ; TODO
     [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb)
      (list (get-slack))]
+    
     ; TODO
     [(ival-ceil ival-floor ival-rint ival-round ival-trunc)
      (list (get-slack))]
-    
-    #;[(ival-fma)
-     ; z = fma(x, y, t)
-     ; k = 1 = 2 = 3: max(maxlog(x) + maxlog(y), maxlog(t)) - minlog(z)
-     (define x (first srcs))
-     (define y (second srcs))
-     (define t (third srcs))
-     (define zlo (ival-lo z))
-     (define zhi (ival-hi z))
-     
-     (define slack (if (equal? (mpfr-sign zhi) (mpfr-sign zlo))
-                                0
-                                (get-slack)))         ; cancellation when output crosses 0
-     
-     (make-list 3 (+ (- (max (+ (maxlog x) (maxlog y)) (maxlog t)) (minlog z)) slack))]
-
-    #;[(ival-hypot)
-     ; hypot = sqrt(x^2+y^2)
-     ; 2 * (1 + max(maxlog(x), maxlog(y)) - minlog(z))
-     (define x (first srcs))
-     (define y (second srcs))
-     (make-list 2 (* 2 (- (+ 1 (max (maxlog x) (maxlog y))) (minlog z))))]
     
     [else (map (const 0) srcs)]))        ; exponents for arguments
 
