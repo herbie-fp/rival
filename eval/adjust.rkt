@@ -129,7 +129,7 @@
     [(crosses-zero? x)                                ; x = [-..., +...]
      (- (min lo-exp hi-exp 0) (get-slack))]
     [else
-     (- (min lo-exp hi-exp) 1)]))                     ; x does not contain zero, safe with respect to inf
+     (min lo-exp hi-exp)]))                           ; x does not contain zero, safe with respect to inf
 
 (define (logspan x)
   #;(define lo-exp (mpfr-exp (ival-lo x)))
@@ -228,21 +228,32 @@
      (define x (first srcs))
      (list (+ (- (logspan x) (minlog z)) 1))]
 
-    [(ival-asin ival-acos)
-     ; asin: maxlog(x) - log[1-x^2]/2 - minlog(z)
-     ; acos: maxlog(x) - log[1-x^2]/2 - minlog(z)
-     ;                   ^^^^^^^^^^^^
-     ;              condition of uncertainty
+    [(ival-asin)
+     ; maxlog(x) - log[1-x^2]/2 - minlog(z)
+     ;             ^^^^^^^^^^^^
+     ;             condition of uncertainty
      (define x (first srcs))
-     (define slack (if (>= (maxlog x) 1)              ; Condition of uncertainty when argument > sqrt(3)/2
+     (define slack (if (>= (maxlog z) 2)              ; Condition of uncertainty
                        (get-slack)                    ; assumes that log[1-x^2]/2 is equal to slack
                        0))
+     
+     (list (+ (- (maxlog x) (minlog z)) slack))]
+
+    [(ival-acos)
+     ; maxlog(x) - log[1-x^2]/2 - minlog(z)
+     ;             ^^^^^^^^^^^^
+     ;             condition of uncertainty
+     (define x (first srcs))
+     (define slack (if (>= (maxlog x) 1)              ; Condition of uncertainty
+                       (get-slack)                    ; assumes that log[1-x^2]/2 is equal to slack
+                       0))
+     
      (list (+ (- (maxlog x) (minlog z)) slack))]
     
     [(ival-atan)
-     ; logspan(x) - |minlog(x)| - minlog(z)
+     ; logspan(x) - min(|minlog(x)|, |maxlog(x)|) - minlog(z)
      (define x (first srcs))
-     (list (- (logspan x) (abs (minlog x)) (minlog z)))]
+     (list (- (logspan x) (min (abs (minlog x)) (abs (maxlog x))) (minlog z)))]
 
     [(ival-fmod ival-remainder)
      ; x mod y = x - y*q, where q is rnd_down(x/y)
@@ -315,7 +326,7 @@
     [(ival-pow2)
      ; same as multiplication
      (define x (first srcs))
-     (list (logspan x))]
+     (list (+ (logspan x) 1))]
     
     ; TODO
     [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb)
