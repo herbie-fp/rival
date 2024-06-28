@@ -133,12 +133,13 @@
      (- (min lo-exp hi-exp) 1)]))                     ; x does not contain zero, safe with respect to inf
 
 (define (logspan x)
-  (define lo-exp (mpfr-exp (ival-lo x)))
-  (define hi-exp (mpfr-exp (ival-hi x)))
-  (if (or (<= lo-exp -9223372036854775805)            ; if log2 of any endpoint is undefined (0 or inf)
+  #;(define lo-exp (mpfr-exp (ival-lo x)))
+  #;(define hi-exp (mpfr-exp (ival-hi x)))
+  #;(if (or (<= lo-exp -9223372036854775805)            ; if log2 of any endpoint is undefined (0 or inf)
           (<= hi-exp -9223372036854775805))           ; then logspan is undefined as well - use slack
       (get-slack)
-      (+ (abs (- lo-exp hi-exp)) 1)))
+      (+ (abs (- lo-exp hi-exp)) 1))
+  0)
 
 ; Function calculates an ampl factor per input for a certain output and inputs using condition formulas,
 ;   where an ampl is an additional precision that needs to be added to srcs evaluation so,
@@ -189,7 +190,7 @@
                        0))
         
      (list (+ (maxlog y) (logspan x) (logspan z))     ; exponent per x
-           (+ (maxlog y) (abs (maxlog x)) (logspan z) slack))]  ; exponent per y
+           (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) slack))]  ; exponent per y
      
     [(ival-exp ival-exp2)
      ; maxlog(x) + logspan(z)
@@ -201,12 +202,12 @@
      ; maxlog(x) + |maxlog(z)| + logspan(z) + 1 + slack | otherwise
      (define x (first srcs))
      
-     (define slack (if (and (crosses-zero? z)
+     #;(define slack (if (and (crosses-zero? z)
                             (>= (maxlog x) 2))        ; x >= 1.bf, ideally x > pi.bf/2
                        (get-slack)                    ; tan is (-inf, +inf) or around zero (but x != 0)
                        0))
      
-     (list (+ (maxlog x) (abs (maxlog z)) (logspan z) 1 slack))]
+     (list (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1 #;slack))]
 
     [(ival-sin)
      ; maxlog(x) - minlog(z)
