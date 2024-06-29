@@ -231,7 +231,12 @@
   
   (match* (x-class y-class)
     [(_ 0) ; In this case, y stradles 0
-     (define immovable? (and (endpoint-immovable? xlo) (endpoint-immovable? ylo)))
+     (define immovable?
+       ;; If either endpoint is 0 and fixed, or if both endpoints are fixed,
+       ;; then class 0 will stay at any higher precision
+       (or (and (endpoint-immovable? ylo) (bfzero? (endpoint-val ylo)))
+           (and (endpoint-immovable? yhi) (bfzero? (endpoint-val yhi)))
+           (and (endpoint-immovable? ylo) (endpoint-immovable? yhi))))
      (ival (endpoint -inf.bf immovable?) (endpoint +inf.bf immovable?) err? err)]
     [( 1  1) (mkdiv xlo yhi xhi ylo)]
     [( 1 -1) (mkdiv xhi yhi xlo ylo)]
