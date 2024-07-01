@@ -27,8 +27,23 @@
         #:when (>= root-reg varc) #:when out-dr?)
     (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
+  ; Step 1b. Checking if a operation should be computed again at all
+  (define vuseful (make-vector (vector-length ivec) #f))
+  (for ([root (in-vector rootvec)])
+    (vector-set! vuseful (- root varc) #t))
+  (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
+        [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
+        [i (in-range (- (vector-length ivec) 1) -1 -1)]
+        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)])
+    (cond
+     [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg))
+      (vector-set! vuseful i #f)]
+     [useful?
+      (for ([arg (in-list (cdr instr))] #:when (>= arg varc))
+        (vector-set! vuseful (- arg varc) #t))]))
+
   ; Step 2. Exponents calculation
-  (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
+  (exponents-propogation ivec vregs vprecs-new varc vstart-precs vuseful)
 
   ; Step 3. Repeating precisions check
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -63,8 +78,9 @@
 ; Roughly speaking:
 ;   vprecs-new[i] = min( *rival-max-precision* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
 ;   exponents-from-above = get-exponent(parent)
-(define (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
+(define (exponents-propogation ivec vregs vprecs-new varc vstart-precs vuseful)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
+        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)])           ; reversed over indices of vregs
 
     (define op (car instr))                                         ; current operation
@@ -85,15 +101,16 @@
     
     (when (>= final-parent-precision (*rival-max-precision*))         ; Early stopping
       (*sampling-iteration* (*rival-max-iterations*)))
-    (unless (and (ival-lo-fixed? output) (ival-hi-fixed? output))
-      (vector-set! vprecs-new (- n varc) (min final-parent-precision (*rival-max-precision*))))
 
-    (for ([x (in-list tail-registers)]
-          [new-exp (in-list new-exponents)]
-          #:when (>= x varc)) ; when tail register is not a variable
-      ; check whether this op already has a precision that is higher
-      (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc)))
-        (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp))))))
+    (when useful?
+      (vector-set! vprecs-new (- n varc) (min final-parent-precision (*rival-max-precision*)))
+      
+      (for ([x (in-list tail-registers)]
+            [new-exp (in-list new-exponents)]
+            #:when (>= x varc)) ; when tail register is not a variable
+        ; check whether this op already has a precision that is higher
+        (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc)))
+          (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp)))))))
 
 (define (ival-max-log2-approx x)
   (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
