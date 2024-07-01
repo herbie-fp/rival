@@ -131,9 +131,12 @@
   ((monotonic->ival (lambda (x) (bfmul x x))) (ival-exact-fabs x)))
 
 (define (ival-pow x y)
-  (match (classify-ival x)
-   [-1 (ival-pow-neg x y)]
-   [1 (ival-pow-pos x y)]
-   [0
+  (cond
+   [(and (= (mpfr-sign (ival-hi-val x)) -1) (not (bfzero? (ival-hi-val x))))
+    (ival-pow-neg x y)]
+   [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-lo-val x)))
+    (ival-pow-pos x y)]
+   [else
     (define-values (neg pos) (ival-split x 0.bf))
-    (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
+    (define pos* (or pos (mk-ival 0.bf))) ; Edge case of pow([-x, 0], ...)
+    (ival-union (ival-pow-neg neg y) (ival-pow-pos pos* y))]))
