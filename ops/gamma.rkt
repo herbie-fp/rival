@@ -104,14 +104,15 @@
   (define-values (xnegl xrest) (ival-split* xneg (bfceiling (ival-lo-val* xneg))))
   (define-values (xnegr xdrop) (ival-split* xrest (rnd 'up bfadd 1.bf (ival-lo-val* xrest))))
 
-  (if (or xpos xnegl xnegr)
-      (ival-union*
-       (and xpos (ival-lgamma-pos xpos))
-       (ival-union*
-        (and xnegl (ival-lgamma-basin xnegl))
-        (and xnegr (ival-lgamma-basin xnegr))))
-      ;; This case only happens if xnegr = #f meaning lo = rnd[up](lo + 1) meaning lo = -inf
-      (mk-big-ival -inf.bf +inf.bf)))
+  (define negy
+    (and xneg
+         (or (ival-union*
+              (and xnegl (ival-lgamma-basin xnegl))
+              (and xnegr (ival-lgamma-basin xnegr)))
+             ;; This case only happens if xnegr = #f meaning lo = rnd[up](lo + 1) meaning lo = -inf
+             (mk-big-ival -inf.bf +inf.bf))))
+             
+  (ival-union* (and xpos (ival-lgamma-pos xpos)) negy))
 
 (define (exact-bffloor x)
   (parameterize ([bf-precision (bigfloat-precision x)])
