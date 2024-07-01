@@ -1,6 +1,6 @@
 #lang racket
 
-(require "core.rkt" "pow.rkt" "trig.rkt" "fmod.rkt")
+(require "core.rkt" "pow.rkt" "trig.rkt" "fmod.rkt" "gamma.rkt")
 
 (provide
  ival? (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
