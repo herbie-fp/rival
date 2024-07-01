@@ -5,7 +5,7 @@
 (require "../mpfr.rkt")
 
 (provide ival-lo-val ival-hi-val classify-ival mk-big-ival
-         ival-exact-fabs ival-maybe epfn
+         ival-exact-fabs ival-maybe epfn split-ival
          bf-return-exact? ival-lo-fixed? ival-hi-fixed?
          overflows-loose-at exp2-overflow-threshold)
 
