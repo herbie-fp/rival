@@ -7,12 +7,14 @@
   (define x.lo (ival-lo-val x))
   (cond
     [(>= (mpfr-exp (ival-lo-val x)) 1) 1]
-    [(< (mpfr-exp (ival-hi-val x)) 1) -1]
+    ; Infinity has a negative exponent but is a special case
+    [(and (< (mpfr-exp (ival-hi-val x)) 1) (not (bfinfinite? (ival-hi-val x)))) -1]
     [else 0]))
 
 (define (eppow a-endpoint b-endpoint a-class b-class)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
+  (when (bfzero? a) (set! a 0.bf)) ; Handle (-0)^(-1)
   (define-values (val exact?) (bf-return-exact? bfexpt (list a b)))
   (endpoint val
    (or (and a! b! exact?)
@@ -131,9 +133,11 @@
   ((monotonic->ival (lambda (x) (bfmul x x))) (ival-exact-fabs x)))
 
 (define (ival-pow x y)
-  (match (classify-ival x)
-   [-1 (ival-pow-neg x y)]
-   [1 (ival-pow-pos x y)]
-   [0
-    (define-values (neg pos) (ival-split x 0.bf))
+  (cond
+   [(and (= (mpfr-sign (ival-hi-val x)) -1) (not (bfzero? (ival-hi-val x))))
+    (ival-pow-neg x y)]
+   [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-lo-val x)))
+    (ival-pow-pos x y)]
+   [else
+    (define-values (neg pos) (split-ival x 0.bf))
     (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
