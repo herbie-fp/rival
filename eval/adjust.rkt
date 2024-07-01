@@ -265,8 +265,8 @@
      (define y (second srcs))
      
      (define slack (if (crosses-zero? y)
-                       0                
-                       (get-slack)))                  ; y crosses zero
+                       (get-slack)                    ; y crosses zero     
+                       0))                  
      
      (list (- (maxlog x) (minlog z))                  ; exponent per x
            (+ (- (maxlog x) (minlog z)) slack))]      ; exponent per y
