@@ -7,7 +7,8 @@
   (define x.lo (ival-lo-val x))
   (cond
     [(>= (mpfr-exp (ival-lo-val x)) 1) 1]
-    [(< (mpfr-exp (ival-hi-val x)) 1) -1]
+    ; Infinity has a negative exponent but is a special case
+    [(and (< (mpfr-exp (ival-hi-val x)) 1) (not (bfinfinite? (ival-hi-val x)))) -1]
     [else 0]))
 
 (define (eppow a-endpoint b-endpoint a-class b-class)
