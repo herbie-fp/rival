@@ -59,6 +59,7 @@ function perf {
     clean
     xz -d -k -f infra/points.json.xz
     racket -y time.rkt --html "$REPORTDIR"/index.html --profile profile.json infra/points.json
+    cp profile.json "$REPORTDIR"/profile.json
     cp profile.js "$REPORTDIR"/profile.js
 }
 

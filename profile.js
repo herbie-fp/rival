@@ -1,11 +1,10 @@
 let style = `
 .loaded .load-text { display: none; }
-.load-text { text-align: center; font-size: 140%; color: #888; }
+.load-text { font-size: 140%; color: #888; }
 a { color: #2A6496; text-decoration: none; cursor: pointer }
 a:hover {text-decoration: underline; color: #295785}
 a.delete { color: currentColor; }
 a.delete:hover { color: #ed2b00; text-decoration: line-through; }
-#profile { border: 1px solid #ddd; }
 #profile input {
     width: 100%; padding: .5ex 1ex; box-sizing: border-box;
     border: none; border-bottom: 1px solid #ddd; font-size: 150%;
