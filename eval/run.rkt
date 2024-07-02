@@ -100,4 +100,4 @@
   (unless (zero? iter)
     (define start (current-inexact-milliseconds))
     (backward-pass machine)
-    (rival-machine-record machine 'adjust 0 (* iter 1000) (- (current-inexact-milliseconds) start))))
+    (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))
