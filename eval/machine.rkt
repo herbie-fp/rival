@@ -1,6 +1,5 @@
 #lang racket/base
 
-(require "../ops.rkt")
 (provide (struct-out discretization) (struct-out rival-machine)
          *rival-max-precision* *rival-max-iterations* *rival-profile-executions*
          *ampl-tuning-bits* *sampling-iteration* *base-tuning-precision*)
@@ -13,7 +12,7 @@
 
 (struct rival-machine
   (arguments instructions outputs discs
-   registers repeats precisions initial-precisions
+   registers repeats precisions initial-precisions output-distance
    [iteration #:mutable] [bumps #:mutable]
    [profile-ptr #:mutable]
    profile-instruction profile-number profile-time profile-precision))

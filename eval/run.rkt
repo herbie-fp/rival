@@ -1,7 +1,7 @@
 #lang racket/base
 
-(require (only-in math/private/bigfloat/mpfr bf-precision) racket/match racket/function)
-(require "machine.rkt" "adjust.rkt")
+(require racket/match racket/function racket/flonum)
+(require "machine.rkt" "adjust.rkt" "../mpfr.rkt" "../ops/all.rkt")
 (provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust)
 
 (define (rival-machine-load machine args)
@@ -18,7 +18,7 @@
     (vector-set! profile-instruction profile-ptr name)
     (vector-set! profile-number profile-ptr number)
     (vector-set! profile-precision profile-ptr precision)
-    (vector-set! profile-time profile-ptr time)
+    (flvector-set! profile-time profile-ptr time)
     (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
 
 (define (rival-machine-run machine)
@@ -70,14 +70,34 @@
   (define discs (rival-machine-discs machine))
   (define vregs (rival-machine-registers machine))
   (define rootvec (rival-machine-outputs machine))
+  (define slackvec (rival-machine-output-distance machine))
   #;(set-rival-machine-iteration! machine (add1 (rival-machine-iteration machine)))
-  (for/vector #:length (vector-length rootvec)
-              ([root (in-vector rootvec)] [disc (in-vector discs)])
-    (vector-ref vregs root)))
+  (define ovec (make-vector (vector-length rootvec)))
+  (define good? #t)
+  (define done? #t)
+  (define bad? #f)
+  (define stuck? #f)
+  (define fvec
+    (for/vector #:length (vector-length rootvec)
+                ([root (in-vector rootvec)] [disc (in-vector discs)] [n (in-naturals)])
+      (define out (vector-ref vregs root))
+      (define lo ((discretization-convert disc) (ival-lo out)))
+      (define hi ((discretization-convert disc) (ival-hi out)))
+      (define distance ((discretization-distance disc) lo hi))
+      (unless (= distance 0)
+        (set! done? #f)
+        (when (and (ival-lo-fixed? out) (ival-hi-fixed? out))
+          (set! stuck? #t)))
+      (cond
+        [(ival-err out) (set! bad? #t)]
+        [(ival-err? out) (set! good? #f)])
+      (vector-set! slackvec n (= distance 1))
+      lo))
+  (values good? done? bad? stuck? fvec))
 
 (define (rival-machine-adjust machine)
   (define iter (rival-machine-iteration machine))
   (unless (zero? iter)
     (define start (current-inexact-milliseconds))
     (backward-pass machine)
-    (rival-machine-record machine 'adjust 0 (* iter 1000) (- (current-inexact-milliseconds) start))))
+    (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))

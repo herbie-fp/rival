@@ -1,8 +1,50 @@
 #lang racket
 
-(require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?))
-(require "../ops.rkt" "machine.rkt")
-(provide rival-compile)
+(require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?) racket/flonum)
+(require "../ops/all.rkt" "machine.rkt")
+(provide rival-compile *rival-use-shorthands*)
+
+(define *rival-use-shorthands* (make-parameter #t))
+
+(define (optimize expr)
+  (match (and (*rival-use-shorthands*) expr)
+    [`(fma ,x ,y ,z)
+     `(+ (* ,x ,y) ,z)]
+    [`(- (exp ,x) 1)
+     `(expm1 ,x)]
+    [`(- 1 (exp ,x))
+     `(neg (expm1 ,x))]
+    [`(log (+ 1 ,x))
+     `(log1p ,x)]
+    [`(log (+ ,x 1))
+     `(log1p ,x)]
+    [`(- ,x)
+     `(neg ,x)]
+    [`(sqrt (+ (* ,x ,x) (* ,y ,y)))
+     `(hypot ,x ,y)]
+    [`(sqrt (+ (* ,x ,x) 1))
+     `(hypot ,x 1)]
+    [`(sqrt (+ 1 (* ,x ,x)))
+     `(hypot 1 ,x)]
+    [`(pow ,arg 2)
+     `(pow2 ,arg)]
+    [`(pow ,arg 1/3)
+     `(cbrt ,arg)]
+    [`(pow ,arg 1/2)
+     `(sqrt ,arg)]
+    [`(pow (fabs ,x) ,y)
+     `(pow (fabs ,x) ,y)]
+    [`(pow ,x ,(? rational? y))
+     (cond
+       [(integer? y)
+        `(pow ,x ,y)] ; Not optimal but probably fine
+       [(and (even? (numerator y)) (odd? (denominator y)))
+        `(pow (fabs ,x) ,y)]
+       [(and (odd? (numerator y)) (odd? (denominator y)))
+        `(copysign (pow (fabs ,x) ,y) ,x)]
+       [else
+        `(pow ,x ,y)])]
+    [_ expr]))
 
 (define (exprs->batch exprs vars)
   (define icache (reverse vars))
@@ -17,11 +59,9 @@
   ; Translates programs into an instruction sequence of operations
   (define (munge prog)
     (define node ; This compiles to the register machine
-      (match prog
-        [(list op args ...)
-         (cons op (map munge args))]
-        [_
-         prog]))
+      (match (optimize prog)
+        [(list op args ...) (cons op (map munge args))]
+        [_ prog]))
     (hash-ref! exprhash node
                (lambda ()
                  (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
@@ -127,7 +167,7 @@
         [(list 'pow x y)   (list ival-pow x y)]
         [(list 'remainder x y) (list ival-remainder x y)]
 
-        [(list 'fma x y z) (list ival-fma x y z)]
+        [(list 'pow2 x) (list ival-pow2 x)]
 
         [(list '== x y) (list ival-== x y)]
         [(list '!= x y) (list ival-!= x y)]
@@ -157,11 +197,11 @@
 
   (rival-machine
    (list->vector vars) instructions roots (list->vector discs)
-   registers repeats precisions initial-precisions
+   registers repeats precisions initial-precisions (make-vector (vector-length roots))
    0 0 0
    (make-vector (*rival-profile-executions*))
    (make-vector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))
+   (make-flvector (*rival-profile-executions*))
    (make-vector (*rival-profile-executions*))))
 
 ; Function sets up vstart-precs vector, where all the precisions
