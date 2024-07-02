@@ -93,7 +93,7 @@
         [(ival-err? out) (set! good? #f)])
       (vector-set! slackvec n (= distance 1))
       lo))
-  (values good? done? bad? stuck? fvec))
+  (values good? (and good? done?) bad? stuck? fvec))
 
 (define (rival-machine-adjust machine)
   (define iter (rival-machine-iteration machine))
