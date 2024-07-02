@@ -16,9 +16,13 @@
 (define (rival-machine-full machine inputs)
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine)
-  (rival-machine-load machine inputs)
-  (rival-machine-run machine)
-  (rival-machine-return machine))
+  (cond
+    [(>= (*sampling-iteration*) (*rival-max-iterations*))
+     (values #f #f #f #t #f)]
+    [else
+     (rival-machine-load machine inputs)
+     (rival-machine-run machine)
+     (rival-machine-return machine)]))
 
 (struct exn:rival exn:fail ())
 (struct exn:rival:invalid exn:rival (pt))
