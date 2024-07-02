@@ -31,17 +31,62 @@
   (values out exact?))
 ;; End hairy code
 
+(define mpfr-remainder (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define (bfremainder x mod)
+  (define out (bf 0))
+  (mpfr-remainder out x mod (bf-rounding-mode))
+  out)
+
+(define mpfr-fmod (get-mpfr-fun 'mpfr_fmod (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define (bffmod x mod)
+  (define out (bf 0))
+  (mpfr-fmod out x mod (bf-rounding-mode))
+  out)
+
+(define mpfr-log2p1 (get-mpfr-fun 'mpfr_log2p1 (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define (bflog2p1 x)
+  (define out (bf 0))
+  (mpfr-log2p1 out x (bf-rounding-mode))
+  out)
+
+(define (bflogb x)
+  (bffloor (bflog2 (bfabs x))))
+
+(define (bfcopysign x y)
+  (if (bfnan? y)
+      +nan.bf
+      (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf))))
+
+(define (bffdim x y)
+  (if (bfgt? x y) (bfsub x y) 0.bf))
+
+(define (and-fn . as)
+  (andmap values as))
+(define (or-fn . as)
+  (ormap values as))
+
+(define (if-fn c x y)
+  (if c x y))
+
+(define (bffma a b c)
+  ;; `bfstep` truncates to `(bf-precision)` bits
+  (bfcopy (bfadd c (parameterize ([bf-precision (* (bf-precision) 2)]) (bfmul a b)))))
+
 (provide
- bf bigfloat? mpfr-sign bigfloat-exponent bigfloat-precision bf-precision mpfr-exp
+ bf bigfloat? mpfr-sign bigfloat-exponent bigfloat-precision bf-precision mpfr-exp bf-rounding-mode
  bfpositive? bfinteger? bfzero? bfnan? bfinfinite? bfeven? bfodd? 
  bfcopy bfstep bigfloats-between bfprev bfnext 
  bf=? bflte? bfgte? bflt? bfgt? bfgte? 
  pi.bf bfmin2 bfmax2
- bfabs bfadd bfsub bfneg bfmul bfdiv
+ bfabs bfadd bfsub bfneg bfmul bfdiv bfremainder
  bfrint bfround bfceiling bffloor bftruncate
  bfexp bflog bfexp2 bfexpm1 bflog2 bflog1p bflog10 bfexpt 
  bfsqrt bfcbrt bfhypot 
  bfsin bfcos bftan bfsinh bfcosh bftanh
  bfasin bfacos bfatan bfatan2 bfasinh bfacosh bfatanh
- bflog-gamma bferf bferfc)
+ bflog-gamma bfgamma bferf bferfc
+ bfremainder bffmod bflogb bfcopysign bffdim and-fn or-fn if-fn bffma)
 

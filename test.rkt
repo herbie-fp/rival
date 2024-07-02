@@ -1,8 +1,8 @@
 #lang racket
 
-(require racket/math math/base math/flonum (rename-in math/bigfloat [bfremainder bffmod]))
+(require racket/math math/base math/flonum (only-in math/bigfloat bf> bf< bf= bf>= bf<= bf- bf+ bf* bf/ bfmin bfmax bfshift bigfloat->flonum))
 (require rackunit)
-(require "main.rkt")
+(require "main.rkt" "mpfr.rkt")
 (provide ival-valid? function-table sample-interval slow-tests sample-from)
 
 (define (ival-valid? ival)
@@ -12,7 +12,7 @@
           (or (not (ival-lo ival)) (ival-hi ival))
           (and (bf<= (ival-lo ival) (ival-hi ival))
                (not (and (bfinfinite? (ival-hi ival)) (bf= (ival-hi ival) (ival-lo ival))))
-               (<= (bigfloat-signbit (ival-hi ival)) (bigfloat-signbit (ival-lo ival)))))))
+               (<= (mpfr-sign (ival-lo ival)) (mpfr-sign (ival-hi ival)))))))
 
 (define (ival-contains? ival pt)
   (if (bigfloat? pt)
@@ -68,39 +68,6 @@
    (if (ival-err? fine) (ival-err? coarse) #t)
    (if (ival-err coarse) (ival-err fine) #t)))
 
-(define (bflogb x)
-  (bffloor (bflog2 (bfabs x))))
-
-(define (bfcopysign x y)
-  (if (bfnan? y)
-      +nan.bf
-      (bf* (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf))))
-
-(define (bffdim x y)
-  (if (bf> x y) (bf- x y) 0.bf))
-
-(define (and-fn . as)
-  (andmap identity as))
-(define (or-fn . as)
-  (ormap identity as))
-
-(define (if-fn c x y)
-  (if c x y))
-
-(define (bffma a b c)
-  ;; `bfstep` truncates to `(bf-precision)` bits
-  (bfstep (bf+ c (parameterize ([bf-precision (* (bf-precision) 2)]) (bf* a b))) 0))
-
-(module hairy racket/base
-  (require ffi/unsafe math/private/bigfloat/mpfr)
-  (provide bfremainder)
-  (define mpfr_remainder (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
-  (define (bfremainder x mod)
-    (define out (bf 3))
-    (mpfr_remainder out x mod (bf-rounding-mode))
-    out))
-(require (submod "." hairy))
-
 (define (bfatan2-no0 y x)
   (if (and (bfzero? y) (bfzero? x))
       +nan.bf
@@ -114,10 +81,10 @@
 (define function-table
   (list (list ival-neg   bf-        '(real) 'real)
         (list ival-fabs  bfabs      '(real) 'real)
-        (list ival-add   bf+      '(real real) 'real)
-        (list ival-sub   bf-      '(real real) 'real)
-        (list ival-mult  bf*      '(real real) 'real)
-        (list ival-div   bf/      '(real real) 'real)
+        (list ival-add   bf+        '(real real) 'real)
+        (list ival-sub   bf-        '(real real) 'real)
+        (list ival-mult  bf*        '(real real) 'real)
+        (list ival-div   bf/        '(real real) 'real)
         (list ival-fma   bffma      '(real real real) 'real)
         (list ival-sqrt  bfsqrt     '(real) 'real)
         (list ival-hypot bfhypot    '(real real) 'real)
@@ -157,17 +124,17 @@
         (list ival-fmod  bffmod     '(real real) 'real)
         (list ival-remainder bfremainder '(real real) 'real)
 
-        (list ival-fmin  bfmin     '(real real) 'real)
-        (list ival-fmax  bfmax     '(real real) 'real)
+        (list ival-fmin  bfmin      '(real real) 'real)
+        (list ival-fmax  bfmax      '(real real) 'real)
         (list ival-copysign bfcopysign '(real real) 'real)
         (list ival-fdim  bffdim     '(real real) 'real)
 
-        (list ival-<     bf<      '(real real) 'bool)
-        (list ival-<=    bf<=     '(real real) 'bool)
-        (list ival->     bf>      '(real real) 'bool)
-        (list ival->=    bf>=     '(real real) 'bool)
-        (list ival-==    bf=       '(real real) 'bool)
-        (list ival-!= (compose not bf=) '(real real) 'bool)
+        (list ival-<     bf<        '(real real) 'bool)
+        (list ival-<=    bf<=       '(real real) 'bool)
+        (list ival->     bf>        '(real real) 'bool)
+        (list ival->=    bf>=       '(real real) 'bool)
+        (list ival-==    bf=        '(real real) 'bool)
+        (list ival-!=  (negate bf=) '(real real) 'bool)
 
         (list ival-and   and-fn     '(bool bool bool) 'bool)
         (list ival-or    or-fn      '(bool bool bool) 'bool)
@@ -193,10 +160,10 @@
        [3 (bf 0.0)]
        [4 (bf 1)]
        [5 (bf +inf.0)]
-       [6 (parameterize ([bf-rounding-mode 'down]) pi.bf)]
-       [7 (parameterize ([bf-rounding-mode 'up]) pi.bf)]
-       [8 (parameterize ([bf-rounding-mode 'down]) (bf- pi.bf))]
-       [9 (parameterize ([bf-rounding-mode 'up]) (bf- pi.bf))])]
+       [6 (parameterize ([bf-rounding-mode 'down]) (pi.bf))]
+       [7 (parameterize ([bf-rounding-mode 'up]) (pi.bf))]
+       [8 (parameterize ([bf-rounding-mode 'down]) (bf- (pi.bf)))]
+       [9 (parameterize ([bf-rounding-mode 'up]) (bf- (pi.bf)))])]
     [else
      (define exponent (random -1023 1023)) ; Pretend-double
      (define significand (bf (random-bits (bf-precision)) (- (bf-precision))))
@@ -287,10 +254,10 @@
                (parameterize ([bf-precision in-prec])
                  (sample-from i))))
     (set! y (parameterize ([bf-precision out-prec]) (apply fn xs)))
-    (with-check-info (['intervals is] ['points xs] ['in-precs in-precs] ['out-prec out-prec])
+    (with-check-info (['intervals is] ['points xs] ['precs (list out-prec in-precs)])
       (check ival-contains? iy y)))
 
-  (with-check-info (['intervals is] ['points xs] ['iy iy] ['y y])
+  (with-check-info (['intervals is] ['points xs] ['iy iy] ['y y] ['precs (list out-prec in-precs)])
     (for ([k (in-naturals)] [i is] [x xs])
       (define-values (ilo ihi) (ival-split i x))
       (when (and ilo ihi)
@@ -309,7 +276,7 @@
 (define (run-tests)
   (check ival-contains? (ival-bool #f) #f)
   (check ival-contains? (ival-bool #t) #t)
-  (check ival-contains? (ival-pi) pi.bf)
+  (check ival-contains? (ival-pi) (pi.bf))
   (check ival-contains? (ival-e) (bfexp 1.bf))
   (test-case "mk-ival"
     (for ([i (in-range num-tests)])

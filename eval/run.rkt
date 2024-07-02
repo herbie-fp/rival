@@ -93,11 +93,11 @@
         [(ival-err? out) (set! good? #f)])
       (vector-set! slackvec n (= distance 1))
       lo))
-  (values good? done? bad? stuck? fvec))
+  (values good? (and good? done?) bad? stuck? fvec))
 
 (define (rival-machine-adjust machine)
   (define iter (rival-machine-iteration machine))
   (unless (zero? iter)
     (define start (current-inexact-milliseconds))
     (backward-pass machine)
-    (rival-machine-record machine 'adjust 0 (* iter 1000) (- (current-inexact-milliseconds) start))))
+    (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))
