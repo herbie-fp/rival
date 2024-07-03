@@ -16,9 +16,16 @@
 (define (rival-machine-full machine inputs)
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine)
-  (rival-machine-load machine inputs)
-  (rival-machine-run machine)
-  (rival-machine-return machine))
+  (cond
+    [(>= (*sampling-iteration*) (*rival-max-iterations*))
+     (rival-machine-load machine inputs)
+     (rival-machine-run machine)
+     (define-values (good? done? bad? stuck? fvec) (rival-machine-return machine))
+     (values good? done? bad? #t fvec)]
+    [else
+     (rival-machine-load machine inputs)
+     (rival-machine-run machine)
+     (rival-machine-return machine)]))
 
 (struct exn:rival exn:fail ())
 (struct exn:rival:invalid exn:rival (pt))
@@ -64,7 +71,7 @@
        fvec]
       [stuck?
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [(>= (*sampling-iteration*) (*rival-max-iterations*))
+      [(>= iter (*rival-max-iterations*))
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else
        (loop (+ 1 iter))])))
