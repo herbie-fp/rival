@@ -18,7 +18,10 @@
   (rival-machine-adjust machine)
   (cond
     [(>= (*sampling-iteration*) (*rival-max-iterations*))
-     (values #f #f #f #t #f)]
+     (rival-machine-load machine inputs)
+     (rival-machine-run machine)
+     (define-values (good? done? bad? stuck? fvec) (rival-machine-return machine))
+     (values good? done? bad? #t fvec)]
     [else
      (rival-machine-load machine inputs)
      (rival-machine-run machine)
