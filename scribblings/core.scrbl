@@ -1,6 +1,6 @@
 #lang scribble/manual
 
-@(require (for-label "main.rkt" racket/base math/bigfloat))
+@(require (for-label "../main.rkt" racket/base math/bigfloat))
 @(require scribble/example racket/sandbox racket/pretty)
 @(define example-eval
    (parameterize ([sandbox-output 'string]

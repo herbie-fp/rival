@@ -96,7 +96,7 @@
          (struct-out discretization)
          (struct-out exn:rival) (struct-out exn:rival:invalid) (struct-out exn:rival:unsamplable)
          *rival-max-precision* *rival-max-iterations* *rival-profile-executions*
-         *rival-use-shorthands*
+         *rival-use-shorthands* *rival-name-constants*
          (struct-out execution)
          (contract-out
           [rival-profile (-> rival-machine? symbol? any/c)]))
@@ -105,5 +105,10 @@
 (provide flonum-discretization boolean-discretization bf-discretization)
 
 (module+ main
-  (require "eval/repl.rkt")
-  (rival-repl))
+  (require "repl.rkt" racket/cmdline)
+  (command-line
+   #:program "racket -l rival"
+   #:args ([file #f])
+   (if file
+       (call-with-input-file file rival-repl)
+       (rival-repl (current-input-port)))))
