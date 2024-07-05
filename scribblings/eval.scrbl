@@ -96,6 +96,7 @@ floating-point:
 @deftogether[(
   @defthing[flonum-discretization discretization?]
   @defthing[bool-discretization discretization?]
+  @defproc[(bf-discretization [precision natural? (bf-precision)]) discretization?]
 )]{
 Use @racket[flonum-discretization] to evaluate expressions
 to double precision and @racket[bool-discretization] to evaluate
