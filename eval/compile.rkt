@@ -9,6 +9,14 @@
 
 (define (optimize expr)
   (match (and (*rival-use-shorthands*) expr)
+
+    ; Syntax quirks
+    [`PI '(PI)]
+    [`E '(E)]
+    [`(- ,x)
+     `(neg ,x)]
+
+    ; Special numeric functions
     [`(fma ,x ,y ,z)
      `(+ (* ,x ,y) ,z)]
     [`(- (exp ,x) 1)
@@ -19,20 +27,30 @@
      `(log1p ,x)]
     [`(log (+ ,x 1))
      `(log1p ,x)]
-    [`(- ,x)
-     `(neg ,x)]
     [`(sqrt (+ (* ,x ,x) (* ,y ,y)))
      `(hypot ,x ,y)]
     [`(sqrt (+ (* ,x ,x) 1))
      `(hypot ,x 1)]
     [`(sqrt (+ 1 (* ,x ,x)))
      `(hypot 1 ,x)]
+
+    ; Special case powers
     [`(pow ,arg 2)
      `(pow2 ,arg)]
     [`(pow ,arg 1/3)
      `(cbrt ,arg)]
     [`(pow ,arg 1/2)
      `(sqrt ,arg)]
+
+    ; Special trigonometric functions
+    [`(cos (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
+     `((cosu ,(* 2 n)) ,x)]
+    [`(cos (* ,x ,(or 'PI '(PI))))
+     `((cosu 2) ,x)]
+    [`(cos (* ,x (* 2 ,(or 'PI '(PI)))))
+     `((cosu 1) ,x)]
+
+    ; Handle pow(x, 1/5) and similar
     [`(pow (fabs ,x) ,y)
      `(pow (fabs ,x) ,y)]
     [`(pow ,x ,(? rational? y))
@@ -176,6 +194,8 @@
         [(list 'remainder x y) (list ival-remainder x y)]
 
         [(list 'pow2 x) (list ival-pow2 x)]
+
+        [(list `(cosu ,n) x) (list (ival-cosu n) x)]
 
         [(list '== x y) (list ival-== x y)]
         [(list '!= x y) (list ival-!= x y)]

@@ -1,7 +1,7 @@
 #lang racket
 
 (require "core.rkt" "../mpfr.rkt")
-(provide ival-sin ival-cos ival-tan)
+(provide ival-sin ival-cos ival-tan ival-cosu)
 
 (define *rival-precision* (make-parameter (expt 2 20)))
 
@@ -24,6 +24,39 @@
             (max
              (+ (bigfloat-exponent xlo) (bigfloat-precision xlo) (bigfloat-precision xlo))
              (+ (bigfloat-exponent xhi) (bigfloat-precision xhi) (bigfloat-precision xhi))))))
+
+(define (ival-cosu n)
+  (define (ival-cosu x)
+    (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+    (match (classify-ival-periodic x n)
+      ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
+      ['near-0
+       (match (classify-ival x)
+         [-1 ((monotonic->ival (curry bfcosu n)) x)]
+         [ 1 ((comonotonic->ival (curry bfcosu n)) x)]
+         [else
+          (ival (rnd 'down epfn bfmin2 (epfn (curry bfcosu n) (ival-lo x))
+                     (epfn (curry bfcosu n) (ival-hi x)))
+                (endpoint 1.bf #f) (ival-err? x) (ival-err x))])]
+      ['range-reduce
+       (match-define (ival (endpoint a _) (endpoint b _) _ _)
+         (parameterize ([bf-precision (range-reduce-precision xlo xhi)])
+           (ival-floor (ival-div x (mk-ival (bf (/ n 2)))))))
+       (cond
+         [(and (bf=? a b) (bfeven? a))
+          ((comonotonic->ival (curry bfcosu n)) x)]
+         [(and (bf=? a b) (bfodd? a))
+          ((monotonic->ival (curry bfcosu n)) x)]
+         [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+          (ival (endpoint -1.bf #f)
+                (rnd 'up epfn bfmax2 (epfn (curry bfcosu n) (ival-lo x)) (epfn (curry bfcosu n) (ival-hi x)))
+                (ival-err? x) (ival-err x))]
+         [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+          (ival (rnd 'down epfn bfmin2 (epfn (curry bfcosu n) (ival-lo x)) (epfn (curry bfcosu n) (ival-hi x)))
+                (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
+         [else
+          (ival-then x (mk-big-ival -1.bf 1.bf))])]))
+  ival-cosu)
 
 (define (ival-cos x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)

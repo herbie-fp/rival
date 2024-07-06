@@ -52,6 +52,25 @@
   (mpfr-log2p1 out x (bf-rounding-mode))
   out)
 
+(define mpfr-cosu (get-mpfr-fun 'mpfr_cosu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int)))
+(define mpfr-sinu (get-mpfr-fun 'mpfr_sinu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int)))
+(define mpfr-tanu (get-mpfr-fun 'mpfr_tanu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int)))
+
+(define (bfcosu n x)
+  (define out (bf 0))
+  (mpfr-cosu out x n (bf-rounding-mode))
+  out)
+
+(define (bfsinu n x)
+  (define out (bf 0))
+  (mpfr-sinu out x n (bf-rounding-mode))
+  out)
+
+(define (bftanu n x)
+  (define out (bf 0))
+  (mpfr-tanu out x n (bf-rounding-mode))
+  out)
+
 (define (bflogb x)
   (bffloor (bflog2 (bfabs x))))
 
@@ -85,7 +104,7 @@
  bfrint bfround bfceiling bffloor bftruncate
  bfexp bflog bfexp2 bfexpm1 bflog2 bflog1p bflog10 bfexpt 
  bfsqrt bfcbrt bfhypot 
- bfsin bfcos bftan bfsinh bfcosh bftanh
+ bfsin bfcos bftan bfsinh bfcosh bftanh bfcosu bfsinu bftanu
  bfasin bfacos bfatan bfatan2 bfasinh bfacosh bfatanh
  bflog-gamma bfgamma bferf bferfc
  bfremainder bffmod bflogb bfcopysign bffdim and-fn or-fn if-fn bffma)
