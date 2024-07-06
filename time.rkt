@@ -148,7 +148,7 @@
     (fprintf port "<thead><tr>")
     (for ([col (in-list cols)])
       (define name (match col [(list name _) name] [name name]))
-      (fprintf port "<th>~a</th>" col))
+      (fprintf port "<th>~a</th>" name))
     (fprintf port "</tr></thead><tbody>")))
 
 (define (html-write-row port row)

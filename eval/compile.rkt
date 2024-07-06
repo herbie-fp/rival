@@ -2,9 +2,10 @@
 
 (require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?) racket/flonum)
 (require "../ops/all.rkt" "machine.rkt")
-(provide rival-compile *rival-use-shorthands*)
+(provide rival-compile *rival-use-shorthands* *rival-name-constants*)
 
 (define *rival-use-shorthands* (make-parameter #t))
+(define *rival-name-constants* (make-parameter #f))
 
 (define (optimize expr)
   (match (and (*rival-use-shorthands*) expr)
@@ -95,6 +96,14 @@
 (define (ival-point? x)
   (bf=? (ival-lo x) (ival-hi x)))
 
+(define (ival-const x)
+  (procedure-rename (const (real->ival x))
+                    (if (*rival-name-constants*) (string->symbol (number->string x)) 'exact)))
+
+(define (ival-rational x)
+  (procedure-rename (lambda () (real->ival x))
+                    (if (*rival-name-constants*) (string->symbol (number->string x)) 'const)))
+
 (define (rival-compile exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots)
@@ -105,10 +114,9 @@
                 ([node (in-vector nodes num-vars)])
       (match node
         [(? number?)
-         (define x (real->ival node))
-         (if (ival-point? x)
-             (list (lambda () x))
-             (list (lambda () (real->ival node))))]
+         (if (ival-point? (real->ival node))
+             (list (ival-const node))
+             (list (ival-rational node)))]
 
         [(list 'PI)     (list ival-pi)]
         [(list 'E)      (list ival-e)]

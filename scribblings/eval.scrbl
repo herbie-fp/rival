@@ -90,8 +90,21 @@ Note that (the absolute value of) @racket[flonums-between?] already
 returns values that fit these requirements.
 }
 
-Once you have defined an appropriate discretization, you can compile
-your real expression using @racket[rival-compile].
+The typical use case is evaluating an expression to double-precision
+floating-point:
+
+@deftogether[(
+  @defthing[flonum-discretization discretization?]
+  @defthing[bool-discretization discretization?]
+  @defproc[(bf-discretization [precision natural? (bf-precision)]) discretization?]
+)]{
+Use @racket[flonum-discretization] to evaluate expressions
+to double precision and @racket[bool-discretization] to evaluate
+boolean expressions.
+}
+
+Once you have the appropriate discretization, you can compile your
+real expression using @racket[rival-compile].
 
 @defproc[
   (rival-compile
