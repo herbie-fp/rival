@@ -219,7 +219,7 @@
   (define ivec-len (vector-length ivec))
   (define vstart-precs (make-vector ivec-len 0))
 
-  (for ([root (in-vector roots)] [disc (in-list discs)])
+  (for ([root (in-vector roots)] [disc (in-list discs)] #:when (>= root varc))
     (vector-set! vstart-precs (- root varc)
                  (+ (discretization-target disc) (*base-tuning-precision*))))
 
