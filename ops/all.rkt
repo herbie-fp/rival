@@ -9,7 +9,7 @@
  ival-add ival-sub ival-neg ival-mult ival-div ival-fma       
  ival-fabs ival-sqrt ival-cbrt ival-hypot ival-exp ival-exp2 ival-expm1
  ival-log ival-log2 ival-log10 ival-log1p ival-logb ival-pow ival-pow2
- ival-cos ival-sin ival-tan ival-cosu
+ ival-cos ival-sin ival-tan ival-cosu ival-sinu ival-tanu
  ival-asin ival-acos ival-atan ival-atan2 ival-sinh ival-cosh ival-tanh
  ival-asinh ival-acosh ival-atanh ival-erf ival-erfc ival-lgamma ival-tgamma    
  ival-fmod ival-remainder ival-rint ival-round ival-ceil ival-floor ival-trunc     

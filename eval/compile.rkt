@@ -43,12 +43,42 @@
      `(sqrt ,arg)]
 
     ; Special trigonometric functions
+    [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
+     `((cosu ,(* 2 n)) ,x)]
     [`(cos (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
      `((cosu ,(* 2 n)) ,x)]
+    [`(cos (* ,(or 'PI '(PI)) ,x))
+     `((cosu 2) ,x)]
     [`(cos (* ,x ,(or 'PI '(PI))))
      `((cosu 2) ,x)]
+    [`(cos (* (* 2 ,(or 'PI '(PI))) ,x))
+     `((cosu 1) ,x)]
     [`(cos (* ,x (* 2 ,(or 'PI '(PI)))))
      `((cosu 1) ,x)]
+    [`(sin (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
+     `((sinu ,(* 2 n)) ,x)]
+    [`(sin (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
+     `((sinu ,(* 2 n)) ,x)]
+    [`(sin (* ,(or 'PI '(PI)) ,x))
+     `((sinu 2) ,x)]
+    [`(sin (* ,x ,(or 'PI '(PI))))
+     `((sinu 2) ,x)]
+    [`(sin (* (* 2 ,(or 'PI '(PI))) ,x))
+     `((sinu 1) ,x)]
+    [`(sin (* ,x (* 2 ,(or 'PI '(PI)))))
+     `((sinu 1) ,x)]
+    [`(tan (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
+     `((tanu ,(* 2 n)) ,x)]
+    [`(tan (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
+     `((tanu ,(* 2 n)) ,x)]
+    [`(tan (* ,(or 'PI '(PI)) ,x))
+     `((tanu 2) ,x)]
+    [`(tan (* ,x ,(or 'PI '(PI))))
+     `((tanu 2) ,x)]
+    [`(tan (* (* 2 ,(or 'PI '(PI))) ,x))
+     `((tanu 1) ,x)]
+    [`(tan (* ,x (* 2 ,(or 'PI '(PI)))))
+     `((tanu 1) ,x)]
 
     ; Handle pow(x, 1/5) and similar
     [`(pow (fabs ,x) ,y)
@@ -196,6 +226,8 @@
         [(list 'pow2 x) (list ival-pow2 x)]
 
         [(list `(cosu ,n) x) (list (ival-cosu n) x)]
+        [(list `(sinu ,n) x) (list (ival-sinu n) x)]
+        [(list `(tanu ,n) x) (list (ival-tanu n) x)]
 
         [(list '== x y) (list ival-== x y)]
         [(list '!= x y) (list ival-!= x y)]
