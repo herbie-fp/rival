@@ -56,7 +56,7 @@
                 (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
          [else
           (ival-then x (mk-big-ival -1.bf 1.bf))])]))
-  ival-cosu)
+  (if bfcosu ival-cosu #f))
 
 (define (ival-cos x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
@@ -116,7 +116,7 @@
                 (ival-err x))]
          [else
           (ival-then x (mk-big-ival -1.bf 1.bf))])]))
-  ival-sinu)
+  (if bfsinu ival-sinu #f))
 
 (define (ival-sin x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
@@ -163,7 +163,7 @@
            ((monotonic->ival (curry bftanu n)) x)
            (ival (endpoint -inf.bf (and xlo! xhi!)) (endpoint +inf.bf (and xlo! xhi!))
                  #t xerr))]))
-  ival-tanu)
+  (if bftanu ival-tanu #f))
 
 (define (ival-tan x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)

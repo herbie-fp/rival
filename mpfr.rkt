@@ -71,6 +71,10 @@
   (mpfr-tanu out x n (bf-rounding-mode))
   out)
 
+(unless mpfr-cosu (set! bfcosu #f))
+(unless mpfr-sinu (set! bfsinu #f))
+(unless mpfr-tanu (set! bftanu #f))
+
 (define (bflogb x)
   (bffloor (bflog2 (bfabs x))))
 
