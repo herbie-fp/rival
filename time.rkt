@@ -237,7 +237,7 @@
    #:args ([points "infra/points.json"])
    (match-define (list op-t ex-t ex-f)
      (if profile-port
-         (profile #:order 'total #:delay 0.001 #:render profile-json-renderer
+         (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
           (run n (open-input-file points)))
          (run n (open-input-file points))))
    (when html-port

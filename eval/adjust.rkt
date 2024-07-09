@@ -72,7 +72,8 @@
           [n (in-range (vector-length vprecs))])
       (define prec* (min (*rival-max-precision*) (+ prec slack)))
       (when (equal? prec* (*rival-max-precision*)) (*sampling-iteration* (*rival-max-iterations*)))
-      (vector-set! vprecs n prec*))))
+      (vector-set! vprecs n prec*))
+    (vector-fill! vrepeats #f)))
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking:
