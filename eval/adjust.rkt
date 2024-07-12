@@ -27,8 +27,23 @@
         #:when (>= root-reg varc) #:when out-dr?)
     (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
+  ; Step 1b. Checking if a operation should be computed again at all
+  (define vuseful (make-vector (vector-length ivec) #f))
+  (for ([root (in-vector rootvec)])
+    (vector-set! vuseful (- root varc) #t))
+  (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
+        [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
+        [i (in-range (- (vector-length ivec) 1) -1 -1)]
+        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)])
+    (cond
+     [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg))
+      (vector-set! vuseful i #f)]
+     [useful?
+      (for ([arg (in-list (cdr instr))] #:when (>= arg varc))
+        (vector-set! vuseful (- arg varc) #t))]))
+
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful)
 
   ; Step 3. Repeating precisions check
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -37,6 +52,7 @@
   (for ([instr (in-vector ivec)]
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
         [prec-new (in-vector vprecs-new)]
+        [result-old (in-vector vregs varc)]
         [n (in-naturals)])
     (define repeat
       (and (<= prec-new prec-old)
@@ -63,9 +79,11 @@
 ; Roughly speaking:
 ;   vprecs-new[i] = min( *rival-max-precision* max( *base-tuning-precision* (+ intro vstart-precs[i])),
 ;   intro = get-ampls(parent)
-(define (precision-tuning ivec vregs vprecs-new varc vstart-precs)
+(define (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
-        [n (in-range (- (vector-length vregs) 1) -1 -1)])           ; reversed over indices of vregs
+        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
+        [n (in-range (- (vector-length vregs) 1) -1 -1)]
+        #:when useful?)           ; reversed over indices of vregs
 
     (define op (car instr))                                         ; current operation
     (define tail-registers (cdr instr))
