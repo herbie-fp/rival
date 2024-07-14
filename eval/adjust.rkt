@@ -29,7 +29,7 @@
 
   ; Step 1b. Checking if a operation should be computed again at all
   (define vuseful (make-vector (vector-length ivec) #f))
-  (for ([root (in-vector rootvec)])
+  (for ([root (in-vector rootvec)] #:when (>= root varc))
     (vector-set! vuseful (- root varc) #t))
   (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
         [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
