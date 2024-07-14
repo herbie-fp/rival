@@ -73,21 +73,28 @@ To define the floating-point format that Rival is supposed to compute
 the output in, you provide a "discretization".
 
 @defstruct*[discretization
-  ([convert (-> (or/c bigfloat? boolean?) T)]
+  ([target integer?]
+   [convert (-> (or/c bigfloat? boolean?) T)]
    [distance (-> T T integer?)])]{
-A discretization represents some subset of the real numbers.
-The @racket[convert] function converts a bigfloat value to
-some type (for example, @racket[flonum?]), while the @racket[distance]
-function determines how close two estimates of a value are.
-
+A discretization represents some subset of the real numbers
+  (for example, @racket[flonum?]).
+The @racket[target] describes
+  the @racket[bf-precision] needed
+  to exactly represent a value in the subset,
+  the @racket[convert] function converts
+  a bigfloat value to a value in the subset,
+  and the @racket[distance]
+  function determines how close two values in the subset are.
 A distance of @racket[0] indicates that the two values are equal.
-A distance of @racket[2] or greater indicates that the two values
-are far apart. A value of exactly @racket[1] indicates that
-the two values share a rounding boundary; this triggers special
-behavior inside Rival to handle double-rounding issues.
-
-Note that (the absolute value of) @racket[flonums-between?] already
-returns values that fit these requirements.
+A distance of @racket[2] or greater indicates
+  that the two values are far apart.
+A value of exactly @racket[1] indicates
+  that the two values are sequential, that is,
+  that they share a rounding boundary.
+This last case triggers special behavior inside Rival
+  to handle double-rounding issues.
+Note that (the absolute value of) @racket[flonums-between?]
+  already returns values that fit these requirements.
 }
 
 The typical use case is evaluating an expression to double-precision

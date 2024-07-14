@@ -71,7 +71,6 @@
   (define vregs (rival-machine-registers machine))
   (define rootvec (rival-machine-outputs machine))
   (define slackvec (rival-machine-output-distance machine))
-  #;(set-rival-machine-iteration! machine (add1 (rival-machine-iteration machine)))
   (define ovec (make-vector (vector-length rootvec)))
   (define good? #t)
   (define done? #t)

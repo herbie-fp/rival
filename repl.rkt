@@ -1,13 +1,8 @@
 #lang racket
 
 (require (only-in math/private/bigfloat/mpfr bfcopy bigfloats-between bf-precision bigfloat->string bf))
-(require "eval/main.rkt" "eval/machine.rkt")
+(require "eval/main.rkt" "eval/machine.rkt" "utils.rkt")
 (provide rival-repl)
-
-(define (bf-discretization n)
-  (discretization
-   (lambda (x) (parameterize ([bf-precision n]) (bfcopy x)))
-   (lambda (x y) (parameterize ([bf-precision n]) (abs (bigfloats-between x y))))))
 
 (define (fix-up-fpcore expr)
   (match expr

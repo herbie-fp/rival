@@ -8,7 +8,7 @@
 (define *rival-max-iterations* (make-parameter 5))
 (define *rival-profile-executions* (make-parameter 1000))
 
-(struct discretization (convert distance))
+(struct discretization (target convert distance))
 
 (struct rival-machine
   (arguments instructions outputs discs
@@ -19,5 +19,5 @@
 
 (define *ampl-tuning-bits* (make-parameter 5))
 (define *sampling-iteration* (make-parameter 0))
-(define *base-tuning-precision* (make-parameter 73))
+(define *base-tuning-precision* (make-parameter 20))
 
