@@ -52,9 +52,9 @@
   (mpfr-log2p1 out x (bf-rounding-mode))
   out)
 
-(define mpfr-cosu (get-mpfr-fun 'mpfr_cosu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (const #f)))
-(define mpfr-sinu (get-mpfr-fun 'mpfr_sinu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (const #f)))
-(define mpfr-tanu (get-mpfr-fun 'mpfr_tanu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (const #f)))
+(define mpfr-cosu (get-mpfr-fun 'mpfr_cosu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
+(define mpfr-sinu (get-mpfr-fun 'mpfr_sinu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
+(define mpfr-tanu (get-mpfr-fun 'mpfr_tanu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
 
 (define (bfcosu n x)
   (define out (bf 0))
