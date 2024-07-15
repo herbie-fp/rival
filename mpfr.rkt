@@ -77,7 +77,7 @@
 
 (provide
  bf bigfloat? mpfr-sign bigfloat-exponent bigfloat-precision bf-precision mpfr-exp bf-rounding-mode
- bfpositive? bfinteger? bfzero? bfnan? bfinfinite? bfeven? bfodd? 
+ bfpositive? bfinteger? bfzero? bfnan? bfinfinite? bfnegative? bfeven? bfodd? 
  bfcopy bfstep bigfloats-between bfprev bfnext 
  bf=? bflte? bfgte? bflt? bfgt? bfgte? 
  pi.bf bfmin2 bfmax2

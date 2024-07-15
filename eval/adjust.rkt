@@ -1,8 +1,7 @@
 #lang racket/base
 
 (require racket/function racket/list racket/match)
-(require (only-in math/private/bigfloat/mpfr bigfloat? mpfr-exp mpfr-sign bfnegative?))
-(require "../ops/all.rkt" "machine.rkt")
+(require "../mpfr.rkt" "../ops/all.rkt" "machine.rkt")
 (provide backward-pass)
 
 (define (backward-pass machine)
@@ -111,52 +110,64 @@
       (when (> (+ intro ampl) (vector-ref vprecs-new (- x varc)))
         (vector-set! vprecs-new (- x varc) (+ intro ampl))))))
 
-(define (exp-is-inf? x)
-  (equal? x 9223372036854775805))
-(define (exp-is-0? x)
-  (equal? x -9223372036854775807))
-; this function imitates an exponent of infinity as 9223372036854775805
-(define (replace-inf x)
-  (if (equal? x -9223372036854775805)
-      (abs x)
-      x))
 (define (crosses-zero? x)
   (not (equal? (mpfr-sign (ival-lo x)) (mpfr-sign (ival-hi x)))))
 
-; We assume that NaNs can not be at this step in the interval
+; We assume the interval x is valid. Critical not to take mpfr-exp of inf or 0,
+; the results are platform-dependant
 (define (maxlog x)
-  (define lo-exp (replace-inf (mpfr-exp (ival-lo x))))
-  (define hi-exp (replace-inf (mpfr-exp (ival-hi x))))
+  (define lo (ival-lo x))
+  (define hi (ival-hi x))
   (cond
-    [(and (exp-is-inf? hi-exp) (exp-is-inf? lo-exp))  ; x = [-inf, inf]
+    [(and (bfinfinite? hi) (bfinfinite? lo))                 ; x = [-inf, inf]
      (get-slack)]
-    [(exp-is-inf? hi-exp)                             ; x = [..., inf]
-     (+ (max lo-exp 0) (get-slack))]
-    [(exp-is-inf? lo-exp)
-     (+ (max hi-exp 0) (get-slack))]                  ; x = [-inf, ...]
+    [(bfinfinite? hi)
+     (+ (max (mpfr-exp lo) 0) (get-slack))]        ; x = [..., inf]
+    [(bfinfinite? lo)
+     (+ (max (mpfr-exp hi) 0) (get-slack))]        ; x = [-inf, ...]
     [else
-     (+ (max lo-exp hi-exp) 1)]))                     ; x does not contain inf, safe with respect to 0.bf
+     (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1)]))    ; x does not contain inf, safe with respect to 0.bf
 
 (define (minlog x)
-  (define lo-exp (replace-inf (mpfr-exp (ival-lo x))))
-  (define hi-exp (replace-inf (mpfr-exp (ival-hi x))))
+  (define lo (ival-lo x))
+  (define hi (ival-hi x))
   (cond
-    [(exp-is-0? lo-exp)                               ; x = [0.bf, ...]
-     (- (min hi-exp 0) (get-slack))]
-    [(exp-is-0? hi-exp)                               ; x = [..., 0.bf]
-     (- (min lo-exp 0) (get-slack))]
+    [(bfzero? lo)                                     ; x = [0.bf, ...]
+     (if (bfinfinite? hi)
+         (- (get-slack))
+         (- (min (mpfr-exp hi) 0) (get-slack)))]
+    [(bfzero? hi)                                     ; x = [..., 0.bf]
+     (if (bfinfinite? lo)
+         (- (get-slack))
+         (- (min (mpfr-exp lo) 0) (get-slack)))]
     [(crosses-zero? x)                                ; x = [-..., +...]
-     (- (min lo-exp hi-exp 0) (get-slack))]
+     (cond
+       [(and (bfinfinite? hi) (bfinfinite? lo))
+        (- (get-slack))]
+       [(bfinfinite? hi)
+        (- (min (mpfr-exp lo) 0) (get-slack))]
+       [(bfinfinite? lo)
+        (- (min (mpfr-exp hi) 0) (get-slack))]
+       [else
+        (- (min (mpfr-exp lo) (mpfr-exp hi) 0) (get-slack))])]
     [else
-     (min lo-exp hi-exp)]))                           ; x does not contain zero, safe with respect to inf
+     (cond
+       ; Can't both be inf, since:
+       ;  - [inf, inf] not a valid interval
+       ;  - [-inf, inf] crosses zero
+       [(bfinfinite? lo)
+        (mpfr-exp hi)]
+       [(bfinfinite? hi)
+        (mpfr-exp lo)]
+       [else
+        (min (mpfr-exp lo) (mpfr-exp hi))])]))
 
 (define (logspan x)
-  #;(define lo-exp (mpfr-exp (ival-lo x)))
-  #;(define hi-exp (mpfr-exp (ival-hi x)))
-  #;(if (or (<= lo-exp -9223372036854775805)            ; if log2 of any endpoint is undefined (0 or inf)
-          (<= hi-exp -9223372036854775805))           ; then logspan is undefined as well - use slack
+  #;(define lo (ival-lo x))
+  #;(define hi (ival-hi x))
+  #;(if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
       (get-slack)
-      (+ (abs (- lo-exp hi-exp)) 1))
+      (+ (abs (- (mpfr-exp lo) (mpfr-exp hi))) 1))
   0)
 
 ; Function calculates an ampl factor per input for a certain output and inputs using condition formulas,
