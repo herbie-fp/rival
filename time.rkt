@@ -2,7 +2,7 @@
 
 (require racket/math math/base math/flonum math/bigfloat racket/random profile)
 (require json)
-(require "main.rkt" "test.rkt" "profile.rkt")
+(require "main.rkt" "test.rkt" "profile.rkt" "infra/run-sollya.rkt")
 
 (define sample-vals (make-parameter 5000))
 
@@ -31,7 +31,7 @@
 (define (read-from-string s)
   (read (open-input-string s)))
 
-(define (time-expr rec)
+(define (time-expr rec tool)
   (define exprs (map read-from-string (hash-ref rec 'exprs)))
   (define vars (map read-from-string (hash-ref rec 'vars)))
   (unless (andmap symbol? vars)
@@ -39,20 +39,27 @@
   (match-define `(bool flonum ...) (map read-from-string (hash-ref rec 'discs)))
   (define discs (cons boolean-discretization (map (const flonum-discretization) (cdr exprs))))
   (define start-compile (current-inexact-milliseconds))
-  (define machine (rival-compile exprs vars discs))
+  (define machine
+    (match tool
+       ['rival (rival-compile exprs vars discs)]
+       ['sollya (sollya-compile exprs vars 53)])) ; prec=53 is an imitation of flonum
   (define compile-time (- (current-inexact-milliseconds) start-compile))
-
   (define times
-    (for/list ([pt (in-list (hash-ref rec 'points))])
-      (define start-apply (current-inexact-milliseconds))
-      (define status
-        (with-handlers ([exn:rival:invalid? (const 'invalid)]
-                        [exn:rival:unsamplable? (const 'unsamplable)])
-          (rival-apply machine (list->vector (map bf pt)))
-          'valid))
-      (define apply-time (- (current-inexact-milliseconds) start-apply))
-      (cons status apply-time)))
-
+    (match tool
+      ['rival
+       (for/list ([pt (in-list (hash-ref rec 'points))])
+         (define start-apply (current-inexact-milliseconds))
+         (define status
+           (with-handlers ([exn:rival:invalid? (const 'invalid)]
+                           [exn:rival:unsamplable? (const 'unsamplable)])
+             (rival-apply machine (list->vector (map bf pt)))
+             'valid))
+         (define apply-time (- (current-inexact-milliseconds) start-apply))
+         (cons status apply-time))]
+      ['sollya
+       (for/list ([pt (in-list (hash-ref rec 'points))])
+         (match-define (list internal-time external-time exs status) (sollya-apply machine pt))
+         (cons status external-time))]))
   (cons (cons 'compile compile-time) times))
 
 (define (time-exprs data)
@@ -87,7 +94,7 @@
     
     (list (object-name ival-fn) iv256 (/ iv256 bf256) iv4k (/ iv4k bf4k))))
 
-(define (make-expression-table points test-id)
+(define (make-expression-table points test-id tool)
   (newline)
   (define total-c 0.0)
   (define total-v 0.0)
@@ -105,7 +112,7 @@
       (when test-id
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
-        (time-exprs (time-expr rec)))
+        (time-exprs (time-expr rec tool)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))
@@ -181,14 +188,15 @@
     (fprintf port "<section id='profile'><h1>Profiling</h1>")
     (fprintf port "<p class='load-text'>Loading profile data...</p></section>")))
 
-(define (run test-id p)
+(define (run test-id p #:tool [tool 'rival])
   (define operation-table
     (and
      (or (not test-id) (not (string->number test-id)))
+     (equal? tool 'rival)
      (make-operation-table test-id)))
   (define-values (expression-table expression-footer)
     (if (and p (or (not test-id) (string->number test-id)))
-        (make-expression-table p test-id)
+        (make-expression-table p test-id tool)
         (values #f #f)))
   (list operation-table expression-table expression-footer))
 
@@ -235,10 +243,12 @@
    [("--id") ns "Run a single test"
              (set! n ns)]
    #:args ([points "infra/points.json"])
+   
    (match-define (list op-t ex-t ex-f)
      (if profile-port
          (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
-          (run n (open-input-file points)))
-         (run n (open-input-file points))))
+                  (run n (open-input-file points) #:tool 'sollya))
+         (run n (open-input-file points) #:tool 'sollya)))
+   
    (when html-port
      (generate-html html-port profile-port op-t ex-t ex-f))))
