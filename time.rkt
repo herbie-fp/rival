@@ -2,7 +2,7 @@
 
 (require racket/math math/base math/flonum math/bigfloat racket/random profile)
 (require json)
-(require "main.rkt" "test.rkt" "profile.rkt" "infra/run-sollya.rkt")
+(require "main.rkt" "test.rkt" "profile.rkt" "infra/run-sollya.rkt" "infra/run-baseline.rkt")
 
 (define sample-vals (make-parameter 5000))
 
@@ -41,8 +41,9 @@
   (define start-compile (current-inexact-milliseconds))
   (define machine
     (match tool
-       ['rival (rival-compile exprs vars discs)]
-       ['sollya (sollya-compile exprs vars 53)])) ; prec=53 is an imitation of flonum
+      ['rival (rival-compile exprs vars discs)]
+      ['baseline (baseline-compile exprs vars discs)]
+      ['sollya (sollya-compile exprs vars 53)])) ; prec=53 is an imitation of flonum
   (define compile-time (- (current-inexact-milliseconds) start-compile))
   (define times
     (match tool
@@ -56,10 +57,22 @@
              'valid))
          (define apply-time (- (current-inexact-milliseconds) start-apply))
          (cons status apply-time))]
-      ['sollya
+      ['baseline
        (for/list ([pt (in-list (hash-ref rec 'points))])
-         (match-define (list internal-time external-time exs status) (sollya-apply machine pt))
-         (cons status external-time))]))
+         (define start-apply (current-inexact-milliseconds))
+         (define status
+           (with-handlers ([exn:rival:invalid? (const 'invalid)]
+                           [exn:rival:unsamplable? (const 'unsamplable)])
+             (baseline-apply machine (list->vector (map bf pt)))
+             'valid))
+         (define apply-time (- (current-inexact-milliseconds) start-apply))
+         (cons status apply-time))]
+      ['sollya
+       (define out (for/list ([pt (in-list (hash-ref rec 'points))])
+                     (match-define (list internal-time external-time exs status) (sollya-apply machine pt))
+                     (cons status external-time)))
+       (sollya-kill machine)
+       out]))
   (cons (cons 'compile compile-time) times))
 
 (define (time-exprs data)
@@ -235,24 +248,50 @@
 
 (module+ main
   (require racket/cmdline)
+  (define dir #f)
   (define html-port #f)
   (define profile-port #f)
   (define n #f)
   (command-line
    #:once-each
-   [("--html") fn "Produce HTML output"
-               (set! html-port (open-output-file fn #:mode 'text #:exists 'replace))]
+   [("--dir") fn "Directory to produce html outputs"
+              (set! dir fn)]
    [("--profile") fn "Produce a JSON profile"
                   (set! profile-port (open-output-file fn #:mode 'text #:exists 'replace))]
    [("--id") ns "Run a single test"
              (set! n ns)]
    #:args ([points "infra/points.json"])
-   
-   (match-define (list op-t ex-t ex-f)
+
+   ; Rival
+   (printf "Rival execution\n")
+   (match-define (list rival-op-t rival-ex-t rival-ex-f)
+     (if profile-port
+         (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
+                  (run n (open-input-file points) #:tool 'rival))
+         (run n (open-input-file points) #:tool 'rival)))
+   (when dir
+     (set! html-port (open-output-file (format "~a/index.html" dir) #:mode 'text #:exists 'replace))
+     (generate-html html-port profile-port rival-op-t rival-ex-t rival-ex-f))
+
+   ; Baseline
+   (printf "Baseline execution\n")
+   (match-define (list baseline-op-t baseline-ex-t baseline-ex-f)
+     (if profile-port
+         (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
+                  (run n (open-input-file points) #:tool 'baseline))
+         (run n (open-input-file points) #:tool 'baseline)))
+   (when dir
+     (set! html-port (open-output-file (format "~a/baseline.html" dir) #:mode 'text #:exists 'replace))
+     (generate-html html-port profile-port baseline-op-t baseline-ex-t baseline-ex-f))
+
+   ; Baseline
+   (printf "Sollya execution\n")
+   (match-define (list sollya-op-t sollya-ex-t sollya-ex-f)
      (if profile-port
          (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
                   (run n (open-input-file points) #:tool 'sollya))
          (run n (open-input-file points) #:tool 'sollya)))
-   
-   (when html-port
-     (generate-html html-port profile-port op-t ex-t ex-f))))
+   (when dir
+     (set! html-port (open-output-file (format "~a/sollya.html" dir) #:mode 'text #:exists 'replace))
+     (generate-html html-port profile-port sollya-op-t sollya-ex-t sollya-ex-f))))
+  

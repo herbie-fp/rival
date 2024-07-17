@@ -2,10 +2,98 @@
 
 (require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?) racket/flonum)
 (require "../ops/all.rkt" "machine.rkt")
-(provide rival-compile *rival-use-shorthands* *rival-name-constants*)
+(provide rival-compile *rival-use-shorthands* *rival-name-constants*
+         fn->ival-fn exprs->batch) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))
 (define *rival-name-constants* (make-parameter #f))
+
+
+(define (fn->ival-fn node)
+  (match node
+    [(? number?)
+     (if (ival-point? (real->ival node))
+         (list (ival-const node))
+         (list (ival-rational node)))]
+
+    [(list 'PI)     (list ival-pi)]
+    [(list 'E)      (list ival-e)]
+    [(list 'INFINITY) (list ival-infinity)]
+    [(list 'NAN)    (list ival-nan)]
+    [(list 'TRUE)   (list ival-true)]
+    [(list 'FALSE)  (list ival-false)]
+
+    [(list 'if c y f) (list ival-if c y f)]
+
+    [(list 'neg x)   (list ival-neg x)]
+    [(list 'acos x)  (list ival-acos x)]
+    [(list 'acosh x) (list ival-acosh x)]
+    [(list 'asin x)  (list ival-asin x)]
+    [(list 'asinh x) (list ival-asinh x)]
+    [(list 'atan x)  (list ival-atan x)]
+    [(list 'atanh x) (list ival-atanh x)]
+    [(list 'cbrt x)  (list ival-cbrt x)]
+    [(list 'ceil x)  (list ival-ceil x)]
+    [(list 'cos x)   (list ival-cos x)]
+    [(list 'cosh x)  (list ival-cosh x)]
+    [(list 'erf x)   (list ival-erf x)]
+    [(list 'erfc x)  (list ival-erfc x)]
+    [(list 'exp x)   (list ival-exp x)]
+    [(list 'exp2 x)  (list ival-exp2 x)]
+    [(list 'expm1 x) (list ival-expm1 x)]
+    [(list 'fabs x)  (list ival-fabs x)]
+    [(list 'floor x) (list ival-floor x)]
+    [(list 'lgamma x) (list ival-lgamma x)]
+    [(list 'log x)   (list ival-log x)]
+    [(list 'log10 x) (list ival-log10 x)]
+    [(list 'log1p x) (list ival-log1p x)]
+    [(list 'log2 x)  (list ival-log2 x)]
+    [(list 'logb x)  (list ival-logb x)]
+    [(list 'rint x)  (list ival-rint x)]
+    [(list 'round x) (list ival-round x)]
+    [(list 'sin x)   (list ival-sin x)]
+    [(list 'sinh x)  (list ival-sinh x)]
+    [(list 'sqrt x)  (list ival-sqrt x)]
+    [(list 'tan x)   (list ival-tan x)]
+    [(list 'tanh x)  (list ival-tanh x)]
+    [(list 'tgamma x) (list ival-tgamma x)]
+    [(list 'trunc x) (list ival-trunc x)]
+
+    [(list '+ x y)     (list ival-add x y)]
+    [(list '- x y)     (list ival-sub x y)]
+    [(list '* x y)     (list ival-mult x y)]
+    [(list '/ x y)     (list ival-div x y)]
+    [(list 'atan2 x y) (list ival-atan2 x y)]
+    [(list 'copysign x y) (list ival-copysign x y)]
+    [(list 'hypot x y) (list ival-hypot x y)]
+    [(list 'fdim x y)  (list ival-fdim x y)]
+    [(list 'fmax x y)  (list ival-fmax x y)]
+    [(list 'fmin x y)  (list ival-fmin x y)]
+    [(list 'fmod x y)  (list ival-fmod x y)]
+    [(list 'pow x y)   (list ival-pow x y)]
+    [(list 'remainder x y) (list ival-remainder x y)]
+
+    [(list 'pow2 x) (list ival-pow2 x)]
+
+    [(list '== x y) (list ival-== x y)]
+    [(list '!= x y) (list ival-!= x y)]
+    [(list '<= x y) (list ival-<= x y)]
+    [(list '>= x y) (list ival->= x y)]
+    [(list '< x y)  (list ival-< x y)]
+    [(list '> x y)  (list ival-> x y)]
+
+    [(list 'not x)   (list ival-not x)]
+    [(list 'and x y) (list ival-and x y)]
+    [(list 'or x y)  (list ival-or x y)]
+
+    [(list 'cast x)  (list values x)]
+
+    [(list 'assert x)  (list ival-assert x)]
+    [(list 'error x)  (list ival-error? x)]
+
+    [(list op args ...)
+     (error 'compile-specs "Unknown operator ~a" op)]))
+
 
 (define (optimize expr)
   (match (and (*rival-use-shorthands*) expr)
@@ -111,90 +199,8 @@
 
   (define instructions
     (for/vector #:length (- (vector-length nodes) num-vars)
-                ([node (in-vector nodes num-vars)])
-      (match node
-        [(? number?)
-         (if (ival-point? (real->ival node))
-             (list (ival-const node))
-             (list (ival-rational node)))]
-
-        [(list 'PI)     (list ival-pi)]
-        [(list 'E)      (list ival-e)]
-        [(list 'INFINITY) (list ival-infinity)]
-        [(list 'NAN)    (list ival-nan)]
-        [(list 'TRUE)   (list ival-true)]
-        [(list 'FALSE)  (list ival-false)]
-
-        [(list 'if c y f) (list ival-if c y f)]
-
-        [(list 'neg x)   (list ival-neg x)]
-        [(list 'acos x)  (list ival-acos x)]
-        [(list 'acosh x) (list ival-acosh x)]
-        [(list 'asin x)  (list ival-asin x)]
-        [(list 'asinh x) (list ival-asinh x)]
-        [(list 'atan x)  (list ival-atan x)]
-        [(list 'atanh x) (list ival-atanh x)]
-        [(list 'cbrt x)  (list ival-cbrt x)]
-        [(list 'ceil x)  (list ival-ceil x)]
-        [(list 'cos x)   (list ival-cos x)]
-        [(list 'cosh x)  (list ival-cosh x)]
-        [(list 'erf x)   (list ival-erf x)]
-        [(list 'erfc x)  (list ival-erfc x)]
-        [(list 'exp x)   (list ival-exp x)]
-        [(list 'exp2 x)  (list ival-exp2 x)]
-        [(list 'expm1 x) (list ival-expm1 x)]
-        [(list 'fabs x)  (list ival-fabs x)]
-        [(list 'floor x) (list ival-floor x)]
-        [(list 'lgamma x) (list ival-lgamma x)]
-        [(list 'log x)   (list ival-log x)]
-        [(list 'log10 x) (list ival-log10 x)]
-        [(list 'log1p x) (list ival-log1p x)]
-        [(list 'log2 x)  (list ival-log2 x)]
-        [(list 'logb x)  (list ival-logb x)]
-        [(list 'rint x)  (list ival-rint x)]
-        [(list 'round x) (list ival-round x)]
-        [(list 'sin x)   (list ival-sin x)]
-        [(list 'sinh x)  (list ival-sinh x)]
-        [(list 'sqrt x)  (list ival-sqrt x)]
-        [(list 'tan x)   (list ival-tan x)]
-        [(list 'tanh x)  (list ival-tanh x)]
-        [(list 'tgamma x) (list ival-tgamma x)]
-        [(list 'trunc x) (list ival-trunc x)]
-
-        [(list '+ x y)     (list ival-add x y)]
-        [(list '- x y)     (list ival-sub x y)]
-        [(list '* x y)     (list ival-mult x y)]
-        [(list '/ x y)     (list ival-div x y)]
-        [(list 'atan2 x y) (list ival-atan2 x y)]
-        [(list 'copysign x y) (list ival-copysign x y)]
-        [(list 'hypot x y) (list ival-hypot x y)]
-        [(list 'fdim x y)  (list ival-fdim x y)]
-        [(list 'fmax x y)  (list ival-fmax x y)]
-        [(list 'fmin x y)  (list ival-fmin x y)]
-        [(list 'fmod x y)  (list ival-fmod x y)]
-        [(list 'pow x y)   (list ival-pow x y)]
-        [(list 'remainder x y) (list ival-remainder x y)]
-
-        [(list 'pow2 x) (list ival-pow2 x)]
-
-        [(list '== x y) (list ival-== x y)]
-        [(list '!= x y) (list ival-!= x y)]
-        [(list '<= x y) (list ival-<= x y)]
-        [(list '>= x y) (list ival->= x y)]
-        [(list '< x y)  (list ival-< x y)]
-        [(list '> x y)  (list ival-> x y)]
-
-        [(list 'not x)   (list ival-not x)]
-        [(list 'and x y) (list ival-and x y)]
-        [(list 'or x y)  (list ival-or x y)]
-
-        [(list 'cast x)  (list values x)]
-
-        [(list 'assert x)  (list ival-assert x)]
-        [(list 'error x)  (list ival-error? x)]
-
-        [(list op args ...)
-         (error 'compile-specs "Unknown operator ~a" op)])))
+                         ([node (in-vector nodes num-vars)])
+      (fn->ival-fn node)))
 
   (define register-count (+ (length vars) (vector-length instructions)))
   (define registers (make-vector register-count))
