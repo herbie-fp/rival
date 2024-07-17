@@ -67,7 +67,7 @@
     (for/hash ([group (in-list (group-by car data))])
       (values (caar group) (map cdr group))))
 
-  (list (car (hash-ref times 'compile))
+  (list (/ (car (hash-ref times 'compile)) 1000)
         (length (hash-ref times 'valid '()))
         (/ (apply + (hash-ref times 'valid '())) 1000)
         (length (hash-ref times 'invalid '()))
@@ -111,8 +111,12 @@
                #:unless (and test-id (not (equal? (~a i) test-id))))
       (when test-id
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
+      
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
-        (time-exprs (time-expr rec tool)))
+        (with-handlers ([exn:fail? (λ (e)
+                                     (println e)
+                                     (list 0 0 0 0 0 0 0))])
+          (time-exprs (time-expr rec tool))))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))

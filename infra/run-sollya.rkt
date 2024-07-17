@@ -108,7 +108,8 @@
      (define sollya-format
        (if (and (equal? op '-) (equal? (length args) 1))
            "(- ~a)"
-           (hash-ref function->sollya-format op)))
+           (hash-ref function->sollya-format op (lambda ()
+                                                  (raise (exn:fail (format "Unable to parse ~a" op) (current-continuation-marks)))))))
      (apply (curry format sollya-format) args)]
 
     ; Variable to be rounded
@@ -183,6 +184,7 @@
 ; --------------------------------------- COMPILATION ------------------------------------------------
 (define (sollya-compile exprs vars prec #:backup [backup #f])
   ; Check whether parsing is available
+  (prog->sollya exprs vars prec)
   (printf "Sollya program: ~a\n" (prog->sollya exprs vars prec))
   
   ; Create a process
@@ -214,7 +216,7 @@
 
 ;-------------------------------------- OUTPUT PARSING -----------------------------------------------
 (define (seconds->ms seconds)
-  (* 1000 (string->number seconds)))
+  (* (string->number seconds) 1000))
 
 (define (parse-sollya-output machine timeout)
   (define start (current-inexact-milliseconds))
