@@ -16,7 +16,7 @@ jobs:
       - name: "Install dependencies"
         run: raco pkg install --name rival --no-cache --auto
       - name: "Install raco fmt"
-        run: raco pkg install fmt
+        run: raco pkg install --auto fmt
       - name: "Reformat all of the source code"
         run: raco fmt -i **/*.rkt
       - name: "Make sure files are correctly formatted with raco fmt"
