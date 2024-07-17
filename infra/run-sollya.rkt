@@ -185,7 +185,7 @@
 (define (sollya-compile exprs vars prec #:backup [backup #f])
   ; Check whether parsing is available
   (prog->sollya exprs vars prec)
-  (printf "Sollya program: ~a\n" (prog->sollya exprs vars prec))
+  #;(printf "Sollya program: ~a\n" (prog->sollya exprs vars prec))
   
   ; Create a process
   (define-values (process m-out m-in m-err)
@@ -260,6 +260,7 @@
        (when (not (equal? s ""))
          (eprintf "\nUnprocessed output from Sollya\n")
          (eprintf "Stdout number: ~s\n" s)
+         (sollya-kill machine)
          (error "crashed"))
        (list timeout timeout (fl +nan.0) 'exit)]
 
