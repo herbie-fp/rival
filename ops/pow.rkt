@@ -1,7 +1,9 @@
 #lang racket
 
-(require "core.rkt" "../mpfr.rkt")
-(provide ival-pow ival-pow2)
+(require "core.rkt"
+         "../mpfr.rkt")
+(provide ival-pow
+         ival-pow2)
 
 (define (classify-pos-ival-1 x) ;; Assumes x positive
   (define x.lo (ival-lo-val x))
@@ -14,15 +16,16 @@
 (define (eppow a-endpoint b-endpoint a-class b-class)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
-  (when (bfzero? a) (set! a 0.bf)) ; Handle (-0)^(-1)
+  (when (bfzero? a)
+    (set! a 0.bf)) ; Handle (-0)^(-1)
   (define-values (val exact?) (bf-return-exact? bfexpt (list a b)))
   (endpoint val
-   (or (and a! b! exact?)
-       (and a! (bf=? a 1.bf))
-       (and a! (bfzero? a) (not (= b-class 0)))
-       (and a! (bfinfinite? a) (not (= b-class 0)))
-       (and b! (bfzero? b))
-       (and b! (bfinfinite? b) (not (= a-class 0))))))
+            (or (and a! b! exact?)
+                (and a! (bf=? a 1.bf))
+                (and a! (bfzero? a) (not (= b-class 0)))
+                (and a! (bfinfinite? a) (not (= b-class 0)))
+                (and b! (bfzero? b))
+                (and b! (bfinfinite? b) (not (= a-class 0))))))
 
 (define (ival-copy-movability i1 i2)
   (ival (endpoint (ival-lo-val i1) (ival-lo-fixed? i2))
@@ -39,7 +42,7 @@
 
   (define (mk-pow a b c d)
     (match-define (endpoint lo lo!) (rnd 'down eppow a b x-class y-class))
-    (match-define (endpoint hi hi!) (rnd 'up   eppow c d x-class y-class))
+    (match-define (endpoint hi hi!) (rnd 'up eppow c d x-class y-class))
 
     (define-values (real-lo! real-hi!)
       (cond
@@ -51,11 +54,13 @@
 
          ;; Important: exp2-overflow-threshold is an exact power of 2, so we can use >=
          (define must-overflow
-           (and (bfinfinite? hi) (= (* x-class y-class) 1)
+           (and (bfinfinite? hi)
+                (= (* x-class y-class) 1)
                 (>= (+ (mpfr-exp bval) (mpfr-exp (rnd 'zero bflog2 aval)))
                     (mpfr-exp exp2-overflow-threshold))))
          (define must-underflow
-           (and (bfzero? lo) (= (* x-class y-class) -1)
+           (and (bfzero? lo)
+                (= (* x-class y-class) -1)
                 (>= (+ (mpfr-exp dval) (mpfr-exp (rnd 'zero bflog2 cval)))
                     (mpfr-exp exp2-overflow-threshold))))
 
@@ -93,25 +98,24 @@
          |#
 
          (values real-lo! real-hi!)]
-        [else
-         (values lo! hi!)]))
+        [else (values lo! hi!)]))
 
-    (ival (endpoint lo real-lo!) (endpoint hi real-hi!)
+    (ival (endpoint lo real-lo!)
+          (endpoint hi real-hi!)
           (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (not (= y-class 1))))
           (or xerr yerr (and (bfzero? (endpoint-val xhi)) (= y-class -1)))))
 
   (match* (x-class y-class)
-    [( 1  1) (mk-pow xlo ylo xhi yhi)]
-    [( 1  0) (mk-pow xhi ylo xhi yhi)]
-    [( 1 -1) (mk-pow xhi ylo xlo yhi)]
-    [( 0  1) (mk-pow xlo yhi xhi yhi)]
-    [( 0 -1) (mk-pow xhi ylo xlo ylo)]
-    [(-1  1) (mk-pow xlo yhi xhi ylo)]
-    [(-1  0) (mk-pow xlo yhi xlo ylo)]
+    [(1 1) (mk-pow xlo ylo xhi yhi)]
+    [(1 0) (mk-pow xhi ylo xhi yhi)]
+    [(1 -1) (mk-pow xhi ylo xlo yhi)]
+    [(0 1) (mk-pow xlo yhi xhi yhi)]
+    [(0 -1) (mk-pow xhi ylo xlo ylo)]
+    [(-1 1) (mk-pow xlo yhi xhi ylo)]
+    [(-1 0) (mk-pow xlo yhi xlo ylo)]
     [(-1 -1) (mk-pow xhi yhi xlo ylo)]
-    [( 0  0) ;; Special case
-     (ival-union (mk-pow xlo yhi xhi yhi) (mk-pow xhi ylo xlo ylo))]))
-
+    ;; Special case
+    [(0 0) (ival-union (mk-pow xlo yhi xhi yhi) (mk-pow xhi ylo xlo ylo))]))
 
 (define (ival-pow-neg x y)
   ;; Assumes x is negative
@@ -134,10 +138,8 @@
 
 (define (ival-pow x y)
   (cond
-   [(and (= (mpfr-sign (ival-hi-val x)) -1) (not (bfzero? (ival-hi-val x))))
-    (ival-pow-neg x y)]
-   [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-lo-val x)))
-    (ival-pow-pos x y)]
-   [else
-    (define-values (neg pos) (split-ival x 0.bf))
-    (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
+    [(and (= (mpfr-sign (ival-hi-val x)) -1) (not (bfzero? (ival-hi-val x)))) (ival-pow-neg x y)]
+    [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-lo-val x))) (ival-pow-pos x y)]
+    [else
+     (define-values (neg pos) (split-ival x 0.bf))
+     (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))

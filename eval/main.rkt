@@ -1,15 +1,26 @@
 #lang racket
 
 (require racket/flonum)
-(require "../ops/all.rkt" "machine.rkt" "compile.rkt" "run.rkt" "adjust.rkt")
+(require "../ops/all.rkt"
+         "machine.rkt"
+         "compile.rkt"
+         "run.rkt"
+         "adjust.rkt")
 
-(provide rival-compile rival-apply rival-analyze
+(provide rival-compile
+         rival-apply
+         rival-analyze
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
          (struct-out exn:rival:unsamplable)
          (struct-out discretization)
-         *rival-max-precision* *rival-max-iterations* *rival-use-shorthands* *rival-name-constants*
-         rival-profile (struct-out execution) *rival-profile-executions*)
+         *rival-max-precision*
+         *rival-max-iterations*
+         *rival-use-shorthands*
+         *rival-name-constants*
+         rival-profile
+         (struct-out execution)
+         *rival-profile-executions*)
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -17,8 +28,7 @@
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine)
   (cond
-    [(>= (*sampling-iteration*) (*rival-max-iterations*))
-     (values #f #f #f #t #f)]
+    [(>= (*sampling-iteration*) (*rival-max-iterations*)) (values #f #f #f #t #f)]
     [else
      (rival-machine-load machine inputs)
      (rival-machine-run machine)
@@ -41,13 +51,12 @@
      (define profile-number (rival-machine-profile-number machine))
      (define profile-time (rival-machine-profile-time machine))
      (define profile-precision (rival-machine-profile-precision machine))
-     (begin0
-         (for/vector #:length profile-ptr
-                     ([instruction (in-vector profile-instruction 0 profile-ptr)]
-                      [number (in-vector profile-number 0 profile-ptr)]
-                      [precision (in-vector profile-precision 0 profile-ptr)]
-                      [time (in-flvector profile-time 0 profile-ptr)])
-           (execution instruction number precision time))
+     (begin0 (for/vector #:length profile-ptr
+                         ([instruction (in-vector profile-instruction 0 profile-ptr)]
+                          [number (in-vector profile-number 0 profile-ptr)]
+                          [precision (in-vector profile-precision 0 profile-ptr)]
+                          [time (in-flvector profile-time 0 profile-ptr)])
+               (execution instruction number precision time))
        (set-rival-machine-profile-ptr! machine 0))]))
 
 (define (ival-real x)
@@ -58,24 +67,18 @@
   (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
-      (parameterize ([*sampling-iteration* iter]
-                     [ground-truth-require-convergence #t])
+      (parameterize ([*sampling-iteration* iter] [ground-truth-require-convergence #t])
         (rival-machine-full machine (vector-map ival-real pt))))
     (cond
-      [bad?
-       (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
-      [done?
-       fvec]
-      [stuck?
-       (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
+      [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
+      [done? fvec]
+      [stuck? (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [(>= iter (*rival-max-iterations*))
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [else
-       (loop (+ 1 iter))])))
+      [else (loop (+ 1 iter))])))
 
 (define (rival-analyze machine rect)
   (define-values (good? done? bad? stuck? fvec)
-    (parameterize ([*sampling-iteration* 0]
-                   [ground-truth-require-convergence #f])
+    (parameterize ([*sampling-iteration* 0] [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
   (ival (or bad? stuck?) (not good?)))

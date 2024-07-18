@@ -1,51 +1,117 @@
 #lang racket/base
 
-(require racket/contract racket/match racket/function racket/list)
+(require racket/contract
+         racket/match
+         racket/function
+         racket/list)
 (require (for-syntax racket/base))
 (require "../mpfr.rkt")
 
-(provide ival-lo-val ival-hi-val classify-ival mk-big-ival
-         ival-exact-fabs ival-maybe epfn split-ival ival-max-prec ival-exact-neg
-         bf-return-exact? ival-lo-fixed? ival-hi-fixed?
-         overflows-loose-at exp2-overflow-threshold)
+(provide ival-lo-val
+         ival-hi-val
+         classify-ival
+         mk-big-ival
+         ival-exact-fabs
+         ival-maybe
+         epfn
+         split-ival
+         ival-max-prec
+         ival-exact-neg
+         bf-return-exact?
+         ival-lo-fixed?
+         ival-hi-fixed?
+         overflows-loose-at
+         exp2-overflow-threshold)
 
-(provide
- (struct-out ival) (struct-out endpoint) ival-expander
- ival-union ival-split (rename-out [monotonic monotonic->ival] [comonotonic comonotonic->ival])
- ival-illegal ival-pi ival-e ival-bool
- ival-add ival-sub ival-neg ival-mult ival-div ival-fma       
- ival-fabs ival-sqrt ival-cbrt ival-hypot ival-exp ival-exp2 ival-expm1
- ival-log ival-log2 ival-log10 ival-log1p ival-logb
- ival-asin ival-acos ival-atan ival-atan2 ival-sinh ival-cosh ival-tanh
- ival-asinh ival-acosh ival-atanh ival-erf ival-erfc
- ival-rint ival-round ival-ceil ival-floor ival-trunc     
- ival-fmin ival-fmax ival-copysign ival-fdim ival-sort      
- ival-< ival-<= ival-> ival->= ival-== ival-!= ival-if ival-and ival-or ival-not       
- ival-error? ival-assert ival-then close-enough->ival
- ;; Deprecated
- ival-lo-fixed? ival-hi-fixed? ival-err? ival-err mk-ival)
+(provide (struct-out ival)
+         (struct-out endpoint)
+         ival-expander
+         ival-union
+         ival-split
+         (rename-out [monotonic monotonic->ival] [comonotonic comonotonic->ival])
+         ival-illegal
+         ival-pi
+         ival-e
+         ival-bool
+         ival-add
+         ival-sub
+         ival-neg
+         ival-mult
+         ival-div
+         ival-fma
+         ival-fabs
+         ival-sqrt
+         ival-cbrt
+         ival-hypot
+         ival-exp
+         ival-exp2
+         ival-expm1
+         ival-log
+         ival-log2
+         ival-log10
+         ival-log1p
+         ival-logb
+         ival-asin
+         ival-acos
+         ival-atan
+         ival-atan2
+         ival-sinh
+         ival-cosh
+         ival-tanh
+         ival-asinh
+         ival-acosh
+         ival-atanh
+         ival-erf
+         ival-erfc
+         ival-rint
+         ival-round
+         ival-ceil
+         ival-floor
+         ival-trunc
+         ival-fmin
+         ival-fmax
+         ival-copysign
+         ival-fdim
+         ival-sort
+         ival-<
+         ival-<=
+         ival->
+         ival->=
+         ival-==
+         ival-!=
+         ival-if
+         ival-and
+         ival-or
+         ival-not
+         ival-error?
+         ival-assert
+         ival-then
+         close-enough->ival
+         ;; Deprecated
+         ival-lo-fixed?
+         ival-hi-fixed?
+         ival-err?
+         ival-err
+         mk-ival)
 
 (define-match-expander ival-expander
   (λ (stx)
     (syntax-case stx ()
-      [(_me lo hi)
-       #'(ival (endpoint lo _) (endpoint hi _) _ _)]
-      [(_me name lo hi)
-       #'(and name (ival (endpoint lo _) (endpoint hi _) _ _))]))
+      [(_me lo hi) #'(ival (endpoint lo _) (endpoint hi _) _ _)]
+      [(_me name lo hi) #'(and name (ival (endpoint lo _) (endpoint hi _) _ _))]))
   (λ (stx)
     (syntax-case stx ()
-      [(_ lo)
-       #'(mk-big-ival lo lo)]
-      [(_ lo hi)
-       #'(mk-big-ival lo hi)])))
+      [(_ lo) #'(mk-big-ival lo lo)]
+      [(_ lo hi) #'(mk-big-ival lo hi)])))
 
 (struct endpoint (val immovable?) #:transparent)
-(struct ival (lo hi err? err) #:transparent
- #:methods gen:custom-write
- [(define (write-proc ival port mode)
-    (if (ival-err ival)
-        (fprintf port "ival-illegal")
-        (fprintf port "(ival ~s ~s)" (ival-lo-val ival) (ival-hi-val ival))))])
+(struct ival (lo hi err? err)
+  #:transparent
+  #:methods gen:custom-write
+  [(define (write-proc ival port mode)
+     (if (ival-err ival)
+         (fprintf port "ival-illegal")
+         (fprintf port "(ival ~s ~s)" (ival-lo-val ival) (ival-hi-val ival))))])
 
 (define (ival-hi-val ival)
   (endpoint-val (ival-hi ival)))
@@ -58,16 +124,14 @@
 
 (define (mk-big-ival x y)
   (cond
-   [(and (bigfloat? x) (bigfloat? y))
-    (define fix? (bf=? x y))
-    (define err? (or (bfnan? x) (bfnan? y)
-                     (and (bfinfinite? x) fix?)))
-    (ival (endpoint x fix?) (endpoint y fix?) err? err?)]
-   [(and (boolean? x) (boolean? y))
-    (define fix? (equal? x y))
-    (ival (endpoint x fix?) (endpoint y fix?) #f #f)]
-   [else
-    (error 'ival "Invalid interval endpoints" x y)]))
+    [(and (bigfloat? x) (bigfloat? y))
+     (define fix? (bf=? x y))
+     (define err? (or (bfnan? x) (bfnan? y) (and (bfinfinite? x) fix?)))
+     (ival (endpoint x fix?) (endpoint y fix?) err? err?)]
+    [(and (boolean? x) (boolean? y))
+     (define fix? (equal? x y))
+     (ival (endpoint x fix?) (endpoint y fix?) #f #f)]
+    [else (error 'ival "Invalid interval endpoints" x y)]))
 
 (define (mk-ival x)
   (mk-big-ival x x))
@@ -98,10 +162,10 @@
 
 (define (ival-split i val)
   (cond
-   [(boolean? val) (if val (values i #f) (values #f i))]
-   [(bflte? (ival-hi-val i) val) (values i #f)]
-   [(bfgte? (ival-lo-val i) val) (values #f i)]
-   [else (split-ival i val)]))
+    [(boolean? val) (if val (values i #f) (values #f i))]
+    [(bflte? (ival-hi-val i) val) (values i #f)]
+    [(bfgte? (ival-lo-val i) val) (values #f i)]
+    [else (split-ival i val)]))
 
 (define (classify-ival x)
   (cond
@@ -129,16 +193,18 @@
 
 (define (ival-union x y)
   (cond
-   [(ival-err x) (struct-copy ival y [err? #t])]
-   [(ival-err y) (struct-copy ival x [err? #t])]
-   [(bigfloat? (ival-lo-val x))
-    (ival (rnd 'down endpoint-min2 (ival-lo x) (ival-lo y))
-          (rnd 'up endpoint-max2 (ival-hi x) (ival-hi y))
-          (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]
-   [(boolean? (ival-lo-val x))
-    (ival (epfn and-fn (ival-lo x) (ival-lo y))
-          (epfn or-fn (ival-hi x) (ival-hi y))
-          (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]))
+    [(ival-err x) (struct-copy ival y [err? #t])]
+    [(ival-err y) (struct-copy ival x [err? #t])]
+    [(bigfloat? (ival-lo-val x))
+     (ival (rnd 'down endpoint-min2 (ival-lo x) (ival-lo y))
+           (rnd 'up endpoint-max2 (ival-hi x) (ival-hi y))
+           (or (ival-err? x) (ival-err? y))
+           (and (ival-err x) (ival-err y)))]
+    [(boolean? (ival-lo-val x))
+     (ival (epfn and-fn (ival-lo x) (ival-lo y))
+           (epfn or-fn (ival-hi x) (ival-hi y))
+           (or (ival-err? x) (ival-err? y))
+           (and (ival-err x) (ival-err y)))]))
 
 ;; This function computes and propagates the immovable? flag for endpoints
 (define (epfn op . args)
@@ -154,15 +220,14 @@
   (endpoint val (or (and a! b! exact?) (and a! (bfinfinite? a)) (and b! (bfinfinite? b)))))
 
 (define (ival-add x y)
-  (ival
-   (rnd 'down eplinear bfadd (ival-lo x) (ival-lo y))
-   (rnd 'up   eplinear bfadd (ival-hi x) (ival-hi y))
-   (or (ival-err? x) (ival-err? y))
-   (or (ival-err x) (ival-err y))))
+  (ival (rnd 'down eplinear bfadd (ival-lo x) (ival-lo y))
+        (rnd 'up eplinear bfadd (ival-hi x) (ival-hi y))
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival-sub x y)
   (ival (rnd 'down eplinear bfsub (ival-lo x) (ival-hi y))
-        (rnd 'up   eplinear bfsub (ival-hi x) (ival-lo y))
+        (rnd 'up eplinear bfsub (ival-hi x) (ival-lo y))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
@@ -176,11 +241,11 @@
         (values 0.bf #t) ; 0 * inf = 0, not nan, because inf is potential, not actual
         (bf-return-exact? bfmul (list a b))))
   (endpoint val
-   (or (and a! b! exact?)
-       (and a! a0)
-       (and a! (bfinfinite? a) (not (= b-class 0)))
-       (and b! b0)
-       (and b! (bfinfinite? b) (not (= a-class 0))))))
+            (or (and a! b! exact?)
+                (and a! a0)
+                (and a! (bfinfinite? a) (not (= b-class 0)))
+                (and b! b0)
+                (and b! (bfinfinite? b) (not (= a-class 0))))))
 
 (define (ival-mult x y)
   (match-define (ival xlo xhi xerr? xerr) x)
@@ -188,37 +253,36 @@
 
   (define (mkmult a b c d)
     (ival (rnd 'down epmul a b x-sign y-sign)
-          (rnd 'up   epmul c d x-sign y-sign)
-          (or xerr? yerr?)  (or xerr yerr)))
+          (rnd 'up epmul c d x-sign y-sign)
+          (or xerr? yerr?)
+          (or xerr yerr)))
 
   (define x-sign (classify-ival x))
   (define y-sign (classify-ival y))
 
   (match* (x-sign y-sign)
-    [( 1  1) (mkmult xlo ylo xhi yhi)]
-    [( 1 -1) (mkmult xhi ylo xlo yhi)]
-    [( 1  0) (mkmult xhi ylo xhi yhi)]
-    [(-1  0) (mkmult xlo yhi xlo ylo)]
-    [(-1  1) (mkmult xlo yhi xhi ylo)]
+    [(1 1) (mkmult xlo ylo xhi yhi)]
+    [(1 -1) (mkmult xhi ylo xlo yhi)]
+    [(1 0) (mkmult xhi ylo xhi yhi)]
+    [(-1 0) (mkmult xlo yhi xlo ylo)]
+    [(-1 1) (mkmult xlo yhi xhi ylo)]
     [(-1 -1) (mkmult xhi yhi xlo ylo)]
-    [( 0  1) (mkmult xlo yhi xhi yhi)]
-    [( 0 -1) (mkmult xhi ylo xlo ylo)]
-    [( 0  0)
-     ;; Here, the two branches of the union are meaningless on their own;
-     ;; however, both branches compute possible lo/hi's to min/max together
-     (ival-union (mkmult xhi ylo xlo ylo)
-                 (mkmult xlo yhi xhi yhi))]))
+    [(0 1) (mkmult xlo yhi xhi yhi)]
+    [(0 -1) (mkmult xhi ylo xlo ylo)]
+    ;; Here, the two branches of the union are meaningless on their own;
+    ;; however, both branches compute possible lo/hi's to min/max together
+    [(0 0) (ival-union (mkmult xhi ylo xlo ylo) (mkmult xlo yhi xhi yhi))]))
 
 (define (epdiv a-endpoint b-endpoint a-class)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
   (define-values (val exact?) (bf-return-exact? bfdiv (list a b)))
   (endpoint val
-   (or (and a! b! exact?)
-       (and a! (bfzero? a))
-       (and a! (bfinfinite? a))
-       (and b! (bfinfinite? b))
-       (and b! (bfzero? b) (not (= a-class 0))))))
+            (or (and a! b! exact?)
+                (and a! (bfzero? a))
+                (and a! (bfinfinite? a))
+                (and b! (bfinfinite? b))
+                (and b! (bfzero? b) (not (= a-class 0))))))
 
 (define (ival-div x y)
   (match-define (ival xlo xhi xerr? xerr) x)
@@ -230,7 +294,7 @@
 
   (define (mkdiv a b c d)
     (ival (rnd 'down epdiv a b x-class) (rnd 'up epdiv c d x-class) err? err))
-  
+
   (match* (x-class y-class)
     [(_ 0) ; In this case, y stradles 0
      (define immovable?
@@ -240,17 +304,16 @@
            (and (endpoint-immovable? yhi) (bfzero? (endpoint-val yhi)))
            (and (endpoint-immovable? ylo) (endpoint-immovable? yhi))))
      (ival (endpoint -inf.bf immovable?) (endpoint +inf.bf immovable?) err? err)]
-    [( 1  1) (mkdiv xlo yhi xhi ylo)]
-    [( 1 -1) (mkdiv xhi yhi xlo ylo)]
-    [(-1  1) (mkdiv xlo ylo xhi yhi)]
+    [(1 1) (mkdiv xlo yhi xhi ylo)]
+    [(1 -1) (mkdiv xhi yhi xlo ylo)]
+    [(-1 1) (mkdiv xlo ylo xhi yhi)]
     [(-1 -1) (mkdiv xhi ylo xlo yhi)]
-    [( 0  1) (mkdiv xlo ylo xhi ylo)]
-    [( 0 -1) (mkdiv xhi yhi xlo yhi)]))
+    [(0 1) (mkdiv xlo ylo xhi ylo)]
+    [(0 -1) (mkdiv xhi yhi xlo yhi)]))
 
 ;; Helpers for defining interval functions
 
-(define-syntax-rule (define* name expr)
-  (define name (procedure-rename expr 'name)))
+(define-syntax-rule (define* name expr) (define name (procedure-rename expr 'name)))
 
 (define ((monotonic bffn) x)
   (match-define (ival lo hi err? err) x)
@@ -263,16 +326,13 @@
 (define ((close-enough->ival bffn) x)
   (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) x)
   (define close-enough? (bffn lo hi))
-  (ival (endpoint close-enough? #f)
-        (endpoint (or (not lo!) (not hi!) close-enough?) #f)
-        err?
-        err))
+  (ival (endpoint close-enough? #f) (endpoint (or (not lo!) (not hi!) close-enough?) #f) err? err))
 
 (define ((clamp lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (define err? (or xerr? (bflt? xlo lo) (bfgt? xhi hi)))
   (define err (or (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
-  
+
   (if (and (bfzero? lo) (bfzero? xhi))
       (ival (endpoint 0.bf xlo!) (endpoint 0.bf xhi!) err? err)
       (ival (endpoint (if (bflt? xlo lo) lo xlo) xlo!)
@@ -292,7 +352,8 @@
   (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) (fn x))
   (ival (endpoint ylo (or ylo! (bflte? xhi lo) (and (bflte? xlo lo) xlo!)))
         (endpoint yhi (or yhi! (bfgte? xlo hi) (and (bfgte? xhi hi) xhi!)))
-        xerr? xerr))
+        xerr?
+        xerr))
 
 ;; Biggest non-inf value
 ;;
@@ -307,7 +368,8 @@
   (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) y)
   (ival (endpoint ylo (or ylo! (bflte? xhi lo) (and (bflte? xlo lo) xlo!)))
         (endpoint yhi (or yhi! (bflte? xhi lo) (bfgte? xlo hi) (and (bfgte? xhi hi) xhi!)))
-        yerr? yerr))
+        yerr?
+        yerr))
 
 (define* ival-neg (comonotonic bfneg))
 
@@ -316,9 +378,7 @@
 ;; precision, not the output precision, so (rnd 'down bfround xxx) can
 ;; return +inf.bf
 (define ((fix-rounding f) x)
-  (if (>= (bigfloat-exponent x) 0)
-      (bfrint x)
-      (f x)))
+  (if (>= (bigfloat-exponent x) 0) (bfrint x) (f x)))
 
 (define* ival-rint (monotonic bfrint))
 (define* ival-round (monotonic (fix-rounding bfround)))
@@ -334,27 +394,30 @@
      (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
      (ival (endpoint 0.bf (and xlo! xhi!))
            (rnd 'up endpoint-max2 (epfn bfabs (ival-lo x)) (ival-hi x))
-           (ival-err? x) (ival-err x))]))
+           (ival-err? x)
+           (ival-err x))]))
 
 ;; These functions execute ival-fabs and ival-neg with input's precision
 (define (ival-max-prec x)
   (max (bigfloat-precision (ival-lo-val x)) (bigfloat-precision (ival-hi-val x))))
 
 (define (ival-exact-fabs x)
-  (parameterize ([bf-precision (ival-max-prec x)]) (ival-fabs x)))
+  (parameterize ([bf-precision (ival-max-prec x)])
+    (ival-fabs x)))
 
 (define (ival-exact-neg x)
-  (parameterize ([bf-precision (ival-max-prec x)]) (ival-neg x)))
+  (parameterize ([bf-precision (ival-max-prec x)])
+    (ival-neg x)))
 
 ;; Since MPFR has a cap on exponents, no value can be more than twice MAX_VAL
-(define exp-overflow-threshold  (bfadd (bflog (bfprev +inf.bf)) 1.bf))
+(define exp-overflow-threshold (bfadd (bflog (bfprev +inf.bf)) 1.bf))
 (define exp2-overflow-threshold (bfadd (bflog2 (bfprev +inf.bf)) 1.bf))
 
 (define (ival-exp x)
   (define y ((monotonic bfexp) x))
   ((overflows-loose-at (bfneg exp-overflow-threshold) exp-overflow-threshold) x y))
 (define* ival-expm1
-  (overflows-at (monotonic bfexpm1) (bfneg exp-overflow-threshold) exp-overflow-threshold))
+         (overflows-at (monotonic bfexpm1) (bfneg exp-overflow-threshold) exp-overflow-threshold))
 (define (ival-exp2 x)
   (define y ((monotonic bfexp2) x))
   ((overflows-loose-at (bfneg exp2-overflow-threshold) exp2-overflow-threshold) x y))
@@ -374,7 +437,9 @@
   (define x* (ival-exact-fabs x))
   (define y* (ival-exact-fabs y))
   (ival (rnd 'down eplinear bfhypot (ival-lo x*) (ival-lo y*))
-        (rnd 'up   eplinear bfhypot (ival-hi x*) (ival-hi y*)) err? err))
+        (rnd 'up eplinear bfhypot (ival-hi x*) (ival-hi y*))
+        err?
+        err))
 
 (define (ival-fma a b c)
   (ival-add (ival-mult a b) c))
@@ -382,18 +447,17 @@
 (define (ival-and . as)
   (ival (endpoint (andmap ival-lo-val as) (andmap (compose endpoint-immovable? ival-lo) as))
         (endpoint (andmap ival-hi-val as) (andmap (compose endpoint-immovable? ival-hi) as))
-        (ormap ival-err? as) (ormap ival-err as)))
+        (ormap ival-err? as)
+        (ormap ival-err as)))
 
 (define (ival-or . as)
   (ival (endpoint (ormap ival-lo-val as) (andmap (compose endpoint-immovable? ival-lo) as))
         (endpoint (ormap ival-hi-val as) (andmap (compose endpoint-immovable? ival-hi) as))
-        (ormap ival-err? as) (ormap ival-err as)))
+        (ormap ival-err? as)
+        (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (epfn not (ival-hi x))
-        (epfn not (ival-lo x))
-        (ival-err? x)
-        (ival-err x)))
+  (ival (epfn not (ival-hi x)) (epfn not (ival-lo x)) (ival-err? x) (ival-err x)))
 
 (define* ival-asin (compose (monotonic bfasin) (clamp -1.bf 1.bf)))
 (define* ival-acos (compose (comonotonic bfacos) (clamp -1.bf 1.bf)))
@@ -411,17 +475,21 @@
 
   (match* ((classify-ival-strict x) (classify-ival-strict y))
     [(-1 -1) (mkatan yhi xlo ylo xhi)]
-    [( 0 -1) (mkatan yhi xlo yhi xhi)]
-    [( 1 -1) (mkatan ylo xlo yhi xhi)]
-    [( 1  0) (mkatan ylo xlo yhi xlo)]
-    [( 1  1) (mkatan ylo xhi yhi xlo)]
-    [( 0  1) (mkatan ylo xhi ylo xlo)]
-    [(-1  1) (mkatan yhi xhi ylo xlo)]
-    [( _  0)
-     (ival (endpoint (bfneg (rnd 'up pi.bf)) #f) (endpoint (rnd 'up pi.bf) #f)
-            (or err? (bfgte? (ival-hi-val x) 0.bf))
-            (or err (and (bf=? (ival-lo-val x) 0.bf) (bf=? (ival-hi-val x) 0.bf)
-                         (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))]))
+    [(0 -1) (mkatan yhi xlo yhi xhi)]
+    [(1 -1) (mkatan ylo xlo yhi xhi)]
+    [(1 0) (mkatan ylo xlo yhi xlo)]
+    [(1 1) (mkatan ylo xhi yhi xlo)]
+    [(0 1) (mkatan ylo xhi ylo xlo)]
+    [(-1 1) (mkatan yhi xhi ylo xlo)]
+    [(_ 0)
+     (ival (endpoint (bfneg (rnd 'up pi.bf)) #f)
+           (endpoint (rnd 'up pi.bf) #f)
+           (or err? (bfgte? (ival-hi-val x) 0.bf))
+           (or err
+               (and (bf=? (ival-lo-val x) 0.bf)
+                    (bf=? (ival-hi-val x) 0.bf)
+                    (bf=? (ival-lo-val y) 0.bf)
+                    (bf=? (ival-hi-val y) 0.bf))))]))
 
 (define* ival-cosh (compose (monotonic bfcosh) ival-exact-fabs))
 (define* ival-sinh (monotonic bfsinh))
@@ -469,19 +537,20 @@
       ['() ival-true]
       [(list x) ival-true]
       [(list x y) (f x y)]
-      [(cons x (and (cons y _) tail))
-       (ival-and (f x y) (loop tail))])))
+      [(cons x (and (cons y _) tail)) (ival-and (f x y) (loop tail))])))
 
-(define* ival-<  (ival-comparator ival-<2  'ival-<))
+(define* ival-< (ival-comparator ival-<2 'ival-<))
 (define* ival-<= (ival-comparator ival-<=2 'ival-<=))
-(define* ival->  (ival-comparator ival->2  'ival->))
+(define* ival-> (ival-comparator ival->2 'ival->))
 (define* ival->= (ival-comparator ival->=2 'ival->=))
 (define* ival-== (ival-comparator ival-==2 'ival-==))
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn or-fn m< m>) (epfn or-fn c< c>)
-        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (epfn or-fn m< m>)
+        (epfn or-fn c< c>)
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival-!= . as)
   (if (null? as)
@@ -489,15 +558,15 @@
       (let loop ([head (car as)] [tail (cdr as)])
         (if (null? tail)
             ival-true
-            (ival-and
-             (foldl ival-and ival-true (map (curry ival-!=2 head) tail))
-             (loop (car tail) (cdr tail)))))))
+            (ival-and (foldl ival-and ival-true (map (curry ival-!=2 head) tail))
+                      (loop (car tail) (cdr tail)))))))
 
 (define (ival-error? x)
   (ival (endpoint (ival-err x) #f) (endpoint (ival-err? x) #f) #f #f))
 
 (define (ival-assert c [msg #t])
-  (ival (endpoint #t #t) (endpoint #t #t)
+  (ival (endpoint #t #t)
+        (endpoint #t #t)
         (or (ival-err? c) (if (ival-lo-val c) #f msg))
         (or (ival-err c) (if (ival-hi-val c) #f msg))))
 
@@ -505,10 +574,8 @@
 
 (define (ival-then a . as)
   (match-define (ival alo ahi aerr? aerr) a)
-  (for/fold
-      ([lo alo] [hi ahi] [err? aerr?] [err aerr]
-       #:result (ival lo hi err? err))
-      ([a (in-list as)])
+  (for/fold ([lo alo] [hi ahi] [err? aerr?] [err aerr] #:result (ival lo hi err? err))
+            ([a (in-list as)])
     (match-define (ival alo ahi aerr? aerr) a)
     (values alo ahi (or err? aerr?) (or err aerr))))
 
@@ -516,14 +583,12 @@
 
 (define (ival-if c x y)
   (cond
-   [(ival-lo-val c) (ival-then c (ival-identity x))]
-   [(not (ival-hi-val c)) (ival-then c (ival-identity y))]
-   [else
-    (define out (ival-then c (ival-union x y)))
-    ; If condition is movable output should be too
-    (if (not (and (ival-lo-fixed? c) (ival-hi-fixed? c)))
-        (ival-mobilize out)
-        out)]))
+    [(ival-lo-val c) (ival-then c (ival-identity x))]
+    [(not (ival-hi-val c)) (ival-then c (ival-identity y))]
+    [else
+     (define out (ival-then c (ival-union x y)))
+     ; If condition is movable output should be too
+     (if (not (and (ival-lo-fixed? c) (ival-hi-fixed? c))) (ival-mobilize out) out)]))
 
 (define (ival-mobilize x)
   (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) x)
@@ -532,17 +597,18 @@
 (define (ival-fmin x y)
   (ival (rnd 'down endpoint-min2 (ival-lo x) (ival-lo y))
         (rnd 'up endpoint-min2 (ival-hi x) (ival-hi y))
-        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival-fmax x y)
   (ival (rnd 'down endpoint-max2 (ival-lo x) (ival-lo y))
         (rnd 'up endpoint-max2 (ival-hi x) (ival-hi y))
-        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival-copysign x y)
   (match-define (ival xlo xhi xerr? xerr) (ival-fabs x))
-  (define can-zero
-    (or (bfzero? (ival-lo-val y)) (bfzero? (ival-hi-val y))))
+  (define can-zero (or (bfzero? (ival-lo-val y)) (bfzero? (ival-hi-val y))))
   ;; 0 is both positive and negative because we don't handle signed zero well
   (define can-neg (or (= (mpfr-sign (ival-lo-val y)) -1) can-zero))
   (define can-pos (or (= (mpfr-sign (ival-hi-val y)) 1) can-zero))
@@ -568,4 +634,4 @@
   (define hi! (andmap (lambda (iv) (ival-hi-fixed? iv)) ivs))
   (define lo! (andmap (lambda (iv) (ival-lo-fixed? iv)) ivs))
   (for/list ([u upper] [l lower])
-            (ival (endpoint l lo!) (endpoint u hi!) err? err)))
+    (ival (endpoint l lo!) (endpoint u hi!) err? err)))

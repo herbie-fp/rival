@@ -16,4 +16,3 @@
 (define deps '(("base" #:version "8.0") "math-lib" "rackunit-lib" "profile-lib"))
 (define build-deps '("rackunit-lib" "scribble-lib" "racket-doc" "math-doc" "sandbox-lib"))
 (define scribblings '(("scribblings/rival.scrbl" (multi-page) (library))))
-
