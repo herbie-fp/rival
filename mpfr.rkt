@@ -1,9 +1,19 @@
 #lang racket/base
 
-(require math/private/bigfloat/mpfr ffi/unsafe)
+(require math/private/bigfloat/mpfr
+         ffi/unsafe)
 
-(provide -inf.bf -1.bf 0.bf half.bf 1.bf 2.bf 3.bf +inf.bf +nan.bf
-         bf-return-exact? rnd)
+(provide -inf.bf
+         -1.bf
+         0.bf
+         half.bf
+         1.bf
+         2.bf
+         3.bf
+         +inf.bf
+         +nan.bf
+         bf-return-exact?
+         rnd)
 
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
@@ -31,14 +41,16 @@
   (values out exact?))
 ;; End hairy code
 
-(define mpfr-remainder (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+(define mpfr-remainder
+  (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
 (define (bfremainder x mod)
   (define out (bf 0))
   (mpfr-remainder out x mod (bf-rounding-mode))
   out)
 
-(define mpfr-fmod (get-mpfr-fun 'mpfr_fmod (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+(define mpfr-fmod
+  (get-mpfr-fun 'mpfr_fmod (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
 (define (bffmod x mod)
   (define out (bf 0))
@@ -52,9 +64,12 @@
   (mpfr-log2p1 out x (bf-rounding-mode))
   out)
 
-(define mpfr-cosu (get-mpfr-fun 'mpfr_cosu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
-(define mpfr-sinu (get-mpfr-fun 'mpfr_sinu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
-(define mpfr-tanu (get-mpfr-fun 'mpfr_tanu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
+(define mpfr-cosu
+  (get-mpfr-fun 'mpfr_cosu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
+(define mpfr-sinu
+  (get-mpfr-fun 'mpfr_sinu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
+(define mpfr-tanu
+  (get-mpfr-fun 'mpfr_tanu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
 
 (define (bfcosu n x)
   (define out (bf 0))
@@ -71,17 +86,18 @@
   (mpfr-tanu out x n (bf-rounding-mode))
   out)
 
-(unless mpfr-cosu (set! bfcosu #f))
-(unless mpfr-sinu (set! bfsinu #f))
-(unless mpfr-tanu (set! bftanu #f))
+(unless mpfr-cosu
+  (set! bfcosu #f))
+(unless mpfr-sinu
+  (set! bfsinu #f))
+(unless mpfr-tanu
+  (set! bftanu #f))
 
 (define (bflogb x)
   (bffloor (bflog2 (bfabs x))))
 
 (define (bfcopysign x y)
-  (if (bfnan? y)
-      +nan.bf
-      (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf))))
+  (if (bfnan? y) +nan.bf (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf))))
 
 (define (bffdim x y)
   (if (bfgt? x y) (bfsub x y) 0.bf))
@@ -96,20 +112,89 @@
 
 (define (bffma a b c)
   ;; `bfstep` truncates to `(bf-precision)` bits
-  (bfcopy (bfadd c (parameterize ([bf-precision (* (bf-precision) 2)]) (bfmul a b)))))
+  (bfcopy (bfadd c
+                 (parameterize ([bf-precision (* (bf-precision) 2)])
+                   (bfmul a b)))))
 
-(provide
- bf bigfloat? mpfr-sign bigfloat-exponent bigfloat-precision bf-precision mpfr-exp bf-rounding-mode
- bfpositive? bfinteger? bfzero? bfnan? bfinfinite? bfnegative? bfeven? bfodd? 
- bfcopy bfstep bigfloats-between bfprev bfnext 
- bf=? bflte? bfgte? bflt? bfgt? bfgte? 
- pi.bf bfmin2 bfmax2
- bfabs bfadd bfsub bfneg bfmul bfdiv bfremainder
- bfrint bfround bfceiling bffloor bftruncate
- bfexp bflog bfexp2 bfexpm1 bflog2 bflog1p bflog10 bfexpt 
- bfsqrt bfcbrt bfhypot 
- bfsin bfcos bftan bfsinh bfcosh bftanh bfcosu bfsinu bftanu
- bfasin bfacos bfatan bfatan2 bfasinh bfacosh bfatanh
- bflog-gamma bfgamma bferf bferfc
- bfremainder bffmod bflogb bfcopysign bffdim and-fn or-fn if-fn bffma)
-
+(provide bf
+         bigfloat?
+         mpfr-sign
+         bigfloat-exponent
+         bigfloat-precision
+         bf-precision
+         mpfr-exp
+         bf-rounding-mode
+         bfpositive?
+         bfinteger?
+         bfzero?
+         bfnan?
+         bfinfinite?
+         bfnegative?
+         bfeven?
+         bfodd?
+         bfcopy
+         bfstep
+         bigfloats-between
+         bfprev
+         bfnext
+         bf=?
+         bflte?
+         bfgte?
+         bflt?
+         bfgt?
+         bfgte?
+         pi.bf
+         bfmin2
+         bfmax2
+         bfabs
+         bfadd
+         bfsub
+         bfneg
+         bfmul
+         bfdiv
+         bfremainder
+         bfrint
+         bfround
+         bfceiling
+         bffloor
+         bftruncate
+         bfexp
+         bflog
+         bfexp2
+         bfexpm1
+         bflog2
+         bflog1p
+         bflog10
+         bfexpt
+         bfsqrt
+         bfcbrt
+         bfhypot
+         bfsin
+         bfcos
+         bftan
+         bfsinh
+         bfcosh
+         bftanh
+         bfcosu
+         bfsinu
+         bftanu
+         bfasin
+         bfacos
+         bfatan
+         bfatan2
+         bfasinh
+         bfacosh
+         bfatanh
+         bflog-gamma
+         bfgamma
+         bferf
+         bferfc
+         bfremainder
+         bffmod
+         bflogb
+         bfcopysign
+         bffdim
+         and-fn
+         or-fn
+         if-fn
+         bffma)
