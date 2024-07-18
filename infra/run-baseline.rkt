@@ -5,24 +5,24 @@
 (require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn)
          (only-in "../eval/machine.rkt" *base-tuning-precision* *rival-max-precision*)
          "../eval/main.rkt"
-         "../ops/all.rkt" )
+         "../ops/all.rkt")
 
 (provide baseline-compile baseline-apply)
 
 (struct baseline-machine
   (arguments instructions outputs discs
-             registers precisions))
+             registers))
 
 ; ----------------------------------------- COMPILATION ----------------------------------------------
 (define (baseline-compile exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots)
-    (exprs->batch exprs vars))
+    (exprs->batch exprs vars)) ; translations are taken from Rival machine
 
   (define instructions
     (for/vector #:length (- (vector-length nodes) num-vars)
       ([node (in-vector nodes num-vars)])
-      (fn->ival-fn node)))
+      (fn->ival-fn node)))     ; mappings are taken from Rival machine
 
   (define register-count (+ (length vars) (vector-length instructions)))
   (define registers (make-vector register-count))
@@ -30,7 +30,7 @@
 
   (baseline-machine
    (list->vector vars) instructions roots discs
-   registers precisions))
+   registers))
 
 ; ------------------------------------------- APPLY --------------------------------------------------
 (define (ival-real x)
@@ -38,7 +38,8 @@
 
 (define (baseline-apply machine pt)
   (define discs (baseline-machine-discs machine))
-  (define start-prec (+ (discretization-target (last discs)) (*base-tuning-precision*)))
+  (define start-prec (+ (discretization-target (last discs))
+                        (*base-tuning-precision*))) ; base tuning is taken from eval/machine.rkt
   
   (let loop ([prec start-prec])
     (define-values (good? done? bad? stuck? fvec)
@@ -51,13 +52,13 @@
        fvec]
       [stuck?
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [(>= (* 2 prec) (*rival-max-precision*))
+      [(>= (* 2 prec) (*rival-max-precision*))      ; max precision is taken from eval/machine.rkt
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else
        (loop (* 2 prec))])))
 
 (define (baseline-machine-full machine inputs)
-  (vector-fill! (baseline-machine-precisions machine) (bf-precision)) ; adjust
+  ; no adjust here
   (baseline-machine-load machine inputs)
   (baseline-machine-run machine)
   (baseline-machine-return machine))
@@ -68,13 +69,11 @@
 (define (baseline-machine-run machine)
   (define ivec (baseline-machine-instructions machine))
   (define varc (vector-length (baseline-machine-arguments machine)))
-  (define precisions (baseline-machine-precisions machine))
   (define vregs (baseline-machine-registers machine))
 
-  (for ([instr (in-vector ivec)]
-        [n (in-naturals varc)]
-        [precision (in-vector precisions)])
-    (parameterize ([bf-precision precision])
+  (parameterize ([bf-precision (bf-precision)])
+    (for ([instr (in-vector ivec)]
+          [n (in-naturals varc)])
       (vector-set! vregs n (apply-instruction instr vregs)))))
 
 (define (apply-instruction instr regs)
