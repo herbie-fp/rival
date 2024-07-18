@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?) racket/flonum)
+(require racket/match (only-in "../mpfr.rkt" bfprev bf bfsinu bfcosu bftanu bf-rounding-mode bf=?) racket/flonum)
 (require "../ops/all.rkt" "machine.rkt")
 (provide rival-compile *rival-use-shorthands* *rival-name-constants*)
 
@@ -9,6 +9,14 @@
 
 (define (optimize expr)
   (match (and (*rival-use-shorthands*) expr)
+
+    ; Syntax quirks
+    [`PI '(PI)]
+    [`E '(E)]
+    [`(- ,x)
+     `(neg ,x)]
+
+    ; Special numeric functions
     [`(fma ,x ,y ,z)
      `(+ (* ,x ,y) ,z)]
     [`(- (exp ,x) 1)
@@ -19,20 +27,78 @@
      `(log1p ,x)]
     [`(log (+ ,x 1))
      `(log1p ,x)]
-    [`(- ,x)
-     `(neg ,x)]
     [`(sqrt (+ (* ,x ,x) (* ,y ,y)))
      `(hypot ,x ,y)]
     [`(sqrt (+ (* ,x ,x) 1))
      `(hypot ,x 1)]
     [`(sqrt (+ 1 (* ,x ,x)))
      `(hypot 1 ,x)]
+
+    ; Special case powers
     [`(pow ,arg 2)
      `(pow2 ,arg)]
     [`(pow ,arg 1/3)
      `(cbrt ,arg)]
     [`(pow ,arg 1/2)
      `(sqrt ,arg)]
+
+    ; Special trigonometric functions
+    [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
+     #:when bfcosu
+     `((cosu ,(* 2 n)) ,x)]
+    [`(cos (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
+     #:when bfcosu
+     `((cosu ,(* 2 n)) ,x)]
+    [`(cos (* ,(or 'PI '(PI)) ,x))
+     #:when bfcosu
+     `((cosu 2) ,x)]
+    [`(cos (* ,x ,(or 'PI '(PI))))
+     #:when bfcosu
+     `((cosu 2) ,x)]
+    [`(cos (* (* 2 ,(or 'PI '(PI))) ,x))
+     #:when bfcosu
+     `((cosu 1) ,x)]
+    [`(cos (* ,x (* 2 ,(or 'PI '(PI)))))
+     #:when bfcosu
+     `((cosu 1) ,x)]
+    [`(sin (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
+     #:when bfsinu
+     `((sinu ,(* 2 n)) ,x)]
+    [`(sin (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
+     #:when bfsinu
+     `((sinu ,(* 2 n)) ,x)]
+    [`(sin (* ,(or 'PI '(PI)) ,x))
+     #:when bfsinu
+     `((sinu 2) ,x)]
+    [`(sin (* ,x ,(or 'PI '(PI))))
+     #:when bfsinu
+     `((sinu 2) ,x)]
+    [`(sin (* (* 2 ,(or 'PI '(PI))) ,x))
+     #:when bfsinu
+     `((sinu 1) ,x)]
+    [`(sin (* ,x (* 2 ,(or 'PI '(PI)))))
+     #:when bfsinu
+     `((sinu 1) ,x)]
+    [`(tan (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
+     #:when bftanu
+     `((tanu ,(* 2 n)) ,x)]
+    [`(tan (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
+     #:when bftanu
+     `((tanu ,(* 2 n)) ,x)]
+    [`(tan (* ,(or 'PI '(PI)) ,x))
+     #:when bftanu
+     `((tanu 2) ,x)]
+    [`(tan (* ,x ,(or 'PI '(PI))))
+     #:when bftanu
+     `((tanu 2) ,x)]
+    [`(tan (* (* 2 ,(or 'PI '(PI))) ,x))
+     #:when bftanu
+     `((tanu 1) ,x)]
+    [`(tan (* ,x (* 2 ,(or 'PI '(PI)))))
+     #:when bftanu
+     `((tanu 1) ,x)]
+
+    ; Handle pow(x, 1/5) and similar
     [`(pow (fabs ,x) ,y)
      `(pow (fabs ,x) ,y)]
     [`(pow ,x ,(? rational? y))
@@ -176,6 +242,10 @@
         [(list 'remainder x y) (list ival-remainder x y)]
 
         [(list 'pow2 x) (list ival-pow2 x)]
+
+        [(list `(cosu ,n) x) (list (ival-cosu n) x)]
+        [(list `(sinu ,n) x) (list (ival-sinu n) x)]
+        [(list `(tanu ,n) x) (list (ival-tanu n) x)]
 
         [(list '== x y) (list ival-== x y)]
         [(list '!= x y) (list ival-!= x y)]
