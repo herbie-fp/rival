@@ -3,8 +3,9 @@
          math/flonum)
 
 (define sollya-path (find-executable-path "sollya"))
+(define *sollya-internal-timeout* (make-parameter 25.0))
 
-(provide sollya-compile sollya-apply sollya-kill)
+(provide sollya-compile sollya-apply sollya-kill *sollya-internal-timeout*)
 
 (struct sollya-machine
   ([process #:mutable]
@@ -229,17 +230,17 @@
       [(regexp-match #rx"^Warning: the given expression is undefined or numerically unstable\n*" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list result sollya-time) (take-right (string-split s "\n") 2))
-         (list dt (seconds->ms sollya-time) (fl +nan.0) 'invalid))]
+         (list dt (seconds->ms sollya-time) #f 'invalid))]
 
       ; NaN
       [(regexp-match #rx"^NaN\n[-+.e0-9]+\n$" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list result sollya-time) (string-split s "\n"))
-         (list dt (seconds->ms sollya-time) (fl +nan.0) 'invalid))]
+         (list dt (seconds->ms sollya-time) #f 'invalid))]
       [(regexp-match #rx"^\\[NaN;NaN\\]\n[-+.e0-9]+\n$" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list result sollya-time) (string-split s "\n"))
-         (list dt (seconds->ms sollya-time) (fl +nan.0) 'invalid))]
+         (list dt (seconds->ms sollya-time) #f 'invalid))]
 
       ; Infinity
       [(regexp-match #rx"^-?infty\n[-+.e0-9]+\n$" s)
@@ -256,13 +257,13 @@
          (list dt (seconds->ms sollya-time) (<-bf (bf result)) 'valid))]
 
       ; Timeout
-      [(> (- (current-inexact-milliseconds) start) timeout)
+      [(> (- (current-inexact-milliseconds) start) *sollya-internal-timeout*)
        (when (not (equal? s ""))
          (eprintf "\nUnprocessed output from Sollya\n")
          (eprintf "Stdout number: ~s\n" s)
          (sollya-kill machine)
          (error "crashed"))
-       (list timeout timeout (fl +nan.0) 'exit)]
+       (list timeout timeout #f 'exit)]
 
       [else
        (loop (+ i step))])))

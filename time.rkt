@@ -2,7 +2,9 @@
 
 (require racket/math math/base math/flonum math/bigfloat racket/random profile)
 (require json)
-(require "main.rkt" "test.rkt" "profile.rkt" "infra/run-sollya.rkt" "infra/run-baseline.rkt")
+(require "main.rkt" "test.rkt" "profile.rkt"
+         "eval/machine.rkt" ; for accessing iteration number of machine
+         "infra/run-sollya.rkt" "infra/run-baseline.rkt")
 
 (define sample-vals (make-parameter 5000))
 
@@ -31,49 +33,75 @@
 (define (read-from-string s)
   (read (open-input-string s)))
 
-(define (time-expr rec tool)
+(define (time-expr rec)
   (define exprs (map read-from-string (hash-ref rec 'exprs)))
   (define vars (map read-from-string (hash-ref rec 'vars)))
   (unless (andmap symbol? vars)
     (raise 'time "Invalid variable list ~a" vars))
   (match-define `(bool flonum ...) (map read-from-string (hash-ref rec 'discs)))
   (define discs (cons boolean-discretization (map (const flonum-discretization) (cdr exprs))))
+
+  ; Rival machine
   (define start-compile (current-inexact-milliseconds))
-  (define machine
-    (match tool
-      ['rival (rival-compile exprs vars discs)]
-      ['baseline (baseline-compile exprs vars discs)]
-      ['sollya (sollya-compile exprs vars 53)])) ; prec=53 is an imitation of flonum
+  (define rival-machine (rival-compile exprs vars discs))
   (define compile-time (- (current-inexact-milliseconds) start-compile))
+
+  ; Baseline and Sollya machines
+  (define baseline-machine (baseline-compile exprs vars discs))
+  (define sollya-machine (with-handlers ([exn:fail? (λ (e)
+                                                      (printf "Sollya didn't compile")
+                                                      (printf "~a\n" e)
+                                                      #f)])
+                           (sollya-compile exprs vars 53))) ; prec=53 is an imitation of flonum
+
   (define times
-    (match tool
-      ['rival
-       (for/list ([pt (in-list (hash-ref rec 'points))])
-         (define start-apply (current-inexact-milliseconds))
-         (define status
-           (with-handlers ([exn:rival:invalid? (const 'invalid)]
-                           [exn:rival:unsamplable? (const 'unsamplable)])
-             (rival-apply machine (list->vector (map bf pt)))
-             'valid))
-         (define apply-time (- (current-inexact-milliseconds) start-apply))
-         (cons status apply-time))]
-      ['baseline
-       (for/list ([pt (in-list (hash-ref rec 'points))])
-         (define start-apply (current-inexact-milliseconds))
-         (define status
-           (with-handlers ([exn:rival:invalid? (const 'invalid)]
-                           [exn:rival:unsamplable? (const 'unsamplable)])
-             (baseline-apply machine (list->vector (map bf pt)))
-             'valid))
-         (define apply-time (- (current-inexact-milliseconds) start-apply))
-         (cons status apply-time))]
-      ['sollya
-       (define out (for/list ([pt (in-list (hash-ref rec 'points))])
-                     (match-define (list internal-time external-time exs status) (sollya-apply machine pt))
-                     (cons status external-time)))
-       (sollya-kill machine)
-       out]))
+    (for/list ([pt (in-list (hash-ref rec 'points))])
+      ; Rival execution
+      (define rival-start-apply (current-inexact-milliseconds))
+      
+      (match-define (list rival-status rival-exs)
+        (with-handlers ([exn:rival:invalid? (list 'invalid #f)]
+                        [exn:rival:unsamplable? (list 'unsamplable #f)])
+          (define exs (vector-ref (rival-apply rival-machine (list->vector (map bf pt))) 1))
+          (list 'valid exs)))
+      (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
+      (define rival-iter (rival-machine-iteration rival-machine))
+
+      ; Baseline execution (we assume that baseline can not crash)
+      (define baseline-start-apply (current-inexact-milliseconds))
+      (match-define (list baseline-status baseline-exs)
+        (with-handlers ([exn:rival:invalid? (list (const 'invalid) #f)]
+                        [exn:rival:unsamplable? (list (const 'unsamplable) #f)])
+          (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt))) 1))
+          (list (const 'valid) exs)))
+      (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
+
+      ; Sollya execution
+      (define sollya-apply-time #f)
+      (match-define (list sollya-status sollya-exs)
+        (match sollya-machine
+          [#f (values #f #f)] ; if sollya machine is not working for this benchmark
+          [else (with-handlers ([exn:fail? (λ (e)
+                                             (printf "Sollya failed")
+                                             (printf "~a\n" e)
+                                             (sollya-kill sollya-machine)
+                                             (set! sollya-machine #f)
+                                             (list #f #f))])
+                  (match-define (list internal-time external-time exs status)
+                    (sollya-apply sollya-machine pt))
+                  (set! sollya-apply-time external-time)
+                  (list status exs))]))
+      (printf "pt\t|rival-exs\t|baseline-exs\t|sollya-exs\t\n")
+      (printf "~a\t|~a\t|~a\t|~a\t\n" pt rival-exs baseline-exs sollya-exs)
+      (list rival-iter
+            rival-status rival-apply-time rival-exs
+            baseline-status baseline-apply-time baseline-exs
+            sollya-status sollya-apply-time sollya-exs)))
+
+  ; Zombie process
+  (sollya-kill sollya-machine)
   (cons (cons 'compile compile-time) times))
+
 
 (define (time-exprs data)
   (define times
@@ -107,7 +135,7 @@
     
     (list (object-name ival-fn) iv256 (/ iv256 bf256) iv4k (/ iv4k bf4k))))
 
-(define (make-expression-table points test-id tool)
+(define (make-expression-table points test-id)
   (newline)
   (define total-c 0.0)
   (define total-v 0.0)
@@ -126,10 +154,7 @@
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
-        (with-handlers ([exn:fail? (λ (e)
-                                     (println e)
-                                     (list 0 0 0 0 0 0 0))])
-          (time-exprs (time-expr rec tool))))
+          (time-exprs (time-expr rec)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))
@@ -205,15 +230,14 @@
     (fprintf port "<section id='profile'><h1>Profiling</h1>")
     (fprintf port "<p class='load-text'>Loading profile data...</p></section>")))
 
-(define (run test-id p #:tool [tool 'rival])
+(define (run test-id p)
   (define operation-table
     (and
      (or (not test-id) (not (string->number test-id)))
-     (equal? tool 'rival)
      (make-operation-table test-id)))
   (define-values (expression-table expression-footer)
     (if (and p (or (not test-id) (string->number test-id)))
-        (make-expression-table p test-id tool)
+        (make-expression-table p test-id)
         (values #f #f)))
   (list operation-table expression-table expression-footer))
 
@@ -262,36 +286,38 @@
              (set! n ns)]
    #:args ([points "infra/points.json"])
 
+   (set! n "5")
+
    ; Rival
    (printf "Rival execution\n")
-   (match-define (list rival-op-t rival-ex-t rival-ex-f)
+   (match-define (list op-t ex-t ex-f)
      (if profile-port
          (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
-                  (run n (open-input-file points) #:tool 'rival))
-         (run n (open-input-file points) #:tool 'rival)))
+                  (run n (open-input-file points)))
+         (run n (open-input-file points))))
    (when dir
      (set! html-port (open-output-file (format "~a/index.html" dir) #:mode 'text #:exists 'replace))
-     (generate-html html-port profile-port rival-op-t rival-ex-t rival-ex-f))
+     (generate-html html-port profile-port op-t ex-t ex-f))
 
    ; Baseline
-   (printf "Baseline execution\n")
-   (match-define (list baseline-op-t baseline-ex-t baseline-ex-f)
+   #;(printf "Baseline execution\n")
+   #;(match-define (list baseline-op-t baseline-ex-t baseline-ex-f)
      (if profile-port
          (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
                   (run n (open-input-file points) #:tool 'baseline))
          (run n (open-input-file points) #:tool 'baseline)))
-   (when dir
+   #;(when dir
      (set! html-port (open-output-file (format "~a/baseline.html" dir) #:mode 'text #:exists 'replace))
      (generate-html html-port profile-port baseline-op-t baseline-ex-t baseline-ex-f))
 
-   ; Baseline
-   (printf "Sollya execution\n")
-   (match-define (list sollya-op-t sollya-ex-t sollya-ex-f)
+   ; Sollya
+   #;(printf "Sollya execution\n")
+   #;(match-define (list sollya-op-t sollya-ex-t sollya-ex-f)
      (if profile-port
          (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
                   (run n (open-input-file points) #:tool 'sollya))
          (run n (open-input-file points) #:tool 'sollya)))
-   (when dir
+   #;(when dir
      (set! html-port (open-output-file (format "~a/sollya.html" dir) #:mode 'text #:exists 'replace))
      (generate-html html-port profile-port sollya-op-t sollya-ex-t sollya-ex-f))))
   
