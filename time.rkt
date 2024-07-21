@@ -7,6 +7,7 @@
          "infra/run-sollya.rkt" "infra/run-baseline.rkt")
 
 (define sample-vals (make-parameter 5000))
+(define *sampling-timeout* (make-parameter 50.0))
 
 (define (time-operation ival-fn bf-fn itypes otype)
   (define n
@@ -33,7 +34,7 @@
 (define (read-from-string s)
   (read (open-input-string s)))
 
-(define (time-expr rec)
+(define (time-expr rec outcomes)
   (define exprs (map read-from-string (hash-ref rec 'exprs)))
   (define vars (map read-from-string (hash-ref rec 'vars)))
   (unless (andmap symbol? vars)
@@ -60,8 +61,8 @@
       (define rival-start-apply (current-inexact-milliseconds))
       
       (match-define (list rival-status rival-exs)
-        (with-handlers ([exn:rival:invalid? (list 'invalid #f)]
-                        [exn:rival:unsamplable? (list 'unsamplable #f)])
+        (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
+                        [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
           (define exs (vector-ref (rival-apply rival-machine (list->vector (map bf pt))) 1))
           (list 'valid exs)))
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
@@ -70,14 +71,14 @@
       ; Baseline execution (we assume that baseline can not crash)
       (define baseline-start-apply (current-inexact-milliseconds))
       (match-define (list baseline-status baseline-exs)
-        (with-handlers ([exn:rival:invalid? (list (const 'invalid) #f)]
-                        [exn:rival:unsamplable? (list (const 'unsamplable) #f)])
+        (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
+                        [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
           (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt))) 1))
-          (list (const 'valid) exs)))
+          (list 'valid exs)))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
 
       ; Sollya execution
-      (define sollya-apply-time #f)
+      (define sollya-apply-time 0)
       (match-define (list sollya-status sollya-exs)
         (match sollya-machine
           [#f (values #f #f)] ; if sollya machine is not working for this benchmark
@@ -86,17 +87,29 @@
                                              (printf "~a\n" e)
                                              (sollya-kill sollya-machine)
                                              (set! sollya-machine #f)
-                                             (list #f #f))])
+                                             (list 0 0))])
                   (match-define (list internal-time external-time exs status)
                     (sollya-apply sollya-machine pt))
                   (set! sollya-apply-time external-time)
                   (list status exs))]))
-      (printf "pt\t|rival-exs\t|baseline-exs\t|sollya-exs\t\n")
-      (printf "~a\t|~a\t|~a\t|~a\t\n" pt rival-exs baseline-exs sollya-exs)
-      (list rival-iter
-            rival-status rival-apply-time rival-exs
-            baseline-status baseline-apply-time baseline-exs
-            sollya-status sollya-apply-time sollya-exs)))
+
+      ; When all the machines have compiled and work
+      (when (and rival-machine baseline-machine sollya-machine)
+        (point-bucketing
+         outcomes
+         rival-status rival-apply-time rival-exs
+         baseline-status baseline-apply-time baseline-exs
+         sollya-status sollya-apply-time sollya-exs
+         rival-iter))
+        
+        
+      
+      (cons rival-status
+            (list
+             rival-apply-time rival-exs
+             baseline-status baseline-apply-time baseline-exs
+             sollya-status sollya-apply-time sollya-exs
+             rival-iter))))
 
   ; Zombie process
   (sollya-kill sollya-machine)
@@ -107,14 +120,15 @@
   (define times
     (for/hash ([group (in-list (group-by car data))])
       (values (caar group) (map cdr group))))
+ 
 
   (list (/ (car (hash-ref times 'compile)) 1000)
-        (length (hash-ref times 'valid '()))
-        (/ (apply + (hash-ref times 'valid '())) 1000)
-        (length (hash-ref times 'invalid '()))
-        (/ (apply + (hash-ref times 'invalid '())) 1000)
-        (length (hash-ref times 'unsamplable '()))
-        (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
+         (length (hash-ref times 'valid '()))
+         (/ (apply + (map first (hash-ref times 'valid '()))) 1000)
+         (length (hash-ref times 'invalid '()))
+         (/ (apply + (map first (hash-ref times 'invalid '()))) 1000)
+         (length (hash-ref times 'unsamplable '()))
+         (/ (apply + (map first (hash-ref times 'unsamplable '()))) 1000)))
 
 (define (make-operation-table test-id)
   (for/list ([fn (in-list function-table)]
@@ -135,6 +149,11 @@
     
     (list (object-name ival-fn) iv256 (/ iv256 bf256) iv4k (/ iv4k bf4k))))
 
+(define (outcomes-push! outcomes status iter time*)
+  (match-define (list time num-points)
+    (hash-ref outcomes (list status iter) (λ () (list 0 0))))
+  (hash-set! outcomes (list status iter) (list (+ time time*) (+ num-points 1))))
+
 (define (make-expression-table points test-id)
   (newline)
   (define total-c 0.0)
@@ -145,6 +164,8 @@
   (define total-u 0.0)
   (define count-u 0.0)
 
+  (define outcomes (make-hash)) ; this hash is to be used for the plots
+  
   (define table
     (for/list ([rec (in-port read-json points)] 
                [i (in-naturals)]
@@ -154,7 +175,7 @@
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
-          (time-exprs (time-expr rec)))
+          (time-exprs (time-expr rec outcomes)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))
@@ -286,7 +307,7 @@
              (set! n ns)]
    #:args ([points "infra/points.json"])
 
-   (set! n "5")
+   (set! n "3")
 
    ; Rival
    (printf "Rival execution\n")
@@ -320,4 +341,128 @@
    #;(when dir
      (set! html-port (open-output-file (format "~a/sollya.html" dir) #:mode 'text #:exists 'replace))
      (generate-html html-port profile-port sollya-op-t sollya-ex-t sollya-ex-f))))
-  
+
+
+(define (point-bucketing
+         outcomes
+         rival-status rival-time rival-exs
+         baseline-status baseline-time baseline-exs
+         sollya-status sollya-time sollya-exs
+         rival-iter)
+  (cond
+    ; Rival has produced valid outcomes  status iter time
+    [(equal? rival-status 'valid)
+     (cond
+       ; Every tool have succeded
+       [(and (equal? 'valid sollya-status) (equal? 'valid baseline-status) (equal? rival-status 'valid)
+             (< sollya-time (*sampling-timeout*)) (< baseline-time (*sampling-timeout*)) (< rival-time (*sampling-timeout*)))
+        (outcomes-push! outcomes (format "~a-sollya" sollya-status) rival-iter sollya-time)
+        (outcomes-push! outcomes (format "~a-baseline" baseline-status) rival-iter baseline-time)
+        (outcomes-push! outcomes (format "~a-rival" rival-status) rival-iter rival-time)
+        (if (fl= rival-exs sollya-exs)
+            (outcomes-push! outcomes "sollya-correct-rounding" 0 0)
+            (outcomes-push! outcomes "sollya-faithful-rounding" 0 0))]
+
+       ; Baseline and Rival have succeeded
+       [(and (equal? 'valid baseline-status) (equal? rival-status 'valid)
+             (< baseline-time (*sampling-timeout*)) (< rival-time (*sampling-timeout*)))
+        (cond
+          [(or (equal? rival-exs (fl 0.0)) (equal? rival-exs (fl -0.0)))
+           (outcomes-push! outcomes (format "~a-rival+baseline-zero" rival-status) rival-iter rival-time)]
+          [(flinfinite? rival-exs)
+           (outcomes-push! outcomes (format "~a-rival+baseline-inf" rival-status) rival-iter rival-time)]
+          [else
+           (outcomes-push! outcomes (format "~a-rival+baseline-real" rival-status) rival-iter rival-time)])]
+
+       ; Baseline and Sollya have succeeded
+       [(and (equal? 'valid sollya-status) (equal? 'valid baseline-status)
+             (< sollya-time (*sampling-timeout*)) (< baseline-time (*sampling-timeout*)))
+        (cond
+          [(or (equal? baseline-exs (fl 0.0)) (equal? baseline-exs (fl -0.0)))
+           (outcomes-push! outcomes (format "~a-sollya+baseline-zero" sollya-status) rival-iter sollya-time)]
+          [(flinfinite? baseline-exs)
+           (outcomes-push! outcomes (format "~a-sollya+baseline-inf" sollya-status) rival-iter sollya-time)]
+          [else
+           (outcomes-push! outcomes (format "~a-sollya+baseline-real" sollya-status) rival-iter sollya-time)])]
+
+       ; Sollya and Rival have succeeded
+       [(and (equal? 'valid sollya-status) (equal? rival-status 'valid)
+             (< sollya-time (*sampling-timeout*)) (< rival-time (*sampling-timeout*)))
+        (cond
+          [(or (equal? rival-exs (fl 0.0)) (equal? rival-exs (fl -0.0)))
+           (outcomes-push! outcomes (format "~a-rival+sollya-zero" rival-status) rival-iter rival-time)]
+          [(flinfinite? rival-exs)
+           (outcomes-push! outcomes (format "~a-rival+sollya-inf" rival-status) rival-iter rival-time)]
+          [else
+           (outcomes-push! outcomes (format "~a-rival+sollya-real" rival-status) rival-iter rival-time)])]
+
+       ; Only Rival has succeeded
+       [(and (equal? rival-status 'valid)
+             (< rival-time (*sampling-timeout*)))
+        (cond
+          [(or (equal? rival-exs (fl 0.0)) (equal? rival-exs (fl -0.0)))
+           (outcomes-push! outcomes (format "~a-rival-only-zero" rival-status) rival-iter rival-time)]
+          [(flinfinite? rival-exs)
+           (outcomes-push! outcomes (format "~a-rival-only-inf" rival-status) rival-iter rival-time)]
+          [else
+           (outcomes-push! outcomes (format "~a-rival-only-real" rival-status) rival-iter rival-time)])]
+       
+       ; Only Sollya has succeeded
+       [(and (equal? 'valid sollya-status) (< sollya-time (*sampling-timeout*)))
+        (cond
+          [(or (equal? sollya-exs (fl 0.0)) (equal? sollya-exs (fl -0.0)))
+           (outcomes-push! outcomes (format "~a-sollya-only-zero" sollya-status) rival-iter sollya-time)]
+          [(flinfinite? sollya-exs)
+           (outcomes-push! outcomes (format "~a-sollya-only-inf" sollya-status) rival-iter sollya-time)]
+          [else
+           (outcomes-push! outcomes (format "~a-sollya-only-real" sollya-status) rival-iter sollya-time)])]
+
+       ; Only Baseline has succeeded
+       [(and (equal? 'valid baseline-status) (< baseline-time (*sampling-timeout*)))
+        (cond
+          [(or (equal? baseline-exs (fl 0.0)) (equal? baseline-exs (fl -0.0)))
+           (outcomes-push! outcomes (format "~a-baseline-only-zero" baseline-status) rival-iter baseline-time)]
+          [(flinfinite? baseline-exs)
+           (outcomes-push! outcomes (format "~a-baseline-only-inf" baseline-status) rival-iter baseline-time)]
+          [else
+           (outcomes-push! outcomes (format "~a-baseline-only-real" baseline-status) rival-iter baseline-time)])])]
+
+    ; Rival has exited, rival-exs=#f, nothing to compare to Sollya's output
+    [(equal? rival-status 'exit)
+     (cond
+       ; Sollya and Baseline have succeeded
+       [(and (equal? 'valid sollya-status) (equal? 'valid baseline-status)
+             (< sollya-time (*sampling-timeout*)) (< baseline-time (*sampling-timeout*)))
+        (cond
+          [(or (equal? baseline-exs (fl 0.0)) (equal? baseline-exs (fl -0.0)))
+           (outcomes-push! outcomes (format "~a-sollya+baseline-zero" sollya-status) rival-iter sollya-time)]
+          [(flinfinite? baseline-exs)
+           (outcomes-push! outcomes (format "~a-sollya+baseline-inf" sollya-status) rival-iter sollya-time)]
+          [else
+           (outcomes-push! outcomes (format "~a-sollya+baseline-real" sollya-status) rival-iter sollya-time)])]
+
+       ; Only Sollya has succeeded
+       [(and (equal? 'valid sollya-status) (< sollya-time (*sampling-timeout*)))
+        (cond
+          [(or (equal? sollya-exs (fl 0.0)) (equal? sollya-exs (fl -0.0)))
+           (outcomes-push! outcomes (format "~a-sollya-only-zero" sollya-status) rival-iter sollya-time)]
+          [(flinfinite? sollya-exs)
+           (outcomes-push! outcomes (format "~a-sollya-only-inf" sollya-status) rival-iter sollya-time)]
+          [else
+           (outcomes-push! outcomes (format "~a-sollya-only-real" sollya-status) rival-iter sollya-time)])]
+
+       ; Only Baseline has succeeded
+       [(and (equal? 'valid baseline-status) (< baseline-time (*sampling-timeout*)))
+        (cond
+          [(or (equal? baseline-exs (fl 0.0)) (equal? baseline-exs (fl -0.0)))
+           (outcomes-push! outcomes (format "~a-baseline-only-zero" baseline-status) rival-iter baseline-time)]
+          [(flinfinite? baseline-exs)
+           (outcomes-push! outcomes (format "~a-baseline-only-inf" baseline-status) rival-iter baseline-time)]
+          [else
+           (outcomes-push! outcomes (format "~a-baseline-only-real" baseline-status) rival-iter baseline-time)])]
+       
+       ; Points that every tools fail to evaluate when the precision is unreacheble
+       [else
+        (outcomes-push! outcomes "exit-baseline" rival-iter baseline-time)
+        (outcomes-push! outcomes "exit-sollya" rival-iter sollya-time)
+        (outcomes-push! outcomes "exit-rival" rival-iter rival-time)])]))
