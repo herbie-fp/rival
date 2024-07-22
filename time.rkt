@@ -78,7 +78,7 @@
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
 
       ; Sollya execution
-      (define sollya-apply-time 0)
+      (define sollya-apply-time 0.0)
       (match-define (list sollya-status sollya-exs)
         (match sollya-machine
           [#f (values #f #f)] ; if sollya machine is not working for this benchmark
@@ -87,7 +87,7 @@
                                              (printf "~a\n" e)
                                              (sollya-kill sollya-machine)
                                              (set! sollya-machine #f)
-                                             (list 0 0))])
+                                             (list #f #f))])
                   (match-define (list internal-time external-time exs status)
                     (sollya-apply sollya-machine pt))
                   (set! sollya-apply-time external-time)
@@ -102,8 +102,6 @@
          sollya-status sollya-apply-time sollya-exs
          rival-iter))
         
-        
-      
       (cons rival-status
             (list
              rival-apply-time rival-exs
@@ -154,7 +152,14 @@
     (hash-ref outcomes (list status iter) (λ () (list 0 0))))
   (hash-set! outcomes (list status iter) (list (+ time time*) (+ num-points 1))))
 
-(define (make-expression-table points test-id)
+(define (outcomes->jsexpr outcomes)
+  (format "{\"outcomes\":[~a]}"
+          (string-join (for/list ([(key value) (in-hash outcomes)])
+                         (format "[~a, ~a, \"~a\", ~a]"
+                                 (first value) (second key) (first key) (second value)))
+                       ", ")))
+
+(define (make-expression-table points test-id outcomes-port)
   (newline)
   (define total-c 0.0)
   (define total-v 0.0)
@@ -191,6 +196,9 @@
               (~r i-time #:precision '(= 3) #:min-width 8)
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time)))
+
+  (when outcomes-port
+    (write-json (outcomes->jsexpr outcomes) outcomes-port))
   
   (define total-t (+ total-c total-v total-i total-u))
   (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
@@ -251,14 +259,14 @@
     (fprintf port "<section id='profile'><h1>Profiling</h1>")
     (fprintf port "<p class='load-text'>Loading profile data...</p></section>")))
 
-(define (run test-id p)
+(define (run test-id p outcomes-port)
   (define operation-table
     (and
      (or (not test-id) (not (string->number test-id)))
      (make-operation-table test-id)))
   (define-values (expression-table expression-footer)
     (if (and p (or (not test-id) (string->number test-id)))
-        (make-expression-table p test-id)
+        (make-expression-table p test-id outcomes-port)
         (values #f #f)))
   (list operation-table expression-table expression-footer))
 
@@ -295,52 +303,29 @@
   (require racket/cmdline)
   (define dir #f)
   (define html-port #f)
+  (define outcomes-port #f)
   (define profile-port #f)
   (define n #f)
   (command-line
    #:once-each
    [("--dir") fn "Directory to produce html outputs"
-              (set! dir fn)]
+              (set! dir fn)
+              (when dir
+                (set! outcomes-port (open-output-file (format "~a/outcomes.json" dir) #:mode 'text #:exists 'replace)))]
    [("--profile") fn "Produce a JSON profile"
                   (set! profile-port (open-output-file fn #:mode 'text #:exists 'replace))]
    [("--id") ns "Run a single test"
              (set! n ns)]
    #:args ([points "infra/points.json"])
-
-   (set! n "3")
-
-   ; Rival
-   (printf "Rival execution\n")
+   
    (match-define (list op-t ex-t ex-f)
      (if profile-port
          (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
                   (run n (open-input-file points)))
-         (run n (open-input-file points))))
+         (run n (open-input-file points) outcomes-port)))
    (when dir
      (set! html-port (open-output-file (format "~a/index.html" dir) #:mode 'text #:exists 'replace))
-     (generate-html html-port profile-port op-t ex-t ex-f))
-
-   ; Baseline
-   #;(printf "Baseline execution\n")
-   #;(match-define (list baseline-op-t baseline-ex-t baseline-ex-f)
-     (if profile-port
-         (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
-                  (run n (open-input-file points) #:tool 'baseline))
-         (run n (open-input-file points) #:tool 'baseline)))
-   #;(when dir
-     (set! html-port (open-output-file (format "~a/baseline.html" dir) #:mode 'text #:exists 'replace))
-     (generate-html html-port profile-port baseline-op-t baseline-ex-t baseline-ex-f))
-
-   ; Sollya
-   #;(printf "Sollya execution\n")
-   #;(match-define (list sollya-op-t sollya-ex-t sollya-ex-f)
-     (if profile-port
-         (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
-                  (run n (open-input-file points) #:tool 'sollya))
-         (run n (open-input-file points) #:tool 'sollya)))
-   #;(when dir
-     (set! html-port (open-output-file (format "~a/sollya.html" dir) #:mode 'text #:exists 'replace))
-     (generate-html html-port profile-port sollya-op-t sollya-ex-t sollya-ex-f))))
+     (generate-html html-port profile-port op-t ex-t ex-f))))
 
 
 (define (point-bucketing
