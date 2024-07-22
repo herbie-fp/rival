@@ -1,6 +1,7 @@
 #lang racket
 
 (require "core.rkt"
+         "arith.rkt"
          "pow.rkt"
          "trig.rkt"
          "fmod.rkt"
