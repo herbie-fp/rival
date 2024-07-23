@@ -56,6 +56,12 @@
 (define mpfr-remainder!
   (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
+(define mpfr-set-prec! (get-mpfr-fun 'mpfr_set_prec (_fun _mpfr-pointer _prec_t -> _void)))
+
+(define mpfr-clear! (get-mpfr-fun 'mpfr_clear (_fun _mpfr-pointer -> _void)))
+
+(define mpfr-init2! (get-mpfr-fun 'mpfr_init2 (_fun _mpfr-pointer _prec_t -> _void)))
+
 (define (bfremainder x mod)
   (define out (bf 0))
   (mpfr-remainder! out x mod (bf-rounding-mode))
@@ -213,4 +219,7 @@
          mpfr-add!
          mpfr-sub!
          mpfr-mul!
-         mpfr-div!)
+         mpfr-div!
+         mpfr-set-prec!
+         mpfr-clear!
+         mpfr-init2!)

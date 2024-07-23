@@ -18,7 +18,9 @@
          ival-e
          ival-bool
          ival-add
+         ival-add!
          ival-sub
+         ival-sub!
          ival-neg
          ival-mult
          ival-div

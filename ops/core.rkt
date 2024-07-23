@@ -12,6 +12,7 @@
          classify-ival
          classify-ival-strict
          mk-big-ival
+         new-ival
          ival-exact-fabs
          ival-maybe
          epfn
@@ -116,6 +117,13 @@
   (endpoint-immovable? (ival-lo ival)))
 (define (ival-hi-fixed? ival)
   (endpoint-immovable? (ival-hi ival)))
+
+(define (new-ival)
+  ; Warning, leaks memory unless `mpfr-clear!` called eventually
+  (define out (ival (endpoint (bf 0) #f) (endpoint (bf 0) #f) #f #f))
+  (mpfr-init2! (ival-lo-val out) (bf-precision))
+  (mpfr-init2! (ival-hi-val out) (bf-precision))
+  out)
 
 (define (mk-big-ival x y)
   (cond

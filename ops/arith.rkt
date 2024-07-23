@@ -4,6 +4,7 @@
          "core.rkt")
 (provide ival-add!
          ival-add
+         ival-sub!
          ival-sub
          ival-mult
          ival-div
@@ -18,30 +19,34 @@
   (define-values (val exact?) (bf-return-exact? bffn (list a b)))
   (endpoint val (or (and a! b! exact?) (and a! (bfinfinite? a)) (and b! (bfinfinite? b)))))
 
+(define (eplinear! out mpfr-fn! a-endpoint b-endpoint rnd)
+  (match-define (endpoint a a!) a-endpoint)
+  (match-define (endpoint b b!) b-endpoint)
+  (mpfr-set-prec! out (bf-precision))
+  (define exact? (= (mpfr-fn! out a b rnd) 0))
+  (endpoint out (or (and a! b! exact?) (and a! (bfinfinite? a)) (and b! (bfinfinite? b)))))
+
 (define (ival-add! out x y)
-  (define lo-rnd (mpfr-add! (ival-lo-val out) (ival-lo-val x) (ival-lo-val y) 'down))
-  (define hi-rnd (mpfr-add! (ival-lo-val out) (ival-lo-val x) (ival-lo-val y) 'up))
-  (ival (endpoint (ival-lo-val out)
-                  (or (and (= lo-rnd 0) (ival-lo-fixed? x) (ival-lo-fixed? y))
-                      (and (ival-lo-fixed? x) (bfinfinite? (ival-lo-val x)))
-                      (and (ival-lo-fixed? y) (bfinfinite? (ival-lo-val y)))))
-        (endpoint (ival-hi-val out)
-                  (or (and (= hi-rnd 0) (ival-hi-fixed? x) (ival-hi-fixed? y))
-                      (and (ival-hi-fixed? x) (bfinfinite? (ival-hi-val x)))
-                      (and (ival-hi-fixed? y) (bfinfinite? (ival-hi-val y)))))
+  (ival (eplinear! (ival-lo-val out) mpfr-add! (ival-lo x) (ival-lo y) 'down)
+        (eplinear! (ival-hi-val out) mpfr-add! (ival-hi x) (ival-hi y) 'up)
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
 (define (ival-add x y)
-  (define out (mk-ival (bf 0)))
+  (define out (new-ival))
   (ival-add! out x y)
   out)
 
-(define (ival-sub x y)
-  (ival (rnd 'down eplinear bfsub (ival-lo x) (ival-hi y))
-        (rnd 'up eplinear bfsub (ival-hi x) (ival-lo y))
+(define (ival-sub! out x y)
+  (ival (eplinear! (ival-lo-val out) mpfr-sub! (ival-lo x) (ival-hi y) 'down)
+        (eplinear! (ival-hi-val out) mpfr-sub! (ival-hi x) (ival-lo y) 'up)
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
+
+(define (ival-sub x y)
+  (define out (new-ival))
+  (ival-sub! out x y)
+  out)
 
 (define (epmul a-endpoint b-endpoint a-class b-class)
   (match-define (endpoint a a!) a-endpoint)
