@@ -167,9 +167,15 @@
   (define num-vars (length vars))
   (define-values (nodes roots) (exprs->batch exprs vars))
 
+  (define pre-alloc '())
+
   (define instructions
     (for/vector #:length (- (vector-length nodes) num-vars)
                 ([node (in-vector nodes num-vars)] [reg (in-naturals num-vars)])
+      (define (output-register!)
+        (set! pre-alloc (cons reg pre-alloc))
+        reg)
+
       (match node
         [(? number?)
          (if (ival-point? (real->ival node)) (list (ival-const node)) (list (ival-rational node)))]
@@ -217,8 +223,8 @@
         [(list 'tgamma x) (list ival-tgamma x)]
         [(list 'trunc x) (list ival-trunc x)]
 
-        [(list '+ x y) (list ival-add! reg x y)]
-        [(list '- x y) (list ival-sub! reg x y)]
+        [(list '+ x y) (list ival-add! (output-register!) x y)]
+        [(list '- x y) (list ival-sub! (output-register!) x y)]
         [(list '* x y) (list ival-mult x y)]
         [(list '/ x y) (list ival-div x y)]
         [(list 'atan2 x y) (list ival-atan2 x y)]
@@ -256,17 +262,16 @@
         [(list op args ...) (error 'compile-specs "Unknown operator ~a" op)])))
 
   (define register-count (+ num-vars (vector-length instructions)))
+  (define registers (make-vector register-count))
   (define repeats (make-vector register-count #f)) ; flags whether an op should be evaluated
   (define precisions (make-vector register-count)) ; vector that stores working precisions
   ;; starting precisions for the first, un-tuned iteration
   (define initial-precisions (setup-vstart-precs instructions (length vars) roots discs))
 
-  (define registers
-    (for/vector #:length register-count
-                ([i (in-range register-count)])
-      (define prec (if (< i num-vars) 64 (vector-ref initial-precisions (- i num-vars))))
-      (parameterize ([bf-precision prec])
-        (new-ival))))
+  (for ([reg (in-list pre-alloc)])
+    (define prec (vector-ref initial-precisions (- reg num-vars)))
+    (parameterize ([bf-precision prec])
+      (vector-set! registers reg (new-ival))))
 
   (rival-machine (list->vector vars)
                  instructions

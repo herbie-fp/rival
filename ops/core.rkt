@@ -120,10 +120,9 @@
 
 (define (new-ival)
   ; Warning, leaks memory unless `mpfr-clear!` called eventually
-  (define out (ival (endpoint (bf 0) #f) (endpoint (bf 0) #f) #f #f))
-  (mpfr-init2! (ival-lo-val out) (bf-precision))
-  (mpfr-init2! (ival-hi-val out) (bf-precision))
-  out)
+  (define bf1 (mpfr-new! (bf-precision)))
+  (define bf2 (mpfr-new! (bf-precision)))
+  (ival (endpoint bf1 #f) (endpoint bf2 #f) #f #f))
 
 (define (mk-big-ival x y)
   (cond
