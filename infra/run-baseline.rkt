@@ -1,17 +1,21 @@
 #lang racket/base
 
-(require racket math/bigfloat)
+(require racket math/bigfloat math/flonum)
  
 (require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn)
-         (only-in "../eval/machine.rkt" *base-tuning-precision* *rival-max-precision*)
+         (only-in "../eval/machine.rkt"
+                  *base-tuning-precision*
+                  *rival-max-precision*
+                  *rival-profile-executions*)
          "../eval/main.rkt"
          "../ops/all.rkt")
 
-(provide baseline-compile baseline-apply)
+(provide baseline-compile baseline-apply baseline-profile)
 
 (struct baseline-machine
-  (arguments instructions outputs discs
-             registers))
+  (arguments instructions outputs discs registers
+             [profile-ptr #:mutable]
+             profile-instruction profile-number profile-time profile-precision))
 
 ; ----------------------------------------- COMPILATION ----------------------------------------------
 (define (baseline-compile exprs vars discs)
@@ -30,7 +34,12 @@
 
   (baseline-machine
    (list->vector vars) instructions roots discs
-   registers))
+   registers
+   0
+   (make-vector (*rival-profile-executions*))
+   (make-vector (*rival-profile-executions*))
+   (make-flvector (*rival-profile-executions*))
+   (make-vector (*rival-profile-executions*))))
 
 ; ------------------------------------------- APPLY --------------------------------------------------
 (define (ival-real x)
@@ -72,11 +81,16 @@
   (define ivec (baseline-machine-instructions machine))
   (define varc (vector-length (baseline-machine-arguments machine)))
   (define vregs (baseline-machine-registers machine))
+  (define precision (bf-precision))
 
-  (parameterize ([bf-precision (bf-precision)])
+  (parameterize ([bf-precision precision])
     (for ([instr (in-vector ivec)]
           [n (in-naturals varc)])
-      (vector-set! vregs n (apply-instruction instr vregs)))))
+      (define start (current-inexact-milliseconds))
+    (vector-set! vregs n (apply-instruction instr vregs))
+    (define name (object-name (car instr)))
+    (define time (- (current-inexact-milliseconds) start))
+    (baseline-machine-record machine name n precision time))))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,
@@ -123,3 +137,35 @@
         [(ival-err? out) (set! good? #f)])
       lo))
   (values good? (and good? done?) bad? stuck? fvec))
+
+; ---------------------------------------- PROFILING -------------------------------------------------
+(define (baseline-profile machine param)
+  (match param
+    ['instructions (vector-length (baseline-machine-instructions machine))]
+    ['executions
+     (define profile-ptr (baseline-machine-profile-ptr machine))
+     (define profile-instruction (baseline-machine-profile-instruction machine))
+     (define profile-number (baseline-machine-profile-number machine))
+     (define profile-time (baseline-machine-profile-time machine))
+     (define profile-precision (baseline-machine-profile-precision machine))
+     (begin0
+         (for/vector #:length profile-ptr
+                     ([instruction (in-vector profile-instruction 0 profile-ptr)]
+                      [number (in-vector profile-number 0 profile-ptr)]
+                      [precision (in-vector profile-precision 0 profile-ptr)]
+                      [time (in-flvector profile-time 0 profile-ptr)])
+           (execution instruction number precision time))
+       (set-baseline-machine-profile-ptr! machine 0))]))
+
+(define (baseline-machine-record machine name number precision time)
+  (define profile-ptr (baseline-machine-profile-ptr machine))
+  (define profile-instruction (baseline-machine-profile-instruction machine))
+  (when (< profile-ptr (vector-length profile-instruction))
+    (define profile-number (baseline-machine-profile-number machine))
+    (define profile-time (baseline-machine-profile-time machine))
+    (define profile-precision (baseline-machine-profile-precision machine))
+    (vector-set! profile-instruction profile-ptr name)
+    (vector-set! profile-number profile-ptr number)
+    (vector-set! profile-precision profile-ptr precision)
+    (flvector-set! profile-time profile-ptr time)
+    (set-baseline-machine-profile-ptr! machine (add1 profile-ptr))))

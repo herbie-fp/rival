@@ -34,7 +34,7 @@
 (define (read-from-string s)
   (read (open-input-string s)))
 
-(define (time-expr rec outcomes)
+(define (time-expr rec timeline)
   (define exprs (map read-from-string (hash-ref rec 'exprs)))
   (define vars (map read-from-string (hash-ref rec 'vars)))
   (unless (andmap symbol? vars)
@@ -67,12 +67,14 @@
             (list 'valid exs))))
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
       (define rival-iter (rival-machine-iteration rival-machine))
-      #;(define executions (rival-profile machine 'executions))
-      #;(for ([execution (in-vector executions)])
+      
+      (define rival-executions (rival-profile rival-machine 'executions))
+      (for ([execution (in-vector rival-executions)])
         (define name (symbol->string (execution-name execution)))
         (define precision (execution-precision execution))
-        (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
-      
+        (when (equal? rival-status 'valid)
+          (timeline-push! timeline 'mixsample-rival-valid (list (execution-time execution) name precision)))
+        (timeline-push! timeline 'mixsample-rival-all (list (execution-time execution) name precision)))
 
       ; Baseline execution (we assume that baseline can not crash)
       (define baseline-start-apply (current-inexact-milliseconds))
@@ -83,6 +85,14 @@
             (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt)) #:timeout (*sampling-timeout*)) 1))
             (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
+      
+      (define baseline-executions (baseline-profile baseline-machine 'executions))
+      (for ([execution (in-vector baseline-executions)])
+        (define name (symbol->string (execution-name execution)))
+        (define precision (execution-precision execution))
+        (when (equal? baseline-status 'valid)
+          (timeline-push! timeline 'mixsample-baseline-valid (list (execution-time execution) name precision)))
+        (timeline-push! timeline 'mixsample-baseline-all (list (execution-time execution) name precision)))
 
       ; Sollya execution
       (define sollya-apply-time 0.0)
@@ -104,7 +114,7 @@
       ; When all the machines have compiled and work - write the results to outcomes
       (when (and rival-machine baseline-machine sollya-machine)
         (point-bucketing
-         outcomes
+         timeline
          rival-status rival-apply-time rival-exs
          baseline-status baseline-apply-time baseline-exs
          sollya-status sollya-apply-time sollya-exs
@@ -163,19 +173,33 @@
          'mixsample-rival-all
          'mixsample-baseline-valid
          'mixsample-baseline-all)
-     
-     (match-define (list status iter time*) args*)
-     (define outcomes-hash (hash-ref timeline key))
-     (match-define (list time num-points)
-       (hash-ref outcomes-hash (list status iter) (λ () (list 0 0))))
-     (hash-set! outcomes-hash (list status iter) (list (+ time time*) (+ num-points 1)))]
+     (define mixsample-hash (hash-ref timeline key))
+     (match-define (list time* name precision) args*)
+     (define time (hash-ref mixsample-hash (list name precision) (λ () 0)))
+     (hash-set! mixsample-hash (list name precision) (+ time time*))]
     [else
      (error "Unknown key for timeline!")]))
 
 (define (timeline->jsexpr timeline)
   (hash 'outcomes
         (for/list ([(key value) (in-hash (hash-ref timeline 'outcomes))])
-          (list (first value) (second key) (first key) (second value)))))
+          (list (first value) (second key) (first key) (second value)))
+        
+        'mixsample-rival-valid
+        (for/list ([(key value) (in-hash (hash-ref timeline 'mixsample-rival-valid))])
+          (list value (car key) (second key)))
+        
+        'mixsample-rival-all
+        (for/list ([(key value) (in-hash (hash-ref timeline 'mixsample-rival-all))])
+          (list value (car key) (second key)))
+        
+        'mixsample-baseline-valid
+        (for/list ([(key value) (in-hash (hash-ref timeline 'mixsample-baseline-valid))])
+          (list value (car key) (second key)))
+        
+        'mixsample-baseline-all
+        (for/list ([(key value) (in-hash (hash-ref timeline 'mixsample-baseline-all))])
+          (list value (car key) (second key)))))
 
 (define (make-expression-table points test-id timeline-port)
   (newline)
@@ -321,9 +345,27 @@
   (close-input-port err)
   (subprocess-wait sp))
 
+(define (generate-histograms dir)
+  (define-values (sp out in err)
+    (subprocess #f #f #f (find-executable-path "python")
+                "infra/histograms.py"
+                "-t" (format "~a/timeline.json" dir)
+                "-o1" (format "~a/histogram_valid.png" dir)
+                "-o2" (format "~a/histogram_all.png" dir)))
+  (printf "~a" (port->string err))
+  (printf "~a" (port->string out)) ; macros for latex
+  (close-input-port out)
+  (close-output-port in)
+  (close-input-port err)
+  (subprocess-wait sp))
+
 (define (html-add-plot port path)
   (when port
     (fprintf port (format "<img src=\"~a\" width=\"320\" height=\"280\">" path))))
+
+(define (html-add-histogram port path)
+  (when port
+    (fprintf port (format "<img src=\"~a\" width=\"650\" height=\"250\">" path))))
 
 (define (generate-html html-port profile-port operation-table expression-table expression-footer dir)
   (html-write html-port)
@@ -350,8 +392,11 @@
   (when expression-table
     (generate-ratio-plot dir)
     (generate-point-graph dir)
+    (generate-histograms dir)
     (html-add-plot html-port "ratio_plot.png")
-    (html-add-plot html-port "point_graph.png"))
+    (html-add-plot html-port "point_graph.png")
+    (html-add-histogram html-port "histogram_valid.png")
+    (html-add-histogram html-port "histogram_all.png"))
 
   (when profile-port
     (html-write-profile html-port)))
