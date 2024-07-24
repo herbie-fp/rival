@@ -3,9 +3,8 @@
          math/flonum)
 
 (define sollya-path (find-executable-path "sollya"))
-(define *sollya-internal-timeout* (make-parameter 25.0))
 
-(provide sollya-compile sollya-apply sollya-kill *sollya-internal-timeout*)
+(provide sollya-compile sollya-apply sollya-kill)
 
 (struct sollya-machine
   ([process #:mutable]
@@ -151,8 +150,7 @@
   (sollya-write machine "time(f(~a));\n" (string-join input ", "))
 
   ; Process output
-  (define out (parameterize ([*sollya-internal-timeout* (+ timeout 5.0)]) 
-                (parse-sollya-output machine timeout)))
+  (define out (parse-sollya-output machine (+ timeout 5.0)))
 
   ; when Sollya has timed out - restart the process
   (when (equal? (last out) 'exit)                   
@@ -257,7 +255,7 @@
          (list dt (seconds->ms sollya-time) (<-bf (bf result)) 'valid))]
 
       ; Timeout
-      [(> (- (current-inexact-milliseconds) start) (*sollya-internal-timeout*))
+      [(> (- (current-inexact-milliseconds) start) timeout)
        (when (not (equal? s ""))
          (eprintf "\nUnprocessed output from Sollya\n")
          (eprintf "Stdout number: ~s\n" s)

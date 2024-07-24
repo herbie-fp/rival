@@ -42,11 +42,11 @@ def load_outcomes(path):
     return outcomes
 
 parser = argparse.ArgumentParser(prog='histograms.py', description='Script outputs mixed precision histograms for a Herbie run')
-parser.add_argument('-t', '--outcomes', dest='outcomes', default="report/outcomes.json")
-parser.add_argument('-p', '--path', dest='path', default="report/ratio.png")
+parser.add_argument('-t', '--timeline', dest='timeline', default="report/timeline.json")
+parser.add_argument('-o', '--output-path', dest='path', default="report/ratio.png")
 args = parser.parse_args()
 
-outcomes = load_outcomes(args.outcomes)
+outcomes = load_outcomes(args.timeline)
 
 fig, ax = plt.subplots(figsize=(4, 3.5))
 fig.tight_layout(pad=2.0)

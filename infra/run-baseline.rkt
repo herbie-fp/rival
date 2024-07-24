@@ -36,7 +36,8 @@
 (define (ival-real x)
   (ival x))
 
-(define (baseline-apply machine pt)
+(define (baseline-apply machine pt #:timeout [timeout 20.0])
+  (define start-time (current-inexact-milliseconds))
   (define discs (baseline-machine-discs machine))
   (define start-prec (+ (discretization-target (last discs))
                         (*base-tuning-precision*))) ; base tuning is taken from eval/machine.rkt
@@ -52,7 +53,8 @@
        fvec]
       [stuck?
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [(>= (* 2 prec) (*rival-max-precision*))      ; max precision is taken from eval/machine.rkt
+      [(or (>= (* 2 prec) (*rival-max-precision*)) ; max precision is taken from eval/machine.rkt
+           (> (- (current-inexact-milliseconds) start-time) (+ timeout 5.0)))
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else
        (loop (* 2 prec))])))

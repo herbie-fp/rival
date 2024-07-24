@@ -59,7 +59,6 @@
     (for/list ([pt (in-list (hash-ref rec 'points))])
       ; Rival execution
       (define rival-start-apply (current-inexact-milliseconds))
-      
       (match-define (list rival-status rival-exs)
         (parameterize ([*rival-max-precision* 32256])
           (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
@@ -68,6 +67,12 @@
             (list 'valid exs))))
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
       (define rival-iter (rival-machine-iteration rival-machine))
+      #;(define executions (rival-profile machine 'executions))
+      #;(for ([execution (in-vector executions)])
+        (define name (symbol->string (execution-name execution)))
+        (define precision (execution-precision execution))
+        (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
+      
 
       ; Baseline execution (we assume that baseline can not crash)
       (define baseline-start-apply (current-inexact-milliseconds))
@@ -75,7 +80,7 @@
         (parameterize ([*rival-max-precision* 32256])
           (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
                           [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
-            (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt))) 1))
+            (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt)) #:timeout (*sampling-timeout*)) 1))
             (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
 
@@ -146,17 +151,33 @@
     
     (list (object-name ival-fn) iv256 (/ iv256 bf256) iv4k (/ iv4k bf4k))))
 
-(define (outcomes-push! outcomes status iter time*)
-  (match-define (list time num-points)
-    (hash-ref outcomes (list status iter) (λ () (list 0 0))))
-  (hash-set! outcomes (list status iter) (list (+ time time*) (+ num-points 1))))
+(define (timeline-push! timeline key args*)
+  (match key
+    ['outcomes
+     (match-define (list status iter time*) args*)
+     (define outcomes-hash (hash-ref timeline key))
+     (match-define (list time num-points)
+       (hash-ref outcomes-hash (list status iter) (λ () (list 0 0))))
+     (hash-set! outcomes-hash (list status iter) (list (+ time time*) (+ num-points 1)))]
+    [(or 'mixsample-rival-valid
+         'mixsample-rival-all
+         'mixsample-baseline-valid
+         'mixsample-baseline-all)
+     
+     (match-define (list status iter time*) args*)
+     (define outcomes-hash (hash-ref timeline key))
+     (match-define (list time num-points)
+       (hash-ref outcomes-hash (list status iter) (λ () (list 0 0))))
+     (hash-set! outcomes-hash (list status iter) (list (+ time time*) (+ num-points 1)))]
+    [else
+     (error "Unknown key for timeline!")]))
 
-(define (outcomes->jsexpr outcomes)
+(define (timeline->jsexpr timeline)
   (hash 'outcomes
-        (for/list ([(key value) (in-hash outcomes)])
+        (for/list ([(key value) (in-hash (hash-ref timeline 'outcomes))])
           (list (first value) (second key) (first key) (second value)))))
 
-(define (make-expression-table points test-id outcomes-port)
+(define (make-expression-table points test-id timeline-port)
   (newline)
   (define total-c 0.0)
   (define total-v 0.0)
@@ -166,7 +187,13 @@
   (define total-u 0.0)
   (define count-u 0.0)
 
-  (define outcomes (make-hash)) ; this hash is to be used for the plots
+  (define timeline (make-hash ; this hash is to be used for the plots
+                    (list
+                     (cons 'outcomes (make-hash))
+                     (cons 'mixsample-rival-valid (make-hash))
+                     (cons 'mixsample-baseline-valid (make-hash))
+                     (cons 'mixsample-rival-all (make-hash))
+                     (cons 'mixsample-baseline-all (make-hash)))))
   
   (define table
     (for/list ([rec (in-port read-json points)] 
@@ -177,7 +204,7 @@
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       
       (match-define (list c-time v-num v-time i-num i-time u-num u-time)
-          (time-exprs (time-expr rec outcomes)))
+          (time-exprs (time-expr rec timeline)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))
@@ -194,9 +221,9 @@
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time)))
   
-  (when outcomes-port
-    (write-json (outcomes->jsexpr outcomes) outcomes-port)
-    (close-output-port outcomes-port))
+  (when timeline-port
+    (write-json (timeline->jsexpr timeline) timeline-port)
+    (close-output-port timeline-port))
   
   (define total-t (+ total-c total-v total-i total-u))
   (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
@@ -257,35 +284,37 @@
     (fprintf port "<section id='profile'><h1>Profiling</h1>")
     (fprintf port "<p class='load-text'>Loading profile data...</p></section>")))
 
-(define (run test-id p outcomes-port)
+(define (run test-id p timeline-port)
   (define operation-table
     (and
      (or (not test-id) (not (string->number test-id)))
      (make-operation-table test-id)))
   (define-values (expression-table expression-footer)
     (if (and p (or (not test-id) (string->number test-id)))
-        (make-expression-table p test-id outcomes-port)
+        (make-expression-table p test-id timeline-port)
         (values #f #f)))
   (list operation-table expression-table expression-footer))
 
-(define (generate-ratio-plot outcomes-path path)
+(define (generate-ratio-plot dir)
   (define-values (sp out in err)
     (subprocess #f #f #f (find-executable-path "python")
                 "infra/ratio_plot.py"
-                (format "-t ~a" outcomes-path)
-                (format "-p ~a" path)))
+                "-t" (format "~a/timeline.json" dir)
+                "-o" (format "~a/ratio_plot.png" dir)))
+  (printf "~a" (port->string err))
   (printf "~a" (port->string out)) ; macros for latex
   (close-input-port out)
   (close-output-port in)
   (close-input-port err)
   (subprocess-wait sp))
 
-(define (generate-point-graph outcomes-path path)
+(define (generate-point-graph dir)
   (define-values (sp out in err)
     (subprocess #f #f #f (find-executable-path "python")
                 "infra/point_graph.py"
-                (format "-t ~a" outcomes-path)
-                (format "-p ~a" path)))
+                "-t" (format "~a/timeline.json" dir)
+                "-o" (format "~a/point_graph.png" dir)))
+  (printf "~a" (port->string err))
   (printf "~a" (port->string out)) ; macros for latex
   (close-input-port out)
   (close-output-port in)
@@ -296,7 +325,7 @@
   (when port
     (fprintf port (format "<img src=\"~a\" width=\"320\" height=\"280\">" path))))
 
-(define (generate-html html-port profile-port operation-table expression-table expression-footer outcomes-path dir)
+(define (generate-html html-port profile-port operation-table expression-table expression-footer dir)
   (html-write html-port)
 
   (when operation-table
@@ -319,9 +348,9 @@
     (html-end-table html-port))
 
   (when expression-table
-    (generate-ratio-plot outcomes-path (format "~a/ratio.png" dir))
-    (generate-point-graph outcomes-path (format "~a/point_graph.png" dir))
-    (html-add-plot html-port "ratio.png")
+    (generate-ratio-plot dir)
+    (generate-point-graph dir)
+    (html-add-plot html-port "ratio_plot.png")
     (html-add-plot html-port "point_graph.png"))
 
   (when profile-port
@@ -335,7 +364,7 @@
   (require racket/cmdline)
   (define dir #f)
   (define html-port #f)
-  (define outcomes-port #f)
+  (define timeline-port #f)
   (define profile-port #f)
   (define n #f)
   (command-line
@@ -343,7 +372,7 @@
    [("--dir") fn "Directory to produce html outputs"
               (set! dir fn)
               (when dir
-                (set! outcomes-port (open-output-file (format "~a/outcomes.json" dir) #:mode 'text #:exists 'replace)))]
+                (set! timeline-port (open-output-file (format "~a/timeline.json" dir) #:mode 'text #:exists 'replace)))]
    [("--profile") fn "Produce a JSON profile"
                   (set! profile-port (open-output-file fn #:mode 'text #:exists 'replace))]
    [("--id") ns "Run a single test"
@@ -353,102 +382,84 @@
    (match-define (list op-t ex-t ex-f)
      (if profile-port
          (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
-                  (run n (open-input-file points) outcomes-port))
-         (run n (open-input-file points) outcomes-port)))
+                  (run n (open-input-file points) timeline-port))
+         (run n (open-input-file points) timeline-port)))
    (when dir
      (set! html-port (open-output-file (format "~a/index.html" dir) #:mode 'text #:exists 'replace))
-     (generate-html html-port profile-port op-t ex-t ex-f (format "~a/outcomes.json" dir) dir))))
+     (generate-html html-port profile-port op-t ex-t ex-f dir))))
 
 
 (define (point-bucketing
-         outcomes
+         timeline
          rival-status rival-time rival-exs
          baseline-status baseline-time baseline-exs
          sollya-status sollya-time sollya-exs
          rival-iter)
+
+  (define (status-subbucketing status exs)
+    (cond
+      [(or (equal? exs (fl 0.0)) (equal? exs (fl -0.0))) (format "~a-zero" status)]
+      [(flinfinite? exs) (format "~a-inf" status)]
+      [else (format "~a-real" status)]))
+  
   (cond
-    ; Rival has produced valid outcomes  status iter time
+    ; Rival has produced valid outcomes
     [(equal? rival-status 'valid)
      (cond
        ; Every tool have succeded
        [(and (equal? 'valid sollya-status) (equal? 'valid baseline-status) (equal? rival-status 'valid)
              (< sollya-time (*sampling-timeout*)) (< baseline-time (*sampling-timeout*)) (< rival-time (*sampling-timeout*)))
-        (outcomes-push! outcomes (format "~a-sollya" sollya-status) rival-iter sollya-time)
-        (outcomes-push! outcomes (format "~a-baseline" baseline-status) rival-iter baseline-time)
-        (outcomes-push! outcomes (format "~a-rival" rival-status) rival-iter rival-time)
+        (timeline-push! timeline 'outcomes (list "valid-sollya" rival-iter sollya-time))
+        (timeline-push! timeline 'outcomes (list "valid-baseline" rival-iter baseline-time))
+        (timeline-push! timeline 'outcomes (list "valid-rival" rival-iter rival-time))
         (if (fl= rival-exs sollya-exs)
-            (outcomes-push! outcomes "sollya-correct-rounding" 0 0)
-            (outcomes-push! outcomes "sollya-faithful-rounding" 0 0))]
+            (timeline-push! timeline 'outcomes (list "sollya-correct-rounding" 0 0))
+            (timeline-push! timeline 'outcomes (list "sollya-faithful-rounding" 0 0)))]
 
        ; Baseline and Rival have succeeded
        [(and (equal? 'valid baseline-status) (equal? rival-status 'valid)
              (< baseline-time (*sampling-timeout*)) (< rival-time (*sampling-timeout*)))
-        (cond
-          [(or (equal? rival-exs (fl 0.0)) (equal? rival-exs (fl -0.0)))
-           (outcomes-push! outcomes (format "~a-rival+baseline-zero" rival-status) rival-iter rival-time)]
-          [(flinfinite? rival-exs)
-           (outcomes-push! outcomes (format "~a-rival+baseline-inf" rival-status) rival-iter rival-time)]
-          [else
-           (outcomes-push! outcomes (format "~a-rival+baseline-real" rival-status) rival-iter rival-time)])]
+        (timeline-push! timeline 'outcomes (list
+                                            (status-subbucketing "valid-rival+baseline" rival-exs)
+                                            rival-iter rival-time))]
 
        ; Baseline and Sollya have succeeded
        [(and (equal? 'valid sollya-status) (equal? 'valid baseline-status)
              (< sollya-time (*sampling-timeout*)) (< baseline-time (*sampling-timeout*)))
-        (cond
-          [(or (equal? baseline-exs (fl 0.0)) (equal? baseline-exs (fl -0.0)))
-           (outcomes-push! outcomes (format "~a-sollya+baseline-zero" sollya-status) rival-iter sollya-time)]
-          [(flinfinite? baseline-exs)
-           (outcomes-push! outcomes (format "~a-sollya+baseline-inf" sollya-status) rival-iter sollya-time)]
-          [else
-           (outcomes-push! outcomes (format "~a-sollya+baseline-real" sollya-status) rival-iter sollya-time)])]
+        (timeline-push! timeline 'outcomes (list
+                                            (status-subbucketing "valid-sollya+baseline" baseline-exs)
+                                            rival-iter sollya-time))]
 
        ; Sollya and Rival have succeeded
        [(and (equal? 'valid sollya-status) (equal? rival-status 'valid)
              (< sollya-time (*sampling-timeout*)) (< rival-time (*sampling-timeout*)))
-        (cond
-          [(or (equal? rival-exs (fl 0.0)) (equal? rival-exs (fl -0.0)))
-           (outcomes-push! outcomes (format "~a-rival+sollya-zero" rival-status) rival-iter rival-time)]
-          [(flinfinite? rival-exs)
-           (outcomes-push! outcomes (format "~a-rival+sollya-inf" rival-status) rival-iter rival-time)]
-          [else
-           (outcomes-push! outcomes (format "~a-rival+sollya-real" rival-status) rival-iter rival-time)])]
+        (timeline-push! timeline 'outcomes (list
+                                            (status-subbucketing "valid-rival+sollya" rival-exs)
+                                            rival-iter rival-time))]
 
        ; Only Rival has succeeded
-       [(and (equal? rival-status 'valid)
-             (< rival-time (*sampling-timeout*)))
-        (cond
-          [(or (equal? rival-exs (fl 0.0)) (equal? rival-exs (fl -0.0)))
-           (outcomes-push! outcomes (format "~a-rival-only-zero" rival-status) rival-iter rival-time)]
-          [(flinfinite? rival-exs)
-           (outcomes-push! outcomes (format "~a-rival-only-inf" rival-status) rival-iter rival-time)]
-          [else
-           (outcomes-push! outcomes (format "~a-rival-only-real" rival-status) rival-iter rival-time)])]
+       [(and (equal? rival-status 'valid) (< rival-time (*sampling-timeout*)))
+        (timeline-push! timeline 'outcomes (list
+                                            (status-subbucketing "valid-rival-only" rival-exs)
+                                            rival-iter rival-time))]
        
        ; Only Sollya has succeeded
        [(and (equal? 'valid sollya-status) (< sollya-time (*sampling-timeout*)))
-        (cond
-          [(or (equal? sollya-exs (fl 0.0)) (equal? sollya-exs (fl -0.0)))
-           (outcomes-push! outcomes (format "~a-sollya-only-zero" sollya-status) rival-iter sollya-time)]
-          [(flinfinite? sollya-exs)
-           (outcomes-push! outcomes (format "~a-sollya-only-inf" sollya-status) rival-iter sollya-time)]
-          [else
-           (outcomes-push! outcomes (format "~a-sollya-only-real" sollya-status) rival-iter sollya-time)])]
+        (timeline-push! timeline 'outcomes (list
+                                            (status-subbucketing "valid-sollya-only" sollya-exs)
+                                            rival-iter sollya-time))]
 
        ; Only Baseline has succeeded
        [(and (equal? 'valid baseline-status) (< baseline-time (*sampling-timeout*)))
-        (cond
-          [(or (equal? baseline-exs (fl 0.0)) (equal? baseline-exs (fl -0.0)))
-           (outcomes-push! outcomes (format "~a-baseline-only-zero" baseline-status) rival-iter baseline-time)]
-          [(flinfinite? baseline-exs)
-           (outcomes-push! outcomes (format "~a-baseline-only-inf" baseline-status) rival-iter baseline-time)]
-          [else
-           (outcomes-push! outcomes (format "~a-baseline-only-real" baseline-status) rival-iter baseline-time)])]
-
+        (timeline-push! timeline 'outcomes (list
+                                            (status-subbucketing "valid-baseline-only" baseline-exs)
+                                            rival-iter baseline-time))]
+       
        ; timeout at all the tools
        [else
-        (outcomes-push! outcomes "exit-baseline" rival-iter baseline-time)
-        (outcomes-push! outcomes "exit-sollya" rival-iter sollya-time)
-        (outcomes-push! outcomes "exit-rival" rival-iter rival-time)])]
+        (timeline-push! timeline 'outcomes (list "exit-baseline" rival-iter baseline-time))
+        (timeline-push! timeline 'outcomes (list "exit-sollya" rival-iter sollya-time))
+        (timeline-push! timeline 'outcomes (list "exit-rival" rival-iter rival-time))])]
 
     ; Rival has exited
     [(equal? rival-status 'unsamplable)
@@ -456,36 +467,24 @@
        ; Sollya and Baseline have succeeded
        [(and (equal? 'valid sollya-status) (equal? 'valid baseline-status)
              (< sollya-time (*sampling-timeout*)) (< baseline-time (*sampling-timeout*)))
-        (cond
-          [(or (equal? baseline-exs (fl 0.0)) (equal? baseline-exs (fl -0.0)))
-           (outcomes-push! outcomes (format "~a-sollya+baseline-zero" sollya-status) rival-iter sollya-time)]
-          [(flinfinite? baseline-exs)
-           (outcomes-push! outcomes (format "~a-sollya+baseline-inf" sollya-status) rival-iter sollya-time)]
-          [else
-           (outcomes-push! outcomes (format "~a-sollya+baseline-real" sollya-status) rival-iter sollya-time)])]
+        (timeline-push! timeline 'outcomes (list
+                                            (status-subbucketing "valid-sollya+baseline" baseline-exs)
+                                            rival-iter sollya-time))]
 
        ; Only Sollya has succeeded
        [(and (equal? 'valid sollya-status) (< sollya-time (*sampling-timeout*)))
-        (cond
-          [(or (equal? sollya-exs (fl 0.0)) (equal? sollya-exs (fl -0.0)))
-           (outcomes-push! outcomes (format "~a-sollya-only-zero" sollya-status) rival-iter sollya-time)]
-          [(flinfinite? sollya-exs)
-           (outcomes-push! outcomes (format "~a-sollya-only-inf" sollya-status) rival-iter sollya-time)]
-          [else
-           (outcomes-push! outcomes (format "~a-sollya-only-real" sollya-status) rival-iter sollya-time)])]
+        (timeline-push! timeline 'outcomes (list
+                                            (status-subbucketing "valid-sollya-only" sollya-exs)
+                                            rival-iter sollya-time))]
 
        ; Only Baseline has succeeded
        [(and (equal? 'valid baseline-status) (< baseline-time (*sampling-timeout*)))
-        (cond
-          [(or (equal? baseline-exs (fl 0.0)) (equal? baseline-exs (fl -0.0)))
-           (outcomes-push! outcomes (format "~a-baseline-only-zero" baseline-status) rival-iter baseline-time)]
-          [(flinfinite? baseline-exs)
-           (outcomes-push! outcomes (format "~a-baseline-only-inf" baseline-status) rival-iter baseline-time)]
-          [else
-           (outcomes-push! outcomes (format "~a-baseline-only-real" baseline-status) rival-iter baseline-time)])]
+        (timeline-push! timeline 'outcomes (list
+                                            (status-subbucketing "valid-baseline-only" baseline-exs)
+                                            rival-iter baseline-time))]
        
        ; Points that every tools fail to evaluate when the precision is unreacheble
        [else
-        (outcomes-push! outcomes "exit-baseline" rival-iter baseline-time)
-        (outcomes-push! outcomes "exit-sollya" rival-iter sollya-time)
-        (outcomes-push! outcomes "exit-rival" rival-iter rival-time)])]))
+        (timeline-push! timeline 'outcomes (list "exit-baseline" rival-iter baseline-time))
+        (timeline-push! timeline 'outcomes (list "exit-sollya" rival-iter sollya-time))
+        (timeline-push! timeline 'outcomes (list "exit-rival" rival-iter rival-time))])]))
