@@ -146,13 +146,13 @@
 ; ------------------------------------------ APPLY ---------------------------------------------------
 ; Output format is: (values interal-time external-time result status)
 (define (sollya-apply machine pt #:timeout [timeout 20.0])
-
   ; Process input
   (define input (map number->number-sollya pt))
   (sollya-write machine "time(f(~a));\n" (string-join input ", "))
 
   ; Process output
-  (define out (parse-sollya-output machine timeout))
+  (define out (parameterize ([*sollya-internal-timeout* (+ timeout 5.0)]) 
+                (parse-sollya-output machine timeout)))
 
   ; when Sollya has timed out - restart the process
   (when (equal? (last out) 'exit)                   
@@ -257,7 +257,7 @@
          (list dt (seconds->ms sollya-time) (<-bf (bf result)) 'valid))]
 
       ; Timeout
-      [(> (- (current-inexact-milliseconds) start) *sollya-internal-timeout*)
+      [(> (- (current-inexact-milliseconds) start) (*sollya-internal-timeout*))
        (when (not (equal? s ""))
          (eprintf "\nUnprocessed output from Sollya\n")
          (eprintf "Stdout number: ~s\n" s)

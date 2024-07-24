@@ -7,7 +7,7 @@
          "infra/run-sollya.rkt" "infra/run-baseline.rkt")
 
 (define sample-vals (make-parameter 5000))
-(define *sampling-timeout* (make-parameter 50.0))
+(define *sampling-timeout* (make-parameter 20.0)) ; this parameter is used for plots generation
 
 (define (time-operation ival-fn bf-fn itypes otype)
   (define n
@@ -61,39 +61,42 @@
       (define rival-start-apply (current-inexact-milliseconds))
       
       (match-define (list rival-status rival-exs)
-        (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
-                        [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
-          (define exs (vector-ref (rival-apply rival-machine (list->vector (map bf pt))) 1))
-          (list 'valid exs)))
+        (parameterize ([*rival-max-precision* 32256])
+          (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
+                          [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
+            (define exs (vector-ref (rival-apply rival-machine (list->vector (map bf pt))) 1))
+            (list 'valid exs))))
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
       (define rival-iter (rival-machine-iteration rival-machine))
 
       ; Baseline execution (we assume that baseline can not crash)
       (define baseline-start-apply (current-inexact-milliseconds))
       (match-define (list baseline-status baseline-exs)
-        (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
-                        [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
-          (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt))) 1))
-          (list 'valid exs)))
+        (parameterize ([*rival-max-precision* 32256])
+          (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
+                          [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
+            (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt))) 1))
+            (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
 
       ; Sollya execution
       (define sollya-apply-time 0.0)
       (match-define (list sollya-status sollya-exs)
         (match sollya-machine
-          [#f (values #f #f)] ; if sollya machine is not working for this benchmark
-          [else (with-handlers ([exn:fail? (λ (e)
-                                             (printf "Sollya failed")
-                                             (printf "~a\n" e)
-                                             (sollya-kill sollya-machine)
-                                             (set! sollya-machine #f)
-                                             (list #f #f))])
-                  (match-define (list internal-time external-time exs status)
-                    (sollya-apply sollya-machine pt))
-                  (set! sollya-apply-time external-time)
-                  (list status exs))]))
+          [#f (list #f #f)] ; if sollya machine is not working for this benchmark
+          [else
+           (with-handlers ([exn:fail? (λ (e)
+                                        (printf "Sollya failed")
+                                        (printf "~a\n" e)
+                                        (sollya-kill sollya-machine)
+                                        (set! sollya-machine #f)
+                                        (list #f #f))])
+             (match-define (list internal-time external-time exs status)
+               (sollya-apply sollya-machine pt #:timeout (*sampling-timeout*)))
+             (set! sollya-apply-time external-time)
+             (list status exs))]))
 
-      ; When all the machines have compiled and work
+      ; When all the machines have compiled and work - write the results to outcomes
       (when (and rival-machine baseline-machine sollya-machine)
         (point-bucketing
          outcomes
@@ -102,15 +105,12 @@
          sollya-status sollya-apply-time sollya-exs
          rival-iter))
         
-      (cons rival-status
-            (list
-             rival-apply-time rival-exs
-             baseline-status baseline-apply-time baseline-exs
-             sollya-status sollya-apply-time sollya-exs
-             rival-iter))))
+      (cons rival-status rival-apply-time)))
 
   ; Zombie process
-  (sollya-kill sollya-machine)
+  (when sollya-machine
+    (sollya-kill sollya-machine))
+  
   (cons (cons 'compile compile-time) times))
 
 
@@ -119,14 +119,13 @@
     (for/hash ([group (in-list (group-by car data))])
       (values (caar group) (map cdr group))))
  
-
   (list (/ (car (hash-ref times 'compile)) 1000)
          (length (hash-ref times 'valid '()))
-         (/ (apply + (map first (hash-ref times 'valid '()))) 1000)
+         (/ (apply + (hash-ref times 'valid '())) 1000)
          (length (hash-ref times 'invalid '()))
-         (/ (apply + (map first (hash-ref times 'invalid '()))) 1000)
+         (/ (apply + (hash-ref times 'invalid '())) 1000)
          (length (hash-ref times 'unsamplable '()))
-         (/ (apply + (map first (hash-ref times 'unsamplable '()))) 1000)))
+         (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
 
 (define (make-operation-table test-id)
   (for/list ([fn (in-list function-table)]
@@ -153,11 +152,9 @@
   (hash-set! outcomes (list status iter) (list (+ time time*) (+ num-points 1))))
 
 (define (outcomes->jsexpr outcomes)
-  (format "{\"outcomes\":[~a]}"
-          (string-join (for/list ([(key value) (in-hash outcomes)])
-                         (format "[~a, ~a, \"~a\", ~a]"
-                                 (first value) (second key) (first key) (second value)))
-                       ", ")))
+  (hash 'outcomes
+        (for/list ([(key value) (in-hash outcomes)])
+          (list (first value) (second key) (first key) (second value)))))
 
 (define (make-expression-table points test-id outcomes-port)
   (newline)
@@ -196,9 +193,10 @@
               (~r i-time #:precision '(= 3) #:min-width 8)
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time)))
-
+  
   (when outcomes-port
-    (write-json (outcomes->jsexpr outcomes) outcomes-port))
+    (write-json (outcomes->jsexpr outcomes) outcomes-port)
+    (close-output-port outcomes-port))
   
   (define total-t (+ total-c total-v total-i total-u))
   (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
@@ -270,7 +268,35 @@
         (values #f #f)))
   (list operation-table expression-table expression-footer))
 
-(define (generate-html html-port profile-port operation-table expression-table expression-footer)
+(define (generate-ratio-plot outcomes-path path)
+  (define-values (sp out in err)
+    (subprocess #f #f #f (find-executable-path "python")
+                "infra/ratio_plot.py"
+                (format "-t ~a" outcomes-path)
+                (format "-p ~a" path)))
+  (printf "~a" (port->string out)) ; macros for latex
+  (close-input-port out)
+  (close-output-port in)
+  (close-input-port err)
+  (subprocess-wait sp))
+
+(define (generate-point-graph outcomes-path path)
+  (define-values (sp out in err)
+    (subprocess #f #f #f (find-executable-path "python")
+                "infra/point_graph.py"
+                (format "-t ~a" outcomes-path)
+                (format "-p ~a" path)))
+  (printf "~a" (port->string out)) ; macros for latex
+  (close-input-port out)
+  (close-output-port in)
+  (close-input-port err)
+  (subprocess-wait sp))
+
+(define (html-add-plot port path)
+  (when port
+    (fprintf port (format "<img src=\"~a\" width=\"320\" height=\"280\">" path))))
+
+(define (generate-html html-port profile-port operation-table expression-table expression-footer outcomes-path dir)
   (html-write html-port)
 
   (when operation-table
@@ -291,6 +317,12 @@
     (when expression-footer
       (html-write-footer html-port expression-footer))
     (html-end-table html-port))
+
+  (when expression-table
+    (generate-ratio-plot outcomes-path (format "~a/ratio.png" dir))
+    (generate-point-graph outcomes-path (format "~a/point_graph.png" dir))
+    (html-add-plot html-port "ratio.png")
+    (html-add-plot html-port "point_graph.png"))
 
   (when profile-port
     (html-write-profile html-port)))
@@ -321,11 +353,11 @@
    (match-define (list op-t ex-t ex-f)
      (if profile-port
          (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
-                  (run n (open-input-file points)))
+                  (run n (open-input-file points) outcomes-port))
          (run n (open-input-file points) outcomes-port)))
    (when dir
      (set! html-port (open-output-file (format "~a/index.html" dir) #:mode 'text #:exists 'replace))
-     (generate-html html-port profile-port op-t ex-t ex-f))))
+     (generate-html html-port profile-port op-t ex-t ex-f (format "~a/outcomes.json" dir) dir))))
 
 
 (define (point-bucketing
@@ -410,10 +442,16 @@
           [(flinfinite? baseline-exs)
            (outcomes-push! outcomes (format "~a-baseline-only-inf" baseline-status) rival-iter baseline-time)]
           [else
-           (outcomes-push! outcomes (format "~a-baseline-only-real" baseline-status) rival-iter baseline-time)])])]
+           (outcomes-push! outcomes (format "~a-baseline-only-real" baseline-status) rival-iter baseline-time)])]
 
-    ; Rival has exited, rival-exs=#f, nothing to compare to Sollya's output
-    [(equal? rival-status 'exit)
+       ; timeout at all the tools
+       [else
+        (outcomes-push! outcomes "exit-baseline" rival-iter baseline-time)
+        (outcomes-push! outcomes "exit-sollya" rival-iter sollya-time)
+        (outcomes-push! outcomes "exit-rival" rival-iter rival-time)])]
+
+    ; Rival has exited
+    [(equal? rival-status 'unsamplable)
      (cond
        ; Sollya and Baseline have succeeded
        [(and (equal? 'valid sollya-status) (equal? 'valid baseline-status)

@@ -15,21 +15,21 @@ def plot_speed_graph(outcomes, ax):
     def tool_cmp2speed(x):
         return x.sort_values(by=['rival_iter']).apply(add_values, axis=1, result_type='expand')
 
-    base = np.array(tool_cmp2speed(sollya_cmp)[1][:5])
+    base = np.array(tool_cmp2speed(sollya_cmp)[1])
 
-    ax.plot(tool_cmp2speed(rival_cmp)[0][:5], np.array(tool_cmp2speed(rival_cmp)[1][:5])/base, '.-', linewidth=2.0, color='r', label='reval')
-    ax.plot(tool_cmp2speed(baseline_cmp)[0][:5], np.array(tool_cmp2speed(baseline_cmp)[1][:5])/base, '--', linewidth=2.0, color='g',
+    ax.plot(tool_cmp2speed(rival_cmp)[0], np.array(tool_cmp2speed(rival_cmp)[1])/base, '.-', linewidth=2.0, color='r', label='reval')
+    ax.plot(tool_cmp2speed(baseline_cmp)[0], np.array(tool_cmp2speed(baseline_cmp)[1])/base, '--', linewidth=2.0, color='g',
             label='baseline')
-    ax.plot(tool_cmp2speed(sollya_cmp)[0][:5], np.array(tool_cmp2speed(sollya_cmp)[1][:5])/base, '-', linewidth=2.0, color='b',
+    ax.plot(tool_cmp2speed(sollya_cmp)[0], np.array(tool_cmp2speed(sollya_cmp)[1])/base, '-', linewidth=2.0, color='b',
             label='sollya')
 
 
-    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(tool_cmp2speed(rival_cmp)[1][:5].sum()/np.array(tool_cmp2speed(sollya_cmp)[1][:5]).sum(), 2)) + "\\xspace}")
+    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(tool_cmp2speed(rival_cmp)[1].sum()/np.array(tool_cmp2speed(sollya_cmp)[1]).sum(), 2)) + "\\xspace}")
     print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(
-        round(tool_cmp2speed(rival_cmp)[1][:5].sum() / np.array(tool_cmp2speed(baseline_cmp)[1][:5]).sum(), 2)) + "\\xspace}")
+        round(tool_cmp2speed(rival_cmp)[1].sum() / np.array(tool_cmp2speed(baseline_cmp)[1]).sum(), 2)) + "\\xspace}")
 
-    print("\\newcommand{\RivalMaxSpeedupOverSollya}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[4]/np.array(tool_cmp2speed(sollya_cmp)[1])[4], 2)) + "\\xspace}")
-    print("\\newcommand{\RivalMaxSpeedupOverBaseline}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[4]/np.array(tool_cmp2speed(baseline_cmp)[1])[4], 2)) + "\\xspace}")
+    print("\\newcommand{\RivalMaxSpeedupOverSollya}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(sollya_cmp)[1])[-1], 2)) + "\\xspace}")
+    print("\\newcommand{\RivalMaxSpeedupOverBaseline}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(baseline_cmp)[1])[-1], 2)) + "\\xspace}")
 
     ax.legend()
     ax.set_xlabel("Difficulty")
@@ -37,13 +37,13 @@ def plot_speed_graph(outcomes, ax):
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
 
 def load_outcomes(path):
-    outcomes = json.loads(json.load(open(path, "r")))["outcomes"]
+    outcomes = json.load(open(path, "r"))["outcomes"]
     outcomes = pd.DataFrame(outcomes, columns=['time', 'rival_iter', 'tool_name', 'number_of_points'])
     return outcomes
 
 parser = argparse.ArgumentParser(prog='histograms.py', description='Script outputs mixed precision histograms for a Herbie run')
-parser.add_argument('-t', '--outcomes', dest='outcomes', default="../reports/outcomes.json")
-parser.add_argument('-p', '--path', dest='path', default="../reports/ratio.pdf")
+parser.add_argument('-t', '--outcomes', dest='outcomes', default="report/outcomes.json")
+parser.add_argument('-p', '--path', dest='path', default="report/ratio.png")
 args = parser.parse_args()
 
 outcomes = load_outcomes(args.outcomes)
@@ -51,4 +51,4 @@ outcomes = load_outcomes(args.outcomes)
 fig, ax = plt.subplots(figsize=(4, 3.5))
 fig.tight_layout(pad=2.0)
 plot_speed_graph(outcomes, ax)
-plt.savefig(args.path, format="pdf")
+plt.savefig(args.path, format="png")
