@@ -350,7 +350,7 @@
 
 (define (generate-histograms dir)
   (define-values (sp out in err)
-    (subprocess #f #f #f (find-executable-path "python")
+    (subprocess #f #f #f (find-executable-path "python3")
                 "infra/histograms.py"
                 "-t" (format "~a/timeline.json" dir)
                 "-o1" (format "~a/histogram_valid.png" dir)
