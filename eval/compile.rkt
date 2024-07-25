@@ -225,8 +225,8 @@
 
         [(list '+ x y) (list ival-add! (output-register!) x y)]
         [(list '- x y) (list ival-sub! (output-register!) x y)]
-        [(list '* x y) (list ival-mult x y)]
-        [(list '/ x y) (list ival-div x y)]
+        [(list '* x y) (list ival-mult! (output-register!) x y)]
+        [(list '/ x y) (list ival-div! (output-register!) x y)]
         [(list 'atan2 x y) (list ival-atan2 x y)]
         [(list 'copysign x y) (list ival-copysign x y)]
         [(list 'hypot x y) (list ival-hypot x y)]

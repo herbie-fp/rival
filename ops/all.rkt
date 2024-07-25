@@ -23,7 +23,9 @@
          ival-sub!
          ival-neg
          ival-mult
+         ival-mult!
          ival-div
+         ival-div!
          ival-fma
          ival-fabs
          ival-sqrt

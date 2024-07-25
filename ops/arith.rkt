@@ -6,7 +6,9 @@
          ival-add
          ival-sub!
          ival-sub
+         ival-mult!
          ival-mult
+         ival-div!
          ival-div
          ival-fma
          ival-fdim
@@ -48,16 +50,19 @@
   (ival-sub! out x y)
   out)
 
-(define (epmul a-endpoint b-endpoint a-class b-class)
+(define (epmul! out a-endpoint b-endpoint a-class b-class)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
   (define a0 (bfzero? a))
   (define b0 (bfzero? b))
-  (define-values (val exact?)
-    (if (or a0 b0)
-        (values 0.bf #t) ; 0 * inf = 0, not nan, because inf is potential, not actual
-        (bf-return-exact? bfmul (list a b))))
-  (endpoint val
+  (mpfr-set-prec! out (bf-precision))
+  (define exact?
+    (cond
+      [(or a0 b0)
+       (bfcopy out 0.bf)
+       #t]
+      [else (= 0 (mpfr-mul! out a b (bf-rounding-mode)))]))
+  (endpoint out
             (or (and a! b! exact?)
                 (and a! a0)
                 (and a! (bfinfinite? a) (not (= b-class 0)))
@@ -65,12 +70,18 @@
                 (and b! (bfinfinite? b) (not (= a-class 0))))))
 
 (define (ival-mult x y)
+  (define out (new-ival))
+  (ival-mult! out x y)
+  out)
+
+(define (ival-mult! out x y)
   (match-define (ival xlo xhi xerr? xerr) x)
   (match-define (ival ylo yhi yerr? yerr) y)
 
-  (define (mkmult a b c d)
-    (ival (rnd 'down epmul a b x-sign y-sign)
-          (rnd 'up epmul c d x-sign y-sign)
+  (define (mkmult out a b c d)
+    (match-define (ival (endpoint rlo _) (endpoint rhi _) _ _) out)
+    (ival (rnd 'down epmul! rlo a b x-sign y-sign)
+          (rnd 'up epmul! rhi c d x-sign y-sign)
           (or xerr? yerr?)
           (or xerr yerr)))
 
@@ -78,30 +89,31 @@
   (define y-sign (classify-ival y))
 
   (match* (x-sign y-sign)
-    [(1 1) (mkmult xlo ylo xhi yhi)]
-    [(1 -1) (mkmult xhi ylo xlo yhi)]
-    [(1 0) (mkmult xhi ylo xhi yhi)]
-    [(-1 0) (mkmult xlo yhi xlo ylo)]
-    [(-1 1) (mkmult xlo yhi xhi ylo)]
-    [(-1 -1) (mkmult xhi yhi xlo ylo)]
-    [(0 1) (mkmult xlo yhi xhi yhi)]
-    [(0 -1) (mkmult xhi ylo xlo ylo)]
+    [(1 1) (mkmult out xlo ylo xhi yhi)]
+    [(1 -1) (mkmult out xhi ylo xlo yhi)]
+    [(1 0) (mkmult out xhi ylo xhi yhi)]
+    [(-1 0) (mkmult out xlo yhi xlo ylo)]
+    [(-1 1) (mkmult out xlo yhi xhi ylo)]
+    [(-1 -1) (mkmult out xhi yhi xlo ylo)]
+    [(0 1) (mkmult out xlo yhi xhi yhi)]
+    [(0 -1) (mkmult out xhi ylo xlo ylo)]
     ;; Here, the two branches of the union are meaningless on their own;
     ;; however, both branches compute possible lo/hi's to min/max together
-    [(0 0) (ival-union (mkmult xhi ylo xlo ylo) (mkmult xlo yhi xhi yhi))]))
+    [(0 0) (ival-union (mkmult (new-ival) xhi ylo xlo ylo) (mkmult out xlo yhi xhi yhi))]))
 
-(define (epdiv a-endpoint b-endpoint a-class)
+(define (epdiv! out a-endpoint b-endpoint a-class)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
-  (define-values (val exact?) (bf-return-exact? bfdiv (list a b)))
-  (endpoint val
+  (define exact? (mpfr-div! out a b (bf-rounding-mode)))
+  (endpoint out
             (or (and a! b! exact?)
                 (and a! (bfzero? a))
                 (and a! (bfinfinite? a))
                 (and b! (bfinfinite? b))
                 (and b! (bfzero? b) (not (= a-class 0))))))
 
-(define (ival-div x y)
+(define (ival-div! out x y)
+  (match-define (ival (endpoint rlo _) (endpoint rhi _) _ _) out)
   (match-define (ival xlo xhi xerr? xerr) x)
   (match-define (ival ylo yhi yerr? yerr) y)
   (define err? (or xerr? yerr? (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
@@ -110,7 +122,7 @@
   (define y-class (classify-ival-strict y))
 
   (define (mkdiv a b c d)
-    (ival (rnd 'down epdiv a b x-class) (rnd 'up epdiv c d x-class) err? err))
+    (ival (rnd 'down epdiv! rlo a b x-class) (rnd 'up epdiv! rhi c d x-class) err? err))
 
   (match* (x-class y-class)
     [(_ 0) ; In this case, y stradles 0
@@ -127,6 +139,11 @@
     [(-1 -1) (mkdiv xhi ylo xlo yhi)]
     [(0 1) (mkdiv xlo ylo xhi ylo)]
     [(0 -1) (mkdiv xhi yhi xlo yhi)]))
+
+(define (ival-div x y)
+  (define out (new-ival))
+  (ival-div! out x y)
+  out)
 
 (define (ival-fma a b c)
   (ival-add (ival-mult a b) c))
