@@ -122,8 +122,14 @@
          baseline-status baseline-apply-time baseline-exs
          sollya-status sollya-apply-time sollya-exs
          rival-iter))
+
+      ; Count differences where baseline is better than rival
+      (define rival-baseline-difference (if (and (equal? rival-status 'exit)
+                                                 (equal? baseline-status 'valid))
+                                            1
+                                            0))
         
-      (cons rival-status rival-apply-time)))
+      (cons rival-status (cons rival-apply-time rival-baseline-difference))))
 
   ; Zombie process
   (when sollya-machine
@@ -139,11 +145,12 @@
  
   (list (/ (car (hash-ref times 'compile)) 1000)
          (length (hash-ref times 'valid '()))
-         (/ (apply + (hash-ref times 'valid '())) 1000)
+         (/ (apply + (map car (hash-ref times 'valid '()))) 1000)
          (length (hash-ref times 'invalid '()))
-         (/ (apply + (hash-ref times 'invalid '())) 1000)
+         (/ (apply + (map car (hash-ref times 'invalid '()))) 1000)
          (length (hash-ref times 'unsamplable '()))
-         (/ (apply + (hash-ref times 'unsamplable '())) 1000)))
+         (/ (apply + (map car (hash-ref times 'unsamplable '()))) 1000)
+         (apply + (map second (hash-ref times 'unsamplable '())))))
 
 (define (make-operation-table test-id)
   (for/list ([fn (in-list function-table)]
@@ -230,7 +237,7 @@
       (when test-id
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       
-      (match-define (list c-time v-num v-time i-num i-time u-num u-time)
+      (match-define (list c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)
           (time-exprs (time-expr rec timeline)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
@@ -246,7 +253,7 @@
               (~r v-time #:precision '(= 3) #:min-width 8)
               (~r i-time #:precision '(= 3) #:min-width 8)
               (~r u-time #:precision '(= 3) #:min-width 8))
-      (list i t-time c-time v-num v-time i-num i-time u-num u-time)))
+      (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
   
   (when timeline-port
     (write-json (timeline->jsexpr timeline) timeline-port)
@@ -384,7 +391,7 @@
   (when expression-table
     (define cols
       '("#" ("Total" "s") ("Compile" "s")
-            "Valid" ("(s)" "s") "Invalid" ("(s)" "s") "Unable" ("(s)" "s")))
+            "Valid" ("(s)" "s") "Invalid" ("(s)" "s") "Unable" ("(s)" "s") "Baseline-valid, Rival-exit"))
     (html-write-table html-port "Expression timing" cols)
     (for ([row (in-list expression-table)])
       (html-write-row html-port row))
