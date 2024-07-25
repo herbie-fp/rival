@@ -95,24 +95,27 @@
         (timeline-push! timeline 'mixsample-baseline-all (list (execution-time execution) name precision)))
 
       ; Sollya execution
-      (define sollya-apply-time 0.0)
-      (match-define (list sollya-status sollya-exs)
-        (match sollya-machine
-          [#f (list #f #f)] ; if sollya machine is not working for this benchmark
-          [else
-           (with-handlers ([exn:fail? (λ (e)
-                                        (printf "Sollya failed")
-                                        (printf "~a\n" e)
-                                        (sollya-kill sollya-machine)
-                                        (set! sollya-machine #f)
-                                        (list #f #f))])
-             (match-define (list internal-time external-time exs status)
-               (sollya-apply sollya-machine pt #:timeout (*sampling-timeout*)))
-             (set! sollya-apply-time external-time)
-             (list status exs))]))
+      (when (and (and rival-machine baseline-machine sollya-machine)
+                 (equal? rival-status 'valid)
+                 (equal? rival-status 'unsamplable))
+        
+        (define sollya-apply-time 0.0)
+        (match-define (list sollya-status sollya-exs)
+          (match sollya-machine
+            [#f (list #f #f)] ; if sollya machine is not working for this benchmark
+            [else
+             (with-handlers ([exn:fail? (λ (e)
+                                          (printf "Sollya failed")
+                                          (printf "~a\n" e)
+                                          (sollya-kill sollya-machine)
+                                          (set! sollya-machine #f)
+                                          (list #f #f))])
+               (match-define (list internal-time external-time exs status)
+                 (sollya-apply sollya-machine pt #:timeout (*sampling-timeout*)))
+               (set! sollya-apply-time external-time)
+               (list status exs))]))
 
-      ; When all the machines have compiled and work - write the results to outcomes
-      (when (and rival-machine baseline-machine sollya-machine)
+        ; When all the machines have compiled and work - write the results to outcomes
         (point-bucketing
          timeline
          rival-status rival-apply-time rival-exs
@@ -321,7 +324,7 @@
 
 (define (generate-ratio-plot dir)
   (define-values (sp out in err)
-    (subprocess #f #f #f (find-executable-path "python")
+    (subprocess #f #f #f (find-executable-path "python3")
                 "infra/ratio_plot.py"
                 "-t" (format "~a/timeline.json" dir)
                 "-o" (format "~a/ratio_plot.png" dir)))
@@ -334,7 +337,7 @@
 
 (define (generate-point-graph dir)
   (define-values (sp out in err)
-    (subprocess #f #f #f (find-executable-path "python")
+    (subprocess #f #f #f (find-executable-path "python3")
                 "infra/point_graph.py"
                 "-t" (format "~a/timeline.json" dir)
                 "-o" (format "~a/point_graph.png" dir)))
