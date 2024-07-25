@@ -96,8 +96,8 @@
 
       ; Sollya execution
       (when (and (and rival-machine baseline-machine sollya-machine)
-                 (equal? rival-status 'valid)
-                 (equal? rival-status 'unsamplable))
+                 (or (equal? rival-status 'valid)
+                     (equal? rival-status 'unsamplable)))
         
         (define sollya-apply-time 0.0)
         (match-define (list sollya-status sollya-exs)
