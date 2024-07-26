@@ -34,10 +34,10 @@
     (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
   ; Step 1b. Checking if a operation should be computed again at all
-  #;(define vuseful (make-vector (vector-length ivec) #f))
-  #;(for ([root (in-vector rootvec)] #:when (>= root varc))
+  (define vuseful (make-vector (vector-length ivec) #f))
+  (for ([root (in-vector rootvec)] #:when (>= root varc))
     (vector-set! vuseful (- root varc) #t))
-  #;(for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
+  (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
         [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [i (in-range (- (vector-length ivec) 1) -1 -1)]
         [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)])
@@ -55,13 +55,13 @@
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
   (define any-false? #f)
   (for ([instr (in-vector ivec)]
-        [reg (in-vector vregs varc)]
+        [useful? (in-vector vuseful)]
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
         [prec-new (in-vector vprecs-new)]
         [result-old (in-vector vregs varc)]
         [n (in-naturals)])
     (define repeat
-      (or (and (ival-lo-fixed? reg) (ival-hi-fixed? reg))
+      (or (not useful?)
           (and (<= prec-new prec-old)
                (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) (cdr instr)))))
     (set! any-false? (or any-false? (not repeat)))
