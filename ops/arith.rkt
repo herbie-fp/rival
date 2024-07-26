@@ -99,7 +99,12 @@
     [(0 -1) (mkmult out xhi ylo xlo ylo)]
     ;; Here, the two branches of the union are meaningless on their own;
     ;; however, both branches compute possible lo/hi's to min/max together
-    [(0 0) (ival-union (mkmult (new-ival) xhi ylo xlo ylo) (mkmult out xlo yhi xhi yhi))]))
+    [(0 0)
+     (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err)
+       (ival-union (mkmult (new-ival) xhi ylo xlo ylo) (mkmult out xlo yhi xhi yhi)))
+     (mpfr-set! (ival-lo-val out) lo)
+     (mpfr-set! (ival-hi-val out) hi)
+     (ival (endpoint (ival-lo-val out) lo!) (endpoint (ival-hi-val out) hi!) err? err)]))
 
 (define (epdiv! out a-endpoint b-endpoint a-class)
   (match-define (endpoint a a!) a-endpoint)

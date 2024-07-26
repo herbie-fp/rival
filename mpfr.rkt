@@ -60,6 +60,8 @@
 
 (define mpfr-init2! (get-mpfr-fun 'mpfr_init2 (_fun _mpfr-pointer _prec_t -> _void)))
 
+(define mpfr-set! (get-mpfr-fun 'mpfr_set (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _void)))
+
 (define (mpfr-new! prec)
   (define bf (make-mpfr 0 0 0 #f))
   (mpfr-init2! bf prec)
@@ -224,4 +226,5 @@
          mpfr-mul!
          mpfr-div!
          mpfr-set-prec!
-         mpfr-new!)
+         mpfr-new!
+         mpfr-set!)
