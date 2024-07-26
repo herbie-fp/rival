@@ -59,7 +59,7 @@
   (define exact?
     (cond
       [(or a0 b0)
-       (bfcopy out 0.bf)
+       (mpfr-set! out 0.bf 'nearest)
        #t]
       [else (= 0 (mpfr-mul! out a b (bf-rounding-mode)))]))
   (endpoint out
@@ -73,6 +73,8 @@
   (define out (new-ival))
   (ival-mult! out x y)
   out)
+
+(define extra-mult-ival (new-ival))
 
 (define (ival-mult! out x y)
   (match-define (ival xlo xhi xerr? xerr) x)
@@ -101,9 +103,9 @@
     ;; however, both branches compute possible lo/hi's to min/max together
     [(0 0)
      (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err)
-       (ival-union (mkmult (new-ival) xhi ylo xlo ylo) (mkmult out xlo yhi xhi yhi)))
-     (mpfr-set! (ival-lo-val out) lo)
-     (mpfr-set! (ival-hi-val out) hi)
+       (ival-union (mkmult extra-mult-ival xhi ylo xlo ylo) (mkmult out xlo yhi xhi yhi)))
+     (mpfr-set! (ival-lo-val out) lo 'down) ; should be exact
+     (mpfr-set! (ival-hi-val out) hi 'up) ; should be exact
      (ival (endpoint (ival-lo-val out) lo!) (endpoint (ival-hi-val out) hi!) err? err)]))
 
 (define (epdiv! out a-endpoint b-endpoint a-class)
