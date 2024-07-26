@@ -124,7 +124,7 @@
          rival-iter))
 
       ; Count differences where baseline is better than rival
-      (define rival-baseline-difference (if (and (equal? rival-status 'exit)
+      (define rival-baseline-difference (if (and (equal? rival-status 'unsamplable)
                                                  (equal? baseline-status 'valid))
                                             1
                                             0))
@@ -142,7 +142,7 @@
   (define times
     (for/hash ([group (in-list (group-by car data))])
       (values (caar group) (map cdr group))))
- 
+
   (list (/ (car (hash-ref times 'compile)) 1000)
          (length (hash-ref times 'valid '()))
          (/ (apply + (map car (hash-ref times 'valid '()))) 1000)
@@ -150,7 +150,7 @@
          (/ (apply + (map car (hash-ref times 'invalid '()))) 1000)
          (length (hash-ref times 'unsamplable '()))
          (/ (apply + (map car (hash-ref times 'unsamplable '()))) 1000)
-         (apply + (map second (hash-ref times 'unsamplable '())))))
+         (apply + (map cdr (hash-ref times 'unsamplable '())))))
 
 (define (make-operation-table test-id)
   (for/list ([fn (in-list function-table)]
