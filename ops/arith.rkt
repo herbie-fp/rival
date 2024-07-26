@@ -25,7 +25,7 @@
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
   (mpfr-set-prec! out (bf-precision))
-  (define exact? (= (mpfr-fn! out a b rnd) 0))
+  (define exact? (= 0 (mpfr-fn! out a b rnd)))
   (endpoint out (or (and a! b! exact?) (and a! (bfinfinite? a)) (and b! (bfinfinite? b)))))
 
 (define (ival-add! out x y)
@@ -106,7 +106,7 @@
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
   (mpfr-set-prec! out (bf-precision))
-  (define exact? (mpfr-div! out a b (bf-rounding-mode)))
+  (define exact? (= 0 (mpfr-div! out a b (bf-rounding-mode))))
   (endpoint out
             (or (and a! b! exact?)
                 (and a! (bfzero? a))
