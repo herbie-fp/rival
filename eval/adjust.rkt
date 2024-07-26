@@ -34,10 +34,10 @@
     (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
   ; Step 1b. Checking if a operation should be computed again at all
-  (define vuseful (make-vector (vector-length ivec) #f))
-  (for ([root (in-vector rootvec)] #:when (>= root varc))
+  #;(define vuseful (make-vector (vector-length ivec) #f))
+  #;(for ([root (in-vector rootvec)] #:when (>= root varc))
     (vector-set! vuseful (- root varc) #t))
-  (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
+  #;(for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
         [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [i (in-range (- (vector-length ivec) 1) -1 -1)]
         [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)])
@@ -48,20 +48,22 @@
          (vector-set! vuseful (- arg varc) #t))]))
 
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs)
 
-  ; Step 3. Repeating precisions check
+  ; Step 3. Repeating precisions check + Checking if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
   (define any-false? #f)
   (for ([instr (in-vector ivec)]
+        [reg (in-vector vregs varc)]
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
         [prec-new (in-vector vprecs-new)]
         [result-old (in-vector vregs varc)]
         [n (in-naturals)])
     (define repeat
-      (and (<= prec-new prec-old)
-           (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) (cdr instr))))
+      (or (and (ival-lo-fixed? reg) (ival-hi-fixed? reg))
+          (and (<= prec-new prec-old)
+               (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) (cdr instr)))))
     (set! any-false? (or any-false? (not repeat)))
     (vector-set! vrepeats n repeat))
 
@@ -83,11 +85,9 @@
 ; Roughly speaking:
 ;   vprecs-new[i] = min( *rival-max-precision* max( *base-tuning-precision* (+ intro vstart-precs[i])),
 ;   intro = get-ampls(parent)
-(define (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful)
+(define (precision-tuning ivec vregs vprecs-new varc vstart-precs)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
-        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
-        [n (in-range (- (vector-length vregs) 1) -1 -1)]
-        #:when useful?) ; reversed over indices of vregs
+        [n (in-range (- (vector-length vregs) 1) -1 -1)]) ; reversed over indices of vregs
 
     (define op (car instr)) ; current operation
     (define tail-registers (cdr instr))
