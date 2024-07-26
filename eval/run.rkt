@@ -1,8 +1,16 @@
 #lang racket/base
 
-(require racket/match racket/function racket/flonum)
-(require "machine.rkt" "adjust.rkt" "../mpfr.rkt" "../ops/all.rkt")
-(provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust)
+(require racket/match
+         racket/function
+         racket/flonum)
+(require "machine.rkt"
+         "adjust.rkt"
+         "../mpfr.rkt"
+         "../ops/all.rkt")
+(provide rival-machine-load
+         rival-machine-run
+         rival-machine-return
+         rival-machine-adjust)
 
 (define (rival-machine-load machine args)
   (vector-copy! (rival-machine-registers machine) 0 args)
@@ -54,17 +62,10 @@
   ;; becomes the fastest option.
   (match instr
     [(list op) (op)]
-    [(list op a)
-     (op (vector-ref regs a))]
-    [(list op a b)
-     (op (vector-ref regs a)
-         (vector-ref regs b))]
-    [(list op a b c)
-     (op (vector-ref regs a)
-         (vector-ref regs b)
-         (vector-ref regs c))]
-    [(list op args ...)
-     (apply op (map (curryr vector-ref regs) args))]))
+    [(list op a) (op (vector-ref regs a))]
+    [(list op a b) (op (vector-ref regs a) (vector-ref regs b))]
+    [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
+    [(list op args ...) (apply op (map (curryr vector-ref regs) args))]))
 
 (define (rival-machine-return machine)
   (define discs (rival-machine-discs machine))

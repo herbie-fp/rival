@@ -1,10 +1,19 @@
 #lang racket
 
-(require racket/math math/base math/flonum math/bigfloat racket/random profile)
+(require racket/math
+         math/base
+         math/flonum
+         math/bigfloat
+         racket/random
+         profile)
 (require json)
-(require "main.rkt" "test.rkt" "profile.rkt"
+
+(require "main.rkt"
+         "test.rkt"
+         "profile.rkt"
          "eval/machine.rkt" ; for accessing iteration number of machine
-         "infra/run-sollya.rkt" "infra/run-baseline.rkt")
+         "infra/run-sollya.rkt"
+         "infra/run-baseline.rkt")
 
 (define sample-vals (make-parameter 5000))
 (define *sampling-timeout* (make-parameter 20.0)) ; this parameter is used for plots generation
@@ -168,7 +177,7 @@
             (~r (/ iv256 bf256) #:precision '(= 2) #:min-width 4)
             (~r iv4k #:precision '(= 3) #:min-width 8)
             (~r (/ iv4k bf4k) #:precision '(= 2) #:min-width 4))
-    
+
     (list (object-name ival-fn) iv256 (/ iv256 bf256) iv4k (/ iv4k bf4k))))
 
 (define (timeline-push! timeline key args*)
@@ -230,7 +239,7 @@
                      (cons 'mixsample-baseline-all (make-hash)))))
   
   (define table
-    (for/list ([rec (in-port read-json points)] 
+    (for/list ([rec (in-port read-json points)]
                [i (in-naturals)]
                #:break (and test-id (> i (string->number test-id)))
                #:unless (and test-id (not (equal? (~a i) test-id))))
@@ -238,7 +247,7 @@
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
       
       (match-define (list c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)
-          (time-exprs (time-expr rec timeline)))
+        (time-exprs (time-expr rec timeline)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))
@@ -261,8 +270,7 @@
   
   (define total-t (+ total-c total-v total-i total-u))
   (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
-  (define footer
-    (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u))
+  (define footer (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u))
   (values table footer))
 
 (define (html-write port)
@@ -273,7 +281,9 @@
     (fprintf port "<link href='~a' rel='stylesheet' />" sortable-css)
     (fprintf port "<script src='profile.js' defer></script>")
     (fprintf port "<script src='~a' async defer></script>" sortable-js)
-    (fprintf port "<style>body { max-width: 100ex; margin: 3em auto; } td:nth-child(1n+2) { text-align: right; }</style>")))
+    (fprintf
+     port
+     "<style>body { max-width: 100ex; margin: 3em auto; } td:nth-child(1n+2) { text-align: right; }</style>")))
 
 (define current-heading #f)
 
@@ -284,7 +294,10 @@
     (fprintf port "<table class=sortable>")
     (fprintf port "<thead><tr>")
     (for ([col (in-list cols)])
-      (define name (match col [(list name _) name] [name name]))
+      (define name
+        (match col
+          [(list name _) name]
+          [name name]))
       (fprintf port "<th>~a</th>" name))
     (fprintf port "</tr></thead><tbody>")))
 
@@ -292,16 +305,16 @@
   (when port
     (fprintf port "<tr>")
     (for ([cell (in-list row)] [heading (in-list current-heading)])
-      (define unit (match heading [(list _ s) s] [_ ""]))
+      (define unit
+        (match heading
+          [(list _ s) s]
+          [_ ""]))
       (cond
-        [(and (number? cell) (zero? cell))
-         (fprintf port "<td></td>")]
-        [(integer? cell)
-         (fprintf port "<td>~a~a</td>" (~r cell #:group-sep " ") unit)]
+        [(and (number? cell) (zero? cell)) (fprintf port "<td></td>")]
+        [(integer? cell) (fprintf port "<td>~a~a</td>" (~r cell #:group-sep " ") unit)]
         [(real? cell)
          (fprintf port "<td data-sort=~a>~a~a</td>" cell (~r cell #:precision '(= 2)) unit)]
-        [else
-         (fprintf port "<td><code>~a</code></td>" cell)]))
+        [else (fprintf port "<td><code>~a</code></td>" cell)]))
     (fprintf port "</tr>")))
 
 (define (html-end-table port)
@@ -320,9 +333,7 @@
 
 (define (run test-id p timeline-port)
   (define operation-table
-    (and
-     (or (not test-id) (not (string->number test-id)))
-     (make-operation-table test-id)))
+    (and (or (not test-id) (not (string->number test-id))) (make-operation-table test-id)))
   (define-values (expression-table expression-footer)
     (if (and p (or (not test-id) (string->number test-id)))
         (make-expression-table p test-id timeline-port)
@@ -335,7 +346,6 @@
                 "infra/ratio_plot.py"
                 "-t" (format "~a/timeline.json" dir)
                 "-o" (format "~a/ratio_plot.png" dir)))
-  (printf "~a" (port->string err))
   (printf "~a" (port->string out)) ; macros for latex
   (close-input-port out)
   (close-output-port in)
@@ -348,7 +358,6 @@
                 "infra/point_graph.py"
                 "-t" (format "~a/timeline.json" dir)
                 "-o" (format "~a/point_graph.png" dir)))
-  (printf "~a" (port->string err))
   (printf "~a" (port->string out)) ; macros for latex
   (close-input-port out)
   (close-output-port in)
@@ -362,7 +371,6 @@
                 "-t" (format "~a/timeline.json" dir)
                 "-o1" (format "~a/histogram_valid.png" dir)
                 "-o2" (format "~a/histogram_all.png" dir)))
-  (printf "~a" (port->string err))
   (printf "~a" (port->string out)) ; macros for latex
   (close-input-port out)
   (close-output-port in)
@@ -382,7 +390,7 @@
 
   (when operation-table
     (define cols
-      '("Operation" ("Time, 256b" "µs")  ("Slowdown" "×") ("Time, 4kb" "µs") ("Slowdown" "×")))
+      '("Operation" ("Time, 256b" "µs") ("Slowdown" "×") ("Time, 4kb" "µs") ("Slowdown" "×")))
     (html-write-table html-port "Operation timing" cols)
     (for ([row (in-list operation-table)])
       (html-write-row html-port row))
@@ -390,8 +398,15 @@
 
   (when expression-table
     (define cols
-      '("#" ("Total" "s") ("Compile" "s")
-            "Valid" ("(s)" "s") "Invalid" ("(s)" "s") "Unable" ("(s)" "s") "Baseline-valid, Rival-exit"))
+      '("#" ("Total" "s")
+            ("Compile" "s")
+            "Valid"
+            ("(s)" "s")
+            "Invalid"
+            ("(s)" "s")
+            "Unable"
+            ("(s)" "s")
+            "Baseline-valid, Rival-exit"))
     (html-write-table html-port "Expression timing" cols)
     (for ([row (in-list expression-table)])
       (html-write-row html-port row))
@@ -413,7 +428,8 @@
 
 (define (profile-json-renderer profile-port)
   (lambda (p order)
-    (when profile-port (write-json (profile->json p) profile-port))))
+    (when profile-port
+      (write-json (profile->json p) profile-port))))
 
 (module+ main
   (require racket/cmdline)
@@ -422,27 +438,28 @@
   (define timeline-port #f)
   (define profile-port #f)
   (define n #f)
-  (command-line
-   #:once-each
-   [("--dir") fn "Directory to produce html outputs"
-              (set! dir fn)
-              (when dir
-                (set! timeline-port (open-output-file (format "~a/timeline.json" dir) #:mode 'text #:exists 'replace)))]
-   [("--profile") fn "Produce a JSON profile"
-                  (set! profile-port (open-output-file fn #:mode 'text #:exists 'replace))]
-   [("--id") ns "Run a single test"
-             (set! n ns)]
-   #:args ([points "infra/points.json"])
-   
-   (match-define (list op-t ex-t ex-f)
-     (if profile-port
-         (profile #:order 'total #:delay 0.001 #:render (profile-json-renderer profile-port)
-                  (run n (open-input-file points) timeline-port))
-         (run n (open-input-file points) timeline-port)))
-   (when dir
-     (set! html-port (open-output-file (format "~a/index.html" dir) #:mode 'text #:exists 'replace))
-     (generate-html html-port profile-port op-t ex-t ex-f dir))))
-
+  (command-line #:once-each [("--dir")
+                             fn
+                             "Directory to produce html outputs"
+                             (set! dir fn)
+                             (when dir
+                               (set! timeline-port (open-output-file (format "~a/timeline.json" dir) #:mode 'text #:exists 'replace))
+                               (set! html-port (open-output-file (format "~a/index.html" dir) #:mode 'text #:exists 'replace)))]
+                [("--profile")
+                 fn
+                 "Produce a JSON profile"
+                 (set! profile-port (open-output-file fn #:mode 'text #:exists 'replace))]
+                [("--id") ns "Run a single test" (set! n ns)]
+                #:args ([points "infra/points.json"])
+                (match-define (list op-t ex-t ex-f)
+                  (if profile-port
+                      (profile #:order 'total
+                               #:delay 0.001
+                               #:render (profile-json-renderer profile-port)
+                               (run n (open-input-file points) timeline-port))
+                      (run n (open-input-file points) timeline-port)))
+                (when dir
+                  (generate-html html-port profile-port op-t ex-t ex-f dir))))
 
 (define (point-bucketing
          timeline

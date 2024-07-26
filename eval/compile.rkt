@@ -1,8 +1,13 @@
 #lang racket
 
-(require racket/match (only-in math/private/bigfloat/mpfr bfprev bf bf-rounding-mode bf=?) racket/flonum)
-(require "../ops/all.rkt" "machine.rkt")
-(provide rival-compile *rival-use-shorthands* *rival-name-constants*
+(require racket/match
+         (only-in "../mpfr.rkt" bfprev bf bfsinu bfcosu bftanu bf-rounding-mode bf=?)
+         racket/flonum)
+(require "../ops/all.rkt"
+         "machine.rkt")
+(provide rival-compile
+         *rival-use-shorthands*
+         *rival-name-constants*
          fn->ival-fn exprs->batch) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))
@@ -97,50 +102,98 @@
 
 (define (optimize expr)
   (match (and (*rival-use-shorthands*) expr)
-    [`(fma ,x ,y ,z)
-     `(+ (* ,x ,y) ,z)]
-    [`(- (exp ,x) 1)
-     `(expm1 ,x)]
-    [`(- 1 (exp ,x))
-     `(neg (expm1 ,x))]
-    [`(log (+ 1 ,x))
-     `(log1p ,x)]
-    [`(log (+ ,x 1))
-     `(log1p ,x)]
-    [`(- ,x)
-     `(neg ,x)]
-    [`(sqrt (+ (* ,x ,x) (* ,y ,y)))
-     `(hypot ,x ,y)]
-    [`(sqrt (+ (* ,x ,x) 1))
-     `(hypot ,x 1)]
-    [`(sqrt (+ 1 (* ,x ,x)))
-     `(hypot 1 ,x)]
-    [`(pow ,arg 2)
-     `(pow2 ,arg)]
-    [`(pow ,arg 1/3)
-     `(cbrt ,arg)]
-    [`(pow ,arg 1/2)
-     `(sqrt ,arg)]
-    [`(pow (fabs ,x) ,y)
-     `(pow (fabs ,x) ,y)]
+
+    ; Syntax quirks
+    [`PI '(PI)]
+    [`E '(E)]
+    [`(- ,x) `(neg ,x)]
+
+    ; Special numeric functions
+    [`(fma ,x ,y ,z) `(+ (* ,x ,y) ,z)]
+    [`(- (exp ,x) 1) `(expm1 ,x)]
+    [`(- 1 (exp ,x)) `(neg (expm1 ,x))]
+    [`(log (+ 1 ,x)) `(log1p ,x)]
+    [`(log (+ ,x 1)) `(log1p ,x)]
+    [`(sqrt (+ (* ,x ,x) (* ,y ,y))) `(hypot ,x ,y)]
+    [`(sqrt (+ (* ,x ,x) 1)) `(hypot ,x 1)]
+    [`(sqrt (+ 1 (* ,x ,x))) `(hypot 1 ,x)]
+
+    ; Special case powers
+    [`(pow ,arg 2) `(pow2 ,arg)]
+    [`(pow ,arg 1/3) `(cbrt ,arg)]
+    [`(pow ,arg 1/2) `(sqrt ,arg)]
+
+    ; Special trigonometric functions
+    [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
+     #:when bfcosu
+     `((cosu ,(* 2 n)) ,x)]
+    [`(cos (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
+     #:when bfcosu
+     `((cosu ,(* 2 n)) ,x)]
+    [`(cos (* ,(or 'PI '(PI)) ,x))
+     #:when bfcosu
+     `((cosu 2) ,x)]
+    [`(cos (* ,x ,(or 'PI '(PI))))
+     #:when bfcosu
+     `((cosu 2) ,x)]
+    [`(cos (* (* 2 ,(or 'PI '(PI))) ,x))
+     #:when bfcosu
+     `((cosu 1) ,x)]
+    [`(cos (* ,x (* 2 ,(or 'PI '(PI)))))
+     #:when bfcosu
+     `((cosu 1) ,x)]
+    [`(sin (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
+     #:when bfsinu
+     `((sinu ,(* 2 n)) ,x)]
+    [`(sin (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
+     #:when bfsinu
+     `((sinu ,(* 2 n)) ,x)]
+    [`(sin (* ,(or 'PI '(PI)) ,x))
+     #:when bfsinu
+     `((sinu 2) ,x)]
+    [`(sin (* ,x ,(or 'PI '(PI))))
+     #:when bfsinu
+     `((sinu 2) ,x)]
+    [`(sin (* (* 2 ,(or 'PI '(PI))) ,x))
+     #:when bfsinu
+     `((sinu 1) ,x)]
+    [`(sin (* ,x (* 2 ,(or 'PI '(PI)))))
+     #:when bfsinu
+     `((sinu 1) ,x)]
+    [`(tan (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
+     #:when bftanu
+     `((tanu ,(* 2 n)) ,x)]
+    [`(tan (* (/ ,x ,(? (conjoin fixnum? positive?) n)) ,(or 'PI '(PI))))
+     #:when bftanu
+     `((tanu ,(* 2 n)) ,x)]
+    [`(tan (* ,(or 'PI '(PI)) ,x))
+     #:when bftanu
+     `((tanu 2) ,x)]
+    [`(tan (* ,x ,(or 'PI '(PI))))
+     #:when bftanu
+     `((tanu 2) ,x)]
+    [`(tan (* (* 2 ,(or 'PI '(PI))) ,x))
+     #:when bftanu
+     `((tanu 1) ,x)]
+    [`(tan (* ,x (* 2 ,(or 'PI '(PI)))))
+     #:when bftanu
+     `((tanu 1) ,x)]
+
+    ; Handle pow(x, 1/5) and similar
+    [`(pow (fabs ,x) ,y) `(pow (fabs ,x) ,y)]
     [`(pow ,x ,(? rational? y))
      (cond
-       [(integer? y)
-        `(pow ,x ,y)] ; Not optimal but probably fine
-       [(and (even? (numerator y)) (odd? (denominator y)))
-        `(pow (fabs ,x) ,y)]
-       [(and (odd? (numerator y)) (odd? (denominator y)))
-        `(copysign (pow (fabs ,x) ,y) ,x)]
-       [else
-        `(pow ,x ,y)])]
+       [(integer? y) `(pow ,x ,y)] ; Not optimal but probably fine
+       [(and (even? (numerator y)) (odd? (denominator y))) `(pow (fabs ,x) ,y)]
+       [(and (odd? (numerator y)) (odd? (denominator y))) `(copysign (pow (fabs ,x) ,y) ,x)]
+       [else `(pow ,x ,y)])]
     [_ expr]))
 
 (define (exprs->batch exprs vars)
   (define icache (reverse vars))
   (define exprhash
-    (make-hash
-     (for/list ([var vars] [i (in-naturals)])
-       (cons var i))))
+    (make-hash (for/list ([var vars] [i (in-naturals)])
+                 (cons var i))))
   ; Counts
   (define exprc 0)
   (define varc (length vars))
@@ -151,7 +204,8 @@
       (match (optimize prog)
         [(list op args ...) (cons op (map munge args))]
         [_ prog]))
-    (hash-ref! exprhash node
+    (hash-ref! exprhash
+               node
                (lambda ()
                  (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
                    (set! exprc (+ 1 exprc))
@@ -177,8 +231,12 @@
   (ival-bool #f))
 
 (define (real->ival val)
-  (define lo (parameterize ([bf-rounding-mode 'down]) (bf val)))
-  (define hi (parameterize ([bf-rounding-mode 'up]) (bf val)))
+  (define lo
+    (parameterize ([bf-rounding-mode 'down])
+      (bf val)))
+  (define hi
+    (parameterize ([bf-rounding-mode 'up])
+      (bf val)))
   (ival lo hi))
 
 (define (ival-point? x)
@@ -194,8 +252,7 @@
 
 (define (rival-compile exprs vars discs)
   (define num-vars (length vars))
-  (define-values (nodes roots)
-    (exprs->batch exprs vars))
+  (define-values (nodes roots) (exprs->batch exprs vars))
 
   (define instructions
     (for/vector #:length (- (vector-length nodes) num-vars)
@@ -209,14 +266,22 @@
   ;; starting precisions for the first, un-tuned iteration
   (define initial-precisions (setup-vstart-precs instructions (length vars) roots discs))
 
-  (rival-machine
-   (list->vector vars) instructions roots (list->vector discs)
-   registers repeats precisions initial-precisions (make-vector (vector-length roots))
-   0 0 0
-   (make-vector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))
-   (make-flvector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))))
+  (rival-machine (list->vector vars)
+                 instructions
+                 roots
+                 (list->vector discs)
+                 registers
+                 repeats
+                 precisions
+                 initial-precisions
+                 (make-vector (vector-length roots))
+                 0
+                 0
+                 0
+                 (make-vector (*rival-profile-executions*))
+                 (make-vector (*rival-profile-executions*))
+                 (make-flvector (*rival-profile-executions*))
+                 (make-vector (*rival-profile-executions*))))
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
@@ -226,19 +291,21 @@
   (define vstart-precs (make-vector ivec-len 0))
 
   (for ([root (in-vector roots)] [disc (in-list discs)] #:when (>= root varc))
-    (vector-set! vstart-precs (- root varc)
+    (vector-set! vstart-precs
+                 (- root varc)
                  (+ (discretization-target disc) (*base-tuning-precision*))))
 
   (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)] ; reversed over ivec
-        [n (in-range (- ivec-len 1) -1 -1)])          ; reversed over indices of vstart-precs
+        [n (in-range (- ivec-len 1) -1 -1)]) ; reversed over indices of vstart-precs
     (define current-prec (vector-ref vstart-precs n))
-    
+
     (define tail-registers (cdr instr))
     (for ([idx (in-list tail-registers)] #:when (>= idx varc))
       (define idx-prec (vector-ref vstart-precs (- idx varc)))
-      (vector-set! vstart-precs (- idx varc)
-                   (max        ; sometimes an instruction can be in many tail registers
-                    idx-prec   ; We wanna make sure that we do not tune a precision down
+      (vector-set! vstart-precs
+                   (- idx varc)
+                   (max ; sometimes an instruction can be in many tail registers
+                    idx-prec ; We wanna make sure that we do not tune a precision down
                     (+ current-prec (*ampl-tuning-bits*))))))
 
   vstart-precs)
