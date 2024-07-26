@@ -35,9 +35,7 @@
         (or (ival-err x) (ival-err y))))
 
 (define (ival-add x y)
-  (define out (new-ival))
-  (ival-add! out x y)
-  out)
+  (ival-add! (new-ival) x y))
 
 (define (ival-sub! out x y)
   (ival (eplinear! (ival-lo-val out) mpfr-sub! (ival-lo x) (ival-hi y) 'down)
@@ -46,9 +44,7 @@
         (or (ival-err x) (ival-err y))))
 
 (define (ival-sub x y)
-  (define out (new-ival))
-  (ival-sub! out x y)
-  out)
+  (ival-sub! (new-ival) x y))
 
 (define (epmul! out a-endpoint b-endpoint a-class b-class)
   (match-define (endpoint a a!) a-endpoint)
@@ -70,9 +66,7 @@
                 (and b! (bfinfinite? b) (not (= a-class 0))))))
 
 (define (ival-mult x y)
-  (define out (new-ival))
-  (ival-mult! out x y)
-  out)
+  (ival-mult! (new-ival) x y))
 
 (define extra-mult-ival (new-ival))
 
@@ -111,6 +105,7 @@
 (define (epdiv! out a-endpoint b-endpoint a-class)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
+  (mpfr-set-prec! out (bf-precision))
   (define exact? (mpfr-div! out a b (bf-rounding-mode)))
   (endpoint out
             (or (and a! b! exact?)
@@ -148,9 +143,7 @@
     [(0 -1) (mkdiv xhi yhi xlo yhi)]))
 
 (define (ival-div x y)
-  (define out (new-ival))
-  (ival-div! out x y)
-  out)
+  (ival-div! (new-ival) x y))
 
 (define (ival-fma a b c)
   (ival-add (ival-mult a b) c))
