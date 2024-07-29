@@ -340,43 +340,6 @@
         (values #f #f)))
   (list operation-table expression-table expression-footer))
 
-(define (generate-ratio-plot dir)
-  (define-values (sp out in err)
-    (subprocess #f #f #f (find-executable-path "python3")
-                "infra/ratio_plot.py"
-                "-t" (format "~a/timeline.json" dir)
-                "-o" (format "~a/ratio_plot.png" dir)))
-  (printf "~a" (port->string out)) ; macros for latex
-  (close-input-port out)
-  (close-output-port in)
-  (close-input-port err)
-  (subprocess-wait sp))
-
-(define (generate-point-graph dir)
-  (define-values (sp out in err)
-    (subprocess #f #f #f (find-executable-path "python3")
-                "infra/point_graph.py"
-                "-t" (format "~a/timeline.json" dir)
-                "-o" (format "~a/point_graph.png" dir)))
-  (printf "~a" (port->string out)) ; macros for latex
-  (close-input-port out)
-  (close-output-port in)
-  (close-input-port err)
-  (subprocess-wait sp))
-
-(define (generate-histograms dir)
-  (define-values (sp out in err)
-    (subprocess #f #f #f (find-executable-path "python3")
-                "infra/histograms.py"
-                "-t" (format "~a/timeline.json" dir)
-                "-o1" (format "~a/histogram_valid.png" dir)
-                "-o2" (format "~a/histogram_all.png" dir)))
-  (printf "~a" (port->string out)) ; macros for latex
-  (close-input-port out)
-  (close-output-port in)
-  (close-input-port err)
-  (subprocess-wait sp))
-
 (define (html-add-plot port path)
   (when port
     (fprintf port (format "<img src=\"~a\" width=\"320\" height=\"280\">" path))))
@@ -415,9 +378,6 @@
     (html-end-table html-port))
 
   (when expression-table
-    (generate-ratio-plot dir)
-    (generate-point-graph dir)
-    (generate-histograms dir)
     (html-add-plot html-port "ratio_plot.png")
     (html-add-plot html-port "point_graph.png")
     (html-add-histogram html-port "histogram_valid.png")
