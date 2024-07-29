@@ -8,11 +8,11 @@
 (provide rival-compile
          *rival-use-shorthands*
          *rival-name-constants*
-         fn->ival-fn exprs->batch) ; for baseline
+         fn->ival-fn
+         exprs->batch) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))
 (define *rival-name-constants* (make-parameter #f))
-
 
 (define (fn->ival-fn node)
   (match node
@@ -99,7 +99,6 @@
     [(list 'error x) (list ival-error? x)]
 
     [(list op args ...) (error 'compile-specs "Unknown operator ~a" op)]))
-
 
 (define (optimize expr)
   (match (and (*rival-use-shorthands*) expr)
@@ -257,7 +256,7 @@
 
   (define instructions
     (for/vector #:length (- (vector-length nodes) num-vars)
-                         ([node (in-vector nodes num-vars)])
+                ([node (in-vector nodes num-vars)])
       (fn->ival-fn node)))
 
   (define register-count (+ (length vars) (vector-length instructions)))
