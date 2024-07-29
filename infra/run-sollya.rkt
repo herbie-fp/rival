@@ -87,15 +87,6 @@
     ; Precondition parsing
     [(list (list 'assert (app expr->sollya assertion) ...) (app expr->sollya args))
      (format (hash-ref function->sollya-format 'assert) assertion args)]
-
-    ; Let parsing
-    [(list (or 'let 'let*) (list vars ...) (app expr->sollya args) ...)
-     (error "let has not been tested")
-     #;(format "~a; ~a"
-               (string-join (map (lambda (x)
-                                   (format "var ~a; ~a := ~a" (car x) (car x) (expr->sollya (second x))))
-                                 vars) "; ")
-               args)]
     
     ; Constants
     [(or (list 'PI) '(PI) 'PI)
@@ -104,21 +95,17 @@
      "exp(1)"]
 
     ; Operation parsing
+    [(list '- (app expr->sollya arg))
+     (define sollya-format "(- ~a)")
+     (format sollya-format arg)]
+    
     [(list op (app expr->sollya args) ...)
-     (define sollya-format
-       (if (and (equal? op '-) (equal? (length args) 1))
-           "(- ~a)"
-           (hash-ref function->sollya-format op (lambda ()
-                                                  (raise (exn:fail (format "Unable to parse ~a" op) (current-continuation-marks)))))))
+     (define sollya-format (hash-ref function->sollya-format op))
      (apply (curry format sollya-format) args)]
 
     ; Variable to be rounded
     [(? symbol?)
-     (if (equal? expr 'f)
-         (round-sollya (string-replace (symbol->string expr) "f" "fvar"))
-         (if (equal? expr 'D)
-             (round-sollya (string-replace (symbol->string expr) "D" "Dvar"))
-             (round-sollya (var-parse expr))))]
+     (round-sollya (var-parse expr))]
 
     ; Constant with arbitary precisino
     [(? number?)
