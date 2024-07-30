@@ -188,6 +188,16 @@
      (define x (first srcs))
      (list (quotient (logspan x) 2))]
 
+    [(ival-add! ival-sub!)
+     ; k = 1: maxlog(x) - minlog(z)
+     ; k = 2: maxlog(y) - minlog(z)
+     (define x (second srcs))
+     (define y (third srcs))
+
+     (list 0
+           (- (maxlog x) (minlog z)) ; exponent per x
+           (- (maxlog y) (minlog z)))] ; exponent per y
+
     [(ival-add ival-sub)
      ; k = 1: maxlog(x) - minlog(z)
      ; k = 2: maxlog(y) - minlog(z)
