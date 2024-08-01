@@ -58,7 +58,10 @@ function all {
 function perf {
     clean
     xz -d -k -f infra/points.json.xz
-    racket -y time.rkt --html "$REPORTDIR"/index.html --profile profile.json infra/points.json
+    racket -y time.rkt --dir "$REPORTDIR" --profile profile.json infra/points.json
+    python3 infra/ratio_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"/ratio_plot.png
+    python3 infra/point_graph.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"/point_graph.png
+    python3 infra/histograms.py -t "$REPORTDIR"/timeline.json -o1 "$REPORTDIR"/histogram_valid.png -o2 "$REPORTDIR"/histogram_all.png
     cp profile.json "$REPORTDIR"/profile.json
     cp profile.js "$REPORTDIR"/profile.js
 }
