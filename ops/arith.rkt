@@ -134,7 +134,9 @@
        (or (and (endpoint-immovable? ylo) (bfzero? (endpoint-val ylo)))
            (and (endpoint-immovable? yhi) (bfzero? (endpoint-val yhi)))
            (and (endpoint-immovable? ylo) (endpoint-immovable? yhi))))
-     (ival (endpoint -inf.bf immovable?) (endpoint +inf.bf immovable?) err? err)]
+     (mpfr-set! rlo -inf.bf 'down)
+     (mpfr-set! rhi +inf.bf 'up)
+     (ival (endpoint rlo immovable?) (endpoint rhi immovable?) err? err)]
     [(1 1) (mkdiv xlo yhi xhi ylo)]
     [(1 -1) (mkdiv xhi yhi xlo ylo)]
     [(-1 1) (mkdiv xlo ylo xhi yhi)]
