@@ -169,14 +169,14 @@
 
 (define (classify-ival x)
   (cond
-    [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-lo-val x))) 1]
-    [(or (= (mpfr-sign (ival-hi-val x)) -1) (bfzero? (ival-hi-val x))) -1]
+    [(not (bfnegative? (ival-lo-val x))) 1]
+    [(not (bfpositive? (ival-hi-val x))) -1]
     [else 0]))
 
 (define (classify-ival-strict x)
   (cond
-    [(and (= (mpfr-sign (ival-lo-val x)) 1) (not (bfzero? (ival-lo-val x)))) 1]
-    [(and (= (mpfr-sign (ival-hi-val x)) -1) (not (bfzero? (ival-hi-val x)))) -1]
+    [(bfpositive? (ival-lo-val x)) 1]
+    [(bfnegative? (ival-hi-val x)) -1]
     [else 0]))
 
 (define (endpoint-min2 e1 e2)
