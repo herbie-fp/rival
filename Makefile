@@ -9,3 +9,4 @@ nightly:
 hook:
 	echo "#!/bin/sh" >.git/hooks/pre-commit
 	echo "raco fmt -i \$$(find . -name '*.rkt')" >>.git/hooks/pre-commit
+	echo "git diff --exit-code" >>.git/hooks/pre-commit
