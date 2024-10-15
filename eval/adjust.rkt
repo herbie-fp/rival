@@ -2,7 +2,8 @@
 
 (require "tricks.rkt"
          "../ops/all.rkt"
-         "machine.rkt")
+         "machine.rkt"
+         racket/list)
 
 (provide backward-pass)
 
@@ -96,7 +97,8 @@
     (define output (vector-ref vregs n)) ; output of the current instr
 
     (define intro (vector-ref vprecs-new (- n varc))) ; intro for the current instruction
-    (define ampls (get-bounds op output srcs)) ; ampls for the tail instructions
+    (define bounds (get-bounds op output srcs)) ; ampl bounds for the tail instructions
+    (define ampls (map second bounds))
 
     (define final-parent-precision
       (max (+ intro (vector-ref vstart-precs (- n varc))) (*base-tuning-precision*)))

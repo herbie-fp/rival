@@ -1,8 +1,5 @@
 #lang racket/base
 
-(provide get-bounds
-         get-slack)
-
 (require racket/match
          racket/function
          racket/list)
@@ -10,6 +7,9 @@
 (require "../mpfr.rkt"
          "../ops/all.rkt"
          "machine.rkt")
+
+(provide get-bounds
+         get-slack)
 
 (define (get-slack [iter (*sampling-iteration*)])
   (match iter
@@ -25,7 +25,8 @@
 
 ; We assume the interval x is valid. Critical not to take mpfr-exp of inf or 0,
 ; the results are platform-dependant
-(define (maxlog x [iter (*sampling-iteration*)])
+(define (maxlog x #:underestimate [underestimate #f])
+  (define iter (if underestimate (- (*sampling-iteration*) 1) (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
   (cond
@@ -36,7 +37,8 @@
     [else
      (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1)])) ; x does not contain inf, safe with respect to 0.bf
 
-(define (minlog x [iter (*sampling-iteration*)])
+(define (minlog x #:underestimate [underestimate #f])
+  (define iter (if underestimate (- (*sampling-iteration*) 1) (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
   (cond
@@ -72,6 +74,8 @@
 ; Function calculates an ampl factor per input for a certain output and inputs using condition formulas,
 ;   where an ampl is an additional precision that needs to be added to srcs evaluation so,
 ;   that the output will be fixed in its precision when evaluating again
+; Additionaly, the function retures lower bound of ampl factor for the early exit mechanism
+; Output: '( '(upper-ampl-bound lower-ampl-bound) ...) with len(srcs) number of elements
 (define (get-bounds op z srcs)
   (case (object-name op)
     [(ival-mult)
@@ -79,22 +83,22 @@
      ; k = 2: logspan(x)
      (define x (first srcs))
      (define y (second srcs))
-     (list (logspan y) ; exponent per x
-           (logspan x))] ; exponent per y
+     (list (list (logspan y) 0) ; bounds per x
+           (list (logspan x) 0))] ; bounds per y
 
     [(ival-div)
      ; k = 1: logspan(y)
      ; k = 2: logspan(x) + 2 * logspan(y)
      (define x (first srcs))
      (define y (second srcs))
-     (list (logspan y) ; exponent per x
-           (+ (logspan x) (* 2 (logspan y))))] ; exponent per y
+     (list (list (logspan y) 0) ; bounds per x
+           (list (+ (logspan x) (* 2 (logspan y))) 0))] ; bounds per y
 
     [(ival-sqrt ival-cbrt)
      ; sqrt: logspan(x)/2 - 1
      ; cbrt: logspan(x)*2/3 - 1
      (define x (first srcs))
-     (list (quotient (logspan x) 2))]
+     (list (list (quotient (logspan x) 2) 0))]
 
     [(ival-add ival-sub)
      ; k = 1: maxlog(x) - minlog(z)
@@ -102,8 +106,10 @@
      (define x (first srcs))
      (define y (second srcs))
 
-     (list (- (maxlog x) (minlog z)) ; exponent per x
-           (- (maxlog y) (minlog z)))] ; exponent per y
+     (list (list (- (maxlog x) (minlog z))
+                 (- (minlog x #:underestimate #t) (maxlog z #:underestimate #t))) ; bounds per x
+           (list (- (maxlog y) (minlog z))
+                 (- (minlog y #:underestimate #t) (maxlog z #:underestimate #t))))] ; bounds per y
 
     [(ival-pow)
      ; k = 1: maxlog(y) + logspan(x) + logspan(z)
@@ -115,46 +121,52 @@
      ; solution - add more slack for y to converge
      (define slack (if (and (crosses-zero? z) (bfnegative? (ival-lo x))) (get-slack) 0))
 
-     (list (+ (maxlog y) (logspan x) (logspan z)) ; exponent per x
-           (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) slack))] ; exponent per y
+     (list (list (+ (maxlog y) (logspan x) (logspan z)) (minlog y #:underestimate #t)) ; bounds per x
+           (list (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) slack)
+                 (minlog y #:underestimate #t)))] ; bounds per y
 
     [(ival-exp ival-exp2)
      ; maxlog(x) + logspan(z)
      (define x (car srcs))
-     (list (+ (maxlog x) (logspan z)))]
+     (list (list (+ (maxlog x) (logspan z)) (minlog x #:underestimate #t)))]
 
     [(ival-tan)
      ; maxlog(x) + max(|minlog(z)|,|maxlog(z)|) + logspan(z) + 1
      (define x (first srcs))
-     (list (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1))]
+     (list (list (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1)
+                 (+ (minlog x #:underestimate #t)
+                    (min (abs (maxlog z #:underestimate #t)) (abs (minlog z #:underestimate #t))))))]
 
     [(ival-sin)
      ; maxlog(x) - minlog(z)
      (define x (first srcs))
-     (list (- (maxlog x) (minlog z)))]
+     (list (list (- (maxlog x) (minlog z)) (- (maxlog z #:underestimate #t))))]
 
     [(ival-cos)
      ; maxlog(x) - minlog(z) + min(maxlog(x), 0)
      (define x (first srcs))
-     (list (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0)))]
+     (list (list (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0)) (- (maxlog z #:underestimate #t))))]
 
     [(ival-sinh)
      ; maxlog(x) + logspan(z) - min(minlog(x), 0)
      (define x (first srcs))
-     (list (- (+ (maxlog x) (logspan z)) (min (minlog x) 0)))]
+     (list (list (- (+ (maxlog x) (logspan z)) (min (minlog x) 0))
+                 (max 0 (minlog x #:underestimate #t))))]
 
     [(ival-cosh)
      ; maxlog(x) + logspan(z) + min(maxlog(x), 0)
      (define x (first srcs))
-     (list (+ (maxlog x) (logspan z) (min (maxlog x) 0)))]
+     (list (list (+ (maxlog x) (logspan z) (min (maxlog x) 0))
+                 (max 0 (minlog x #:underestimate #t))))]
 
     [(ival-log ival-log2 ival-log10)
      ; log:   logspan(x) - minlog(z)
      ; log2:  logspan(x) - minlog(z) + 1
      ; log10: logspan(x) - minlog(z) - 1
      (define x (first srcs))
-     (list (+ (- (logspan x) (minlog z)) 1))]
+     (list (list (+ (- (logspan x) (minlog z)) 1) (- (maxlog z #:underestimate #t))))]
 
+    ; ---------------------------------------- TODO: LOWER BOUND NEEDED BELOW -----------------
     [(ival-asin)
      ; maxlog(x) - log[1-x^2]/2 - minlog(z)
      ;             ^^^^^^^^^^^^
@@ -165,7 +177,7 @@
            (get-slack) ; assumes that log[1-x^2]/2 is equal to slack
            0))
 
-     (list (+ (- (maxlog x) (minlog z)) slack))]
+     (list (list (+ (- (maxlog x) (minlog z)) slack) 0))]
 
     [(ival-acos)
      ; maxlog(x) - log[1-x^2]/2 - minlog(z)
@@ -177,12 +189,12 @@
            (get-slack) ; assumes that log[1-x^2]/2 is equal to slack
            0))
 
-     (list (+ (- (maxlog x) (minlog z)) slack))]
+     (list (list (+ (- (maxlog x) (minlog z)) slack) 0))]
 
     [(ival-atan)
      ; logspan(x) - min(|minlog(x)|, |maxlog(x)|) - minlog(z)
      (define x (first srcs))
-     (list (- (logspan x) (min (abs (minlog x)) (abs (maxlog x))) (minlog z)))]
+     (list (list (- (logspan x) (min (abs (minlog x)) (abs (maxlog x))) (minlog z)) 0))]
 
     [(ival-fmod ival-remainder)
      ; x mod y = x - y*q, where q is rnd_down(x/y)
@@ -198,8 +210,8 @@
            (get-slack) ; y crosses zero
            0))
 
-     (list (- (maxlog x) (minlog z)) ; exponent per x
-           (+ (- (maxlog x) (minlog z)) slack))] ; exponent per y
+     (list (list (- (maxlog x) (minlog z)) 0) ; bounds per x
+           (list (+ (- (maxlog x) (minlog z)) slack) 0))] ; bounds per y
 
     ; Currently log1p has a very poor approximation
     [(ival-log1p)
@@ -215,32 +227,33 @@
            (get-slack) ; if x in negative
            0))
 
-     (list (+ (- (maxlog x) (minlog z)) slack))]
+     (list (list (+ (- (maxlog x) (minlog z)) slack) 0))]
 
     ; Currently expm1 has a very poor solution for negative values
     [(ival-expm1)
      ; log[Гexpm1] = log[x * e^x / expm1] <= max(1 + maxlog(x), 1 + maxlog(x) - minlog(z))
      (define x (first srcs))
-     (list (max (+ 1 (maxlog x)) (+ 1 (- (maxlog x) (minlog z)))))]
+     (list (list (max (+ 1 (maxlog x)) (+ 1 (- (maxlog x) (minlog z)))) 0))]
 
     [(ival-atan2)
      ; maxlog(x) + maxlog(y) - 2*max(minlog(x), minlog(y)) - minlog(z)
      (define x (first srcs))
      (define y (second srcs))
 
-     (make-list 2 (- (+ (maxlog x) (maxlog y)) (* 2 (max (minlog x) (minlog y))) (minlog z)))]
+     (make-list 2
+                (list (- (+ (maxlog x) (maxlog y)) (* 2 (max (minlog x) (minlog y))) (minlog z)) 0))]
 
     [(ival-tanh)
      ; logspan(z) + logspan(x)
      (define x (first srcs))
-     (list (+ (logspan z) (logspan x)))]
+     (list (list (+ (logspan z) (logspan x)) 0))]
 
     [(ival-atanh)
      ; log[Гarctanh] = maxlog(x) - log[(1-x^2)] - minlog(z) = 1 if x < 0.5, otherwise slack
      ;                               ^^^^^^^
      ;                           a possible uncertainty
      (define x (first srcs))
-     (list (if (>= (maxlog x) 1) (get-slack) 1))]
+     (list (list (if (>= (maxlog x) 1) (get-slack) 1) 0))]
 
     [(ival-acosh)
      ; log[Гacosh] = log[x / (sqrt(x-1) * sqrt(x+1) * acosh)] <= -minlog(z) + slack
@@ -250,16 +263,16 @@
            (get-slack)
            0))
 
-     (list (- slack z-exp))]
+     (list (list (- slack z-exp) 0))]
 
     [(ival-pow2)
      ; same as multiplication
      (define x (first srcs))
-     (list (+ (logspan x) 1))]
+     (list (list (+ (logspan x) 1) 0))]
 
     ; TODO
-    [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb) (list (get-slack))]
+    [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb) (list (list (get-slack) 0))]
     ; TODO
-    [(ival-ceil ival-floor ival-rint ival-round ival-trunc) (list (get-slack))]
+    [(ival-ceil ival-floor ival-rint ival-round ival-trunc) (list (list (get-slack) 0))]
 
-    [else (map (const 0) srcs)])) ; exponents for arguments
+    [else (map (list (const 0) (const 0)) srcs)])) ; exponents for arguments
