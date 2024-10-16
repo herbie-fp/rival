@@ -26,7 +26,10 @@
 ; We assume the interval x is valid. Critical not to take mpfr-exp of inf or 0,
 ; the results are platform-dependant
 (define (maxlog x #:underestimate [underestimate #f])
-  (define iter (if underestimate (- (*sampling-iteration*) 1) (*sampling-iteration*)))
+  (define iter
+    (if underestimate
+        (- (*sampling-iteration*) 1)
+        (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
   (cond
@@ -38,16 +41,23 @@
      (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1)])) ; x does not contain inf, safe with respect to 0.bf
 
 (define (minlog x #:underestimate [underestimate #f])
-  (define iter (if underestimate (- (*sampling-iteration*) 1) (*sampling-iteration*)))
+  (define iter
+    (if underestimate
+        (- (*sampling-iteration*) 1)
+        (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
   (cond
     ; x = [0.bf, ...]
     [(bfzero? lo)
-     (if (bfinfinite? hi) (- (get-slack iter)) (- (min (mpfr-exp hi) 0) (get-slack iter)))]
+     (if (bfinfinite? hi)
+         (- (get-slack iter))
+         (- (min (mpfr-exp hi) 0) (get-slack iter)))]
     ; x = [..., 0.bf]
     [(bfzero? hi)
-     (if (bfinfinite? lo) (- (get-slack iter)) (- (min (mpfr-exp lo) 0) (get-slack iter)))]
+     (if (bfinfinite? lo)
+         (- (get-slack iter))
+         (- (min (mpfr-exp lo) 0) (get-slack iter)))]
     [(crosses-zero? x) ; x = [-..., +...]
      (cond
        [(and (bfinfinite? hi) (bfinfinite? lo)) (- (get-slack iter))]
@@ -119,7 +129,10 @@
 
      ; when output crosses zero and x is negative - means that y was fractional and not fixed (specific of Rival)
      ; solution - add more slack for y to converge
-     (define slack (if (and (crosses-zero? z) (bfnegative? (ival-lo x))) (get-slack) 0))
+     (define slack
+       (if (and (crosses-zero? z) (bfnegative? (ival-lo x)))
+           (get-slack)
+           0))
 
      (list (list (+ (maxlog y) (logspan x) (logspan z)) (minlog y #:underestimate #t)) ; bounds per x
            (list (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) slack)
@@ -253,7 +266,10 @@
      ;                               ^^^^^^^
      ;                           a possible uncertainty
      (define x (first srcs))
-     (list (list (if (>= (maxlog x) 1) (get-slack) 1) 0))]
+     (list (list (if (>= (maxlog x) 1)
+                     (get-slack)
+                     1)
+                 0))]
 
     [(ival-acosh)
      ; log[Гacosh] = log[x / (sqrt(x-1) * sqrt(x+1) * acosh)] <= -minlog(z) + slack
@@ -275,4 +291,4 @@
     ; TODO
     [(ival-ceil ival-floor ival-rint ival-round ival-trunc) (list (list (get-slack) 0))]
 
-    [else (map (list (const 0) (const 0)) srcs)])) ; exponents for arguments
+    [else (map (λ (_) (list 0 0)) srcs)])) ; exponents for arguments

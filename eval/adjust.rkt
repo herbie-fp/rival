@@ -54,7 +54,6 @@
   ; Step 3. Repeating precisions check + Checking if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
-  (define any-false? #f)
   (for ([instr (in-vector ivec)]
         [useful? (in-vector vuseful)]
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
@@ -65,54 +64,49 @@
       (or (not useful?)
           (and (<= prec-new prec-old)
                (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) (cdr instr)))))
-    (set! any-false? (or any-false? (not repeat)))
     (vector-set! vrepeats n repeat))
 
   ; Step 4. Copying new precisions into vprecs
-  (vector-copy! vprecs 0 vprecs-new)
-
-  ; Step 5. If precisions have not changed but the point didn't converge. A problem exists - add slack to every op
-  (unless any-false?
-    (set-rival-machine-bumps! machine (add1 bumps))
-    (define slack (get-slack))
-    (for ([prec (in-vector vprecs)]
-          [n (in-range (vector-length vprecs))])
-      (define prec* (min (*rival-max-precision*) (+ prec slack)))
-      (when (equal? prec* (*rival-max-precision*))
-        (*sampling-iteration* (*rival-max-iterations*)))
-      (vector-set! vprecs n prec*))
-    (vector-fill! vrepeats #f)))
+  (vector-copy! vprecs 0 vprecs-new))
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking:
-;   vprecs-new[i] = min( *rival-max-precision* max( *base-tuning-precision* (+ intro vstart-precs[i])),
-;   intro = get-ampls(parent)
-(define (precision-tuning ivec vregs vprecs-new varc vstart-precs)
+;   vprecs-max[i] = min( *rival-max-precision*
+;                        max( *base-tuning-precision* (+ parent-prec-upper-bound vstart-precs[i])),
+;   parent-prec-upper-bound = (car (get-bounds(parent)))
+(define (precision-tuning ivec vregs vprecs-max varc vstart-precs)
+  (define vprecs-min (make-vector (vector-length vprecs-max) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)]) ; reversed over indices of vregs
-
     (define op (car instr)) ; current operation
     (define tail-registers (cdr instr))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers)) ; tail of the current instr
     (define output (vector-ref vregs n)) ; output of the current instr
 
-    (define intro (vector-ref vprecs-new (- n varc))) ; intro for the current instruction
-    (define bounds (get-bounds op output srcs)) ; ampl bounds for the tail instructions
-    (define ampls (map second bounds))
+    (define parent-prec-upper-bound
+      (vector-ref vprecs-max (- n varc))) ; intro for the current instruction
+    (define parent-prec-lower-bound (vector-ref vprecs-min (- n varc)))
 
-    (define final-parent-precision
-      (max (+ intro (vector-ref vstart-precs (- n varc))) (*base-tuning-precision*)))
-
-    (when (>= final-parent-precision (*rival-max-precision*)) ; Early stopping
+    (when (>= parent-prec-lower-bound (*rival-max-precision*)) ; Early stopping
       (*sampling-iteration* (*rival-max-iterations*)))
 
     ; Final precision assignment
-    (vector-set! vprecs-new (- n varc) (min final-parent-precision (*rival-max-precision*)))
+    (define instr-precision-upper-bound
+      (max (+ parent-prec-upper-bound (vector-ref vstart-precs (- n varc)))
+           (*base-tuning-precision*)))
+    (vector-set! vprecs-max (- n varc) (min instr-precision-upper-bound (*rival-max-precision*)))
 
     ; Intro and ampl propogation for each tail instruction
+    (define ampl-bounds (get-bounds op output srcs)) ; ampl bounds for children instructions
     (for ([x (in-list tail-registers)]
-          [ampl (in-list ampls)]
+          [bound (in-list ampl-bounds)]
           #:when (>= x varc)) ; when tail register is not a variable
       ; check whether this op already has a precision that is higher
-      (when (> (+ intro ampl) (vector-ref vprecs-new (- x varc)))
-        (vector-set! vprecs-new (- x varc) (+ intro ampl))))))
+      ; Upper bound propogation
+      (when (> (+ parent-prec-upper-bound (first bound)) (vector-ref vprecs-max (- x varc)))
+        (vector-set! vprecs-max (- x varc) (+ parent-prec-upper-bound (first bound))))
+
+      ; This statement probably can be neglected and moved into above?
+      ; Lower bound propogation
+      (when (> (+ parent-prec-lower-bound (second bound)) (vector-ref vprecs-min (- x varc)))
+        (vector-set! vprecs-min (- x varc) (+ parent-prec-lower-bound (second bound)))))))

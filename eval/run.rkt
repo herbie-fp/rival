@@ -79,7 +79,9 @@
   (define stuck? #f)
   (define fvec
     (for/vector #:length (vector-length rootvec)
-                ([root (in-vector rootvec)] [disc (in-vector discs)] [n (in-naturals)])
+                ([root (in-vector rootvec)]
+                 [disc (in-vector discs)]
+                 [n (in-naturals)])
       (define out (vector-ref vregs root))
       (define lo ((discretization-convert disc) (ival-lo out)))
       (define hi ((discretization-convert disc) (ival-hi out)))
