@@ -129,13 +129,20 @@
 
      ; when output crosses zero and x is negative - means that y was fractional and not fixed (specific of Rival)
      ; solution - add more slack for y to converge
-     (define slack
+     (define y-slack
        (if (and (crosses-zero? z) (bfnegative? (ival-lo x)))
            (get-slack)
            0))
 
-     (list (list (+ (maxlog y) (logspan x) (logspan z)) (minlog y #:underestimate #t)) ; bounds per x
-           (list (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) slack)
+     ; when output is (ival 0.bf 1.bf) - it means that x was close to 1 or 0 but not narrow enough
+     (define x-slack
+       (if (and (bfzero? (ival-lo z)) (bfinteger? (ival-hi z)))
+           (get-slack)
+           0))
+
+     (list (list (+ (maxlog y) (logspan x) (logspan z) x-slack)
+                 (minlog y #:underestimate #t)) ; bounds per x
+           (list (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
                  (minlog y #:underestimate #t)))] ; bounds per y
 
     [(ival-exp ival-exp2)

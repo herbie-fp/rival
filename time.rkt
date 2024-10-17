@@ -69,6 +69,7 @@
     (for/list ([pt (in-list (hash-ref rec 'points))])
       ; Rival execution
       (define rival-start-apply (current-inexact-milliseconds))
+
       (match-define (list rival-status rival-exs)
         (parameterize ([*rival-max-precision* 32256])
           (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
@@ -151,7 +152,10 @@
 
       ; Count differences where baseline is better than rival
       (define rival-baseline-difference
-        (if (and (equal? rival-status 'unsamplable) (equal? baseline-status 'valid)) 1 0))
+        (if (and (or (equal? rival-status 'unsamplable) (equal? rival-status 'invalid))
+                 (equal? baseline-status 'valid))
+            1
+            0))
 
       (cons rival-status (cons rival-apply-time rival-baseline-difference))))
 
@@ -313,7 +317,8 @@
 (define (html-write-row port row)
   (when port
     (fprintf port "<tr>")
-    (for ([cell (in-list row)] [heading (in-list current-heading)])
+    (for ([cell (in-list row)]
+          [heading (in-list current-heading)])
       (define unit
         (match heading
           [(list _ s) s]

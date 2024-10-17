@@ -98,6 +98,7 @@
 
     ; Intro and ampl propogation for each tail instruction
     (define ampl-bounds (get-bounds op output srcs)) ; ampl bounds for children instructions
+
     (for ([x (in-list tail-registers)]
           [bound (in-list ampl-bounds)]
           #:when (>= x varc)) ; when tail register is not a variable
