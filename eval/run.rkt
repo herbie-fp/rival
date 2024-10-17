@@ -3,10 +3,12 @@
 (require racket/match
          racket/function
          racket/flonum)
+
 (require "machine.rkt"
          "adjust.rkt"
          "../mpfr.rkt"
          "../ops/all.rkt")
+
 (provide rival-machine-load
          rival-machine-run
          rival-machine-return

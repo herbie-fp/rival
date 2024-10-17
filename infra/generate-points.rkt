@@ -15,7 +15,9 @@
      (define bindings (map cons vars (map unfold-let vals)))
      (replace-vars bindings (unfold-let body))]
     [`(let* () ,body) (unfold-let body)]
-    [`(let* ([,var ,val] ,rest ...) ,body)
+    [`(let* ([,var ,val]
+             ,rest ...)
+        ,body)
      (replace-vars (list (cons var (unfold-let val))) (unfold-let `(let* ,rest ,body)))]
     [`(,head ,args ...) (cons head (map unfold-let args))]
     [x x]))
@@ -65,7 +67,10 @@
              (cons suite-name (rest result))))))
 
 (define (load-tests path)
-  (define path* (if (string? path) (string->path path) path))
+  (define path*
+    (if (string? path)
+        (string->path path)
+        path))
   (apply append
          (for/list ([fname (directory-list path* #:build? true)]
                     #:when (or (directory-exists? fname)

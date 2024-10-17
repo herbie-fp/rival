@@ -221,7 +221,9 @@
          (match-define (list result sollya-time) (string-split s "\n"))
          (list dt
                (seconds->ms sollya-time)
-               (if (string-contains? result "-") (fl -inf.0) (fl +inf.0))
+               (if (string-contains? result "-")
+                   (fl -inf.0)
+                   (fl +inf.0))
                'valid))]
 
       ; Valid output

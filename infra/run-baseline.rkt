@@ -21,6 +21,7 @@
                    outputs
                    discs
                    registers
+                   precisions
                    [profile-ptr #:mutable]
                    profile-instruction
                    profile-number
@@ -46,6 +47,7 @@
                     roots
                     discs
                     registers
+                    precisions
                     0
                     (make-vector (*rival-profile-executions*))
                     (make-vector (*rival-profile-executions*))
@@ -76,8 +78,11 @@
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else (loop (* 2 prec))])))
 
+(define (baseline-machine-adjust machine)
+  (vector-fill! (baseline-machine-precisions machine) (bf-precision)))
+
 (define (baseline-machine-full machine inputs)
-  ; no adjust here
+  (baseline-machine-adjust machine)
   (baseline-machine-load machine inputs)
   (baseline-machine-run machine)
   (baseline-machine-return machine))
@@ -89,15 +94,17 @@
   (define ivec (baseline-machine-instructions machine))
   (define varc (vector-length (baseline-machine-arguments machine)))
   (define vregs (baseline-machine-registers machine))
-  (define precision (bf-precision))
+  (define precisions (baseline-machine-precisions machine))
 
-  (parameterize ([bf-precision precision])
-    (for ([instr (in-vector ivec)] [n (in-naturals varc)])
-      (define start (current-inexact-milliseconds))
-      (vector-set! vregs n (apply-instruction instr vregs))
-      (define name (object-name (car instr)))
-      (define time (- (current-inexact-milliseconds) start))
-      (baseline-machine-record machine name n precision time))))
+  (for ([instr (in-vector ivec)]
+        [n (in-naturals varc)]
+        [precision (in-vector precisions)])
+    (define start (current-inexact-milliseconds))
+    (parameterize ([bf-precision precision])
+      (vector-set! vregs n (apply-instruction instr vregs)))
+    (define name (object-name (car instr)))
+    (define time (- (current-inexact-milliseconds) start))
+    (baseline-machine-record machine name n precision time)))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,
@@ -123,7 +130,9 @@
   (define stuck? #f)
   (define fvec
     (for/vector #:length (vector-length rootvec)
-                ([root (in-vector rootvec)] [disc (in-list discs)] [n (in-naturals)])
+                ([root (in-vector rootvec)]
+                 [disc (in-list discs)]
+                 [n (in-naturals)])
       (define out (vector-ref vregs root))
       (define lo ((discretization-convert disc) (ival-lo out)))
       (define hi ((discretization-convert disc) (ival-hi out)))
