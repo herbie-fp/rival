@@ -17,7 +17,9 @@
 (define (fn->ival-fn node)
   (match node
     [(? number?)
-     (if (ival-point? (real->ival node)) (list (ival-const node)) (list (ival-rational node)))]
+     (if (ival-point? (real->ival node))
+         (list (ival-const node))
+         (list (ival-rational node)))]
 
     [(list 'PI) (list ival-pi)]
     [(list 'E) (list ival-e)]
@@ -192,7 +194,8 @@
 (define (exprs->batch exprs vars)
   (define icache (reverse vars))
   (define exprhash
-    (make-hash (for/list ([var vars] [i (in-naturals)])
+    (make-hash (for/list ([var vars]
+                          [i (in-naturals)])
                  (cons var i))))
   ; Counts
   (define exprc 0)
@@ -244,11 +247,15 @@
 
 (define (ival-const x)
   (procedure-rename (const (real->ival x))
-                    (if (*rival-name-constants*) (string->symbol (number->string x)) 'exact)))
+                    (if (*rival-name-constants*)
+                        (string->symbol (number->string x))
+                        'exact)))
 
 (define (ival-rational x)
   (procedure-rename (lambda () (real->ival x))
-                    (if (*rival-name-constants*) (string->symbol (number->string x)) 'const)))
+                    (if (*rival-name-constants*)
+                        (string->symbol (number->string x))
+                        'const)))
 
 (define (rival-compile exprs vars discs)
   (define num-vars (length vars))
@@ -290,7 +297,9 @@
   (define ivec-len (vector-length ivec))
   (define vstart-precs (make-vector ivec-len 0))
 
-  (for ([root (in-vector roots)] [disc (in-list discs)] #:when (>= root varc))
+  (for ([root (in-vector roots)]
+        [disc (in-list discs)]
+        #:when (>= root varc))
     (vector-set! vstart-precs
                  (- root varc)
                  (+ (discretization-target disc) (*base-tuning-precision*))))
@@ -300,7 +309,8 @@
     (define current-prec (vector-ref vstart-precs n))
 
     (define tail-registers (cdr instr))
-    (for ([idx (in-list tail-registers)] #:when (>= idx varc))
+    (for ([idx (in-list tail-registers)]
+          #:when (>= idx varc))
       (define idx-prec (vector-ref vstart-precs (- idx varc)))
       (vector-set! vstart-precs
                    (- idx varc)
