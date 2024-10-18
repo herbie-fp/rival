@@ -140,9 +140,10 @@
            (get-slack)
            0))
 
-     (list (list (+ (maxlog y) (logspan x) (logspan z) x-slack)
+     (list (list (max (+ (maxlog y) (logspan x) (logspan z) x-slack) x-slack)
                  (minlog y #:underestimate #t)) ; bounds per x
-           (list (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+           (list (max (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+                      y-slack)
                  (minlog y #:underestimate #t)))] ; bounds per y
 
     [(ival-exp ival-exp2)
@@ -197,7 +198,7 @@
            (get-slack) ; assumes that log[1-x^2]/2 is equal to slack
            0))
 
-     (list (list (+ (- (maxlog x) (minlog z)) slack) 0))]
+     (list (list (max (+ (- (maxlog x) (minlog z)) slack) slack) 0))]
 
     [(ival-acos)
      ; maxlog(x) - log[1-x^2]/2 - minlog(z)
@@ -209,7 +210,7 @@
            (get-slack) ; assumes that log[1-x^2]/2 is equal to slack
            0))
 
-     (list (list (+ (- (maxlog x) (minlog z)) slack) 0))]
+     (list (list (max (+ (- (maxlog x) (minlog z)) slack) slack) 0))]
 
     [(ival-atan)
      ; logspan(x) - min(|minlog(x)|, |maxlog(x)|) - minlog(z)
@@ -231,7 +232,7 @@
            0))
 
      (list (list (- (maxlog x) (minlog z)) 0) ; bounds per x
-           (list (+ (- (maxlog x) (minlog z)) slack) 0))] ; bounds per y
+           (list (max (+ (- (maxlog x) (minlog z)) slack) slack) 0))] ; bounds per y
 
     ; Currently log1p has a very poor approximation
     [(ival-log1p)
@@ -247,7 +248,7 @@
            (get-slack) ; if x in negative
            0))
 
-     (list (list (+ (- (maxlog x) (minlog z)) slack) 0))]
+     (list (list (max (+ (- (maxlog x) (minlog z)) slack) slack) 0))]
 
     ; Currently expm1 has a very poor solution for negative values
     [(ival-expm1)
@@ -286,7 +287,7 @@
            (get-slack)
            0))
 
-     (list (list (- slack z-exp) 0))]
+     (list (list (max (- slack z-exp) slack) 0))]
 
     [(ival-pow2)
      ; same as multiplication

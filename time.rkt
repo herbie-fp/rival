@@ -68,6 +68,7 @@
   (define times
     (for/list ([pt (in-list (hash-ref rec 'points))])
       ; Rival execution
+      ;(set! pt '(4.731996968322144e+41 6.640145071575607e-214 9393.23372593935 -1.388760684481615e-261))
       (define rival-start-apply (current-inexact-milliseconds))
 
       (match-define (list rival-status rival-exs)
@@ -78,6 +79,7 @@
             (list 'valid exs))))
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
       (define rival-iter (rival-machine-iteration rival-machine))
+      ;(sleep 20)
 
       (define rival-executions (rival-profile rival-machine 'executions))
       (for ([execution (in-vector rival-executions)])
@@ -118,6 +120,7 @@
                         (list (execution-time execution) name precision)))
 
       ; Sollya execution
+      ;(set! sollya-machine #f)
       (when (and (and rival-machine baseline-machine sollya-machine)
                  (or (equal? rival-status 'valid) (equal? rival-status 'unsamplable)))
 
@@ -156,6 +159,8 @@
                  (equal? baseline-status 'valid))
             1
             0))
+      #;(when (equal? rival-baseline-difference 1)
+          (println pt))
 
       (cons rival-status (cons rival-apply-time rival-baseline-difference))))
 

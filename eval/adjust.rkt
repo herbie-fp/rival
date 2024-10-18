@@ -76,6 +76,7 @@
 ;   parent-prec-upper-bound = (car (get-bounds(parent)))
 (define (precision-tuning ivec vregs vprecs-max varc vstart-precs)
   (define vprecs-min (make-vector (vector-length vprecs-max) 0))
+  ;(printf "----------- Backpass ~a ---------------\n" (*sampling-iteration*))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)]) ; reversed over indices of vregs
     (define op (car instr)) ; current operation
@@ -98,6 +99,17 @@
 
     ; Intro and ampl propogation for each tail instruction
     (define ampl-bounds (get-bounds op output srcs)) ; ampl bounds for children instructions
+
+    ; ---------------- Debugging
+    #;(printf "~a) ~a\n\toutput = ~a\n\tsrcs=~a\n\tampl=~a\n\tnew-prec=~a\n\tlower-bound=~a\n"
+              n
+              instr
+              output
+              srcs
+              ampl-bounds
+              instr-precision-upper-bound
+              parent-prec-lower-bound)
+    ; ----------------
 
     (for ([x (in-list tail-registers)]
           [bound (in-list ampl-bounds)]
