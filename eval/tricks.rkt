@@ -28,7 +28,7 @@
 (define (maxlog x #:underestimate [underestimate #f])
   (define iter
     (if underestimate
-        (- (*sampling-iteration*) 1)
+        0
         (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
@@ -43,7 +43,7 @@
 (define (minlog x #:underestimate [underestimate #f])
   (define iter
     (if underestimate
-        (- (*sampling-iteration*) 1)
+        0
         (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
@@ -187,18 +187,17 @@
      (define x (first srcs))
      (list (list (+ (- (logspan x) (minlog z)) 1) (- (maxlog z #:underestimate #t))))]
 
-    ; ---------------------------------------- TODO: LOWER BOUND NEEDED BELOW -----------------
     [(ival-asin)
      ; maxlog(x) - log[1-x^2]/2 - minlog(z)
      ;             ^^^^^^^^^^^^
      ;             condition of uncertainty
      (define x (first srcs))
      (define slack
-       (if (>= (maxlog z) 2) ; Condition of uncertainty
+       (if (>= (maxlog z) 1) ; Condition of uncertainty
            (get-slack) ; assumes that log[1-x^2]/2 is equal to slack
-           0))
+           1))
 
-     (list (list (max (+ (- (maxlog x) (minlog z)) slack) slack) 0))]
+     (list (list slack 0))]
 
     [(ival-acos)
      ; maxlog(x) - log[1-x^2]/2 - minlog(z)
@@ -206,11 +205,11 @@
      ;             condition of uncertainty
      (define x (first srcs))
      (define slack
-       (if (>= (maxlog x) 1) ; Condition of uncertainty
+       (if (>= (maxlog x) 0) ; Condition of uncertainty
            (get-slack) ; assumes that log[1-x^2]/2 is equal to slack
            0))
 
-     (list (list (max (+ (- (maxlog x) (minlog z)) slack) slack) 0))]
+     (list (list slack 0))]
 
     [(ival-atan)
      ; logspan(x) - min(|minlog(x)|, |maxlog(x)|) - minlog(z)

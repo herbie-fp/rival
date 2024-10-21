@@ -140,18 +140,22 @@
                (set! sollya-apply-time external-time)
                (list status exs))]))
 
-        ; When all the machines have compiled and work - write the results to outcomes
-        (point-bucketing timeline
-                         rival-status
-                         rival-apply-time
-                         rival-exs
-                         baseline-status
-                         baseline-apply-time
-                         baseline-exs
-                         sollya-status
-                         sollya-apply-time
-                         sollya-exs
-                         rival-iter))
+        ; -------------------------------- Combining results ----------------------------------------
+        ; When all the machines have compiled and produced results - write the results to outcomes
+        (when (and (> (*sampling-timeout*) sollya-apply-time)
+                   (> (*sampling-timeout*) rival-apply-time)
+                   (> (*sampling-timeout*) baseline-apply-time))
+          (point-bucketing timeline
+                           rival-status
+                           rival-apply-time
+                           rival-exs
+                           baseline-status
+                           baseline-apply-time
+                           baseline-exs
+                           sollya-status
+                           sollya-apply-time
+                           sollya-exs
+                           rival-iter)))
 
       ; Count differences where baseline is better than rival
       (define rival-baseline-difference
@@ -474,7 +478,9 @@
         (timeline-push! timeline 'outcomes (list "valid-rival" rival-iter rival-time))
         (if (fl= rival-exs sollya-exs)
             (timeline-push! timeline 'outcomes (list "sollya-correct-rounding" 0 0))
-            (timeline-push! timeline 'outcomes (list "sollya-faithful-rounding" 0 0)))]
+            (if (equal? (flonums-between rival-exs sollya-exs) 1)
+                (timeline-push! timeline 'outcomes (list "sollya-faithful-rounding" 0 0))
+                (timeline-push! timeline 'outcomes (list "sollya-off-results" 0 0))))]
 
        ; Baseline and Rival have succeeded
        [(and (equal? 'valid baseline-status) (equal? rival-status 'valid))
