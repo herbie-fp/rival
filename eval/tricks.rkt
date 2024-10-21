@@ -25,9 +25,9 @@
 
 ; We assume the interval x is valid. Critical not to take mpfr-exp of inf or 0,
 ; the results are platform-dependant
-(define (maxlog x #:underestimate [underestimate #f])
+(define (maxlog x #:no-slack [no-slack #f])
   (define iter
-    (if underestimate
+    (if no-slack
         0
         (*sampling-iteration*)))
   (define lo (ival-lo x))
@@ -40,9 +40,9 @@
     [else
      (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1)])) ; x does not contain inf, safe with respect to 0.bf
 
-(define (minlog x #:underestimate [underestimate #f])
+(define (minlog x #:no-slack [no-slack #f])
   (define iter
-    (if underestimate
+    (if no-slack
         0
         (*sampling-iteration*)))
   (define lo (ival-lo x))
@@ -117,9 +117,9 @@
      (define y (second srcs))
 
      (list (list (- (maxlog x) (minlog z))
-                 (- (minlog x #:underestimate #t) (maxlog z #:underestimate #t))) ; bounds per x
+                 (- (minlog x #:no-slack #t) (maxlog z #:no-slack #t))) ; bounds per x
            (list (- (maxlog y) (minlog z))
-                 (- (minlog y #:underestimate #t) (maxlog z #:underestimate #t))))] ; bounds per y
+                 (- (minlog y #:no-slack #t) (maxlog z #:no-slack #t))))] ; bounds per y
 
     [(ival-pow)
      ; k = 1: maxlog(y) + logspan(x) + logspan(z)
@@ -141,51 +141,49 @@
            0))
 
      (list (list (max (+ (maxlog y) (logspan x) (logspan z) x-slack) x-slack)
-                 (minlog y #:underestimate #t)) ; bounds per x
+                 (minlog y #:no-slack #t)) ; bounds per x
            (list (max (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
                       y-slack)
-                 (minlog y #:underestimate #t)))] ; bounds per y
+                 (minlog y #:no-slack #t)))] ; bounds per y
 
     [(ival-exp ival-exp2)
      ; maxlog(x) + logspan(z)
      (define x (car srcs))
-     (list (list (+ (maxlog x) (logspan z)) (minlog x #:underestimate #t)))]
+     (list (list (+ (maxlog x) (logspan z)) (minlog x #:no-slack #t)))]
 
     [(ival-tan)
      ; maxlog(x) + max(|minlog(z)|,|maxlog(z)|) + logspan(z) + 1
      (define x (first srcs))
      (list (list (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1)
-                 (+ (minlog x #:underestimate #t)
-                    (min (abs (maxlog z #:underestimate #t)) (abs (minlog z #:underestimate #t))))))]
+                 (+ (minlog x #:no-slack #t)
+                    (min (abs (maxlog z #:no-slack #t)) (abs (minlog z #:no-slack #t))))))]
 
     [(ival-sin)
      ; maxlog(x) - minlog(z)
      (define x (first srcs))
-     (list (list (- (maxlog x) (minlog z)) (- (maxlog z #:underestimate #t))))]
+     (list (list (- (maxlog x) (minlog z)) (- (maxlog z #:no-slack #t))))]
 
     [(ival-cos)
      ; maxlog(x) - minlog(z) + min(maxlog(x), 0)
      (define x (first srcs))
-     (list (list (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0)) (- (maxlog z #:underestimate #t))))]
+     (list (list (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0)) (- (maxlog z #:no-slack #t))))]
 
     [(ival-sinh)
      ; maxlog(x) + logspan(z) - min(minlog(x), 0)
      (define x (first srcs))
-     (list (list (- (+ (maxlog x) (logspan z)) (min (minlog x) 0))
-                 (max 0 (minlog x #:underestimate #t))))]
+     (list (list (- (+ (maxlog x) (logspan z)) (min (minlog x) 0)) (max 0 (minlog x #:no-slack #t))))]
 
     [(ival-cosh)
      ; maxlog(x) + logspan(z) + min(maxlog(x), 0)
      (define x (first srcs))
-     (list (list (+ (maxlog x) (logspan z) (min (maxlog x) 0))
-                 (max 0 (minlog x #:underestimate #t))))]
+     (list (list (+ (maxlog x) (logspan z) (min (maxlog x) 0)) (max 0 (minlog x #:no-slack #t))))]
 
     [(ival-log ival-log2 ival-log10)
      ; log:   logspan(x) - minlog(z)
      ; log2:  logspan(x) - minlog(z) + 1
      ; log10: logspan(x) - minlog(z) - 1
      (define x (first srcs))
-     (list (list (+ (- (logspan x) (minlog z)) 1) (- (maxlog z #:underestimate #t))))]
+     (list (list (+ (- (logspan x) (minlog z)) 1) (- (maxlog z #:no-slack #t))))]
 
     [(ival-asin)
      ; maxlog(x) - log[1-x^2]/2 - minlog(z)
