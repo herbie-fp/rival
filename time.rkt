@@ -67,8 +67,7 @@
 
   (define times
     (for/list ([pt (in-list (hash-ref rec 'points))])
-      ; Rival execution
-      ;(set! pt '(4.731996968322144e+41 6.640145071575607e-214 9393.23372593935 -1.388760684481615e-261))
+      ; --------------------------- Rival execution -------------------------------------------------
       (define rival-start-apply (current-inexact-milliseconds))
 
       (match-define (list rival-status rival-exs)
@@ -79,7 +78,6 @@
             (list 'valid exs))))
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
       (define rival-iter (rival-machine-iteration rival-machine))
-      ;(sleep 20)
 
       (define rival-executions (rival-profile rival-machine 'executions))
       (for ([execution (in-vector rival-executions)])
@@ -93,7 +91,7 @@
                         'mixsample-rival-all
                         (list (execution-time execution) name precision)))
 
-      ; Baseline execution (we assume that baseline can not crash)
+      ; --------------------------- Baseline execution ----------------------------------------------
       (define baseline-start-apply (current-inexact-milliseconds))
       (match-define (list baseline-status baseline-exs)
         (parameterize ([*rival-max-precision* 32256])
@@ -119,8 +117,10 @@
                         'mixsample-baseline-all
                         (list (execution-time execution) name precision)))
 
-      ; Sollya execution
-      ;(set! sollya-machine #f)
+      ; --------------------------- Sollya execution ------------------------------------------------
+      ; Points for expressions where Sollya has not compiled do not go to the plot/speed graphs!
+      ; Also, if Rival's status is invalid - these points do not go to the graphs!
+      ; We treat Rival's results as the right ones since for some benchs Sollya has produced wrong results!
       (when (and (and rival-machine baseline-machine sollya-machine)
                  (or (equal? rival-status 'valid) (equal? rival-status 'unsamplable)))
 
@@ -159,8 +159,6 @@
                  (equal? baseline-status 'valid))
             1
             0))
-      #;(when (equal? rival-baseline-difference 1)
-          (println pt))
 
       (cons rival-status (cons rival-apply-time rival-baseline-difference))))
 
@@ -467,12 +465,10 @@
     [(equal? rival-status 'valid)
      (cond
        ; Every tool have succeded
+       ; These points will go into speed graph
        [(and (equal? 'valid sollya-status)
              (equal? 'valid baseline-status)
-             (equal? rival-status 'valid)
-             (< sollya-time (*sampling-timeout*))
-             (< baseline-time (*sampling-timeout*))
-             (< rival-time (*sampling-timeout*)))
+             (equal? rival-status 'valid))
         (timeline-push! timeline 'outcomes (list "valid-sollya" rival-iter sollya-time))
         (timeline-push! timeline 'outcomes (list "valid-baseline" rival-iter baseline-time))
         (timeline-push! timeline 'outcomes (list "valid-rival" rival-iter rival-time))
@@ -481,51 +477,42 @@
             (timeline-push! timeline 'outcomes (list "sollya-faithful-rounding" 0 0)))]
 
        ; Baseline and Rival have succeeded
-       [(and (equal? 'valid baseline-status)
-             (equal? rival-status 'valid)
-             (< baseline-time (*sampling-timeout*))
-             (< rival-time (*sampling-timeout*)))
+       [(and (equal? 'valid baseline-status) (equal? rival-status 'valid))
         (timeline-push!
          timeline
          'outcomes
          (list (status-subbucketing "valid-rival+baseline" rival-exs) rival-iter rival-time))]
 
        ; Baseline and Sollya have succeeded
-       [(and (equal? 'valid sollya-status)
-             (equal? 'valid baseline-status)
-             (< sollya-time (*sampling-timeout*))
-             (< baseline-time (*sampling-timeout*)))
+       [(and (equal? 'valid sollya-status) (equal? 'valid baseline-status))
         (timeline-push!
          timeline
          'outcomes
          (list (status-subbucketing "valid-sollya+baseline" baseline-exs) rival-iter sollya-time))]
 
        ; Sollya and Rival have succeeded
-       [(and (equal? 'valid sollya-status)
-             (equal? rival-status 'valid)
-             (< sollya-time (*sampling-timeout*))
-             (< rival-time (*sampling-timeout*)))
+       [(and (equal? 'valid sollya-status) (equal? rival-status 'valid))
         (timeline-push!
          timeline
          'outcomes
          (list (status-subbucketing "valid-rival+sollya" rival-exs) rival-iter rival-time))]
 
        ; Only Rival has succeeded
-       [(and (equal? rival-status 'valid) (< rival-time (*sampling-timeout*)))
+       [(equal? rival-status 'valid)
         (timeline-push!
          timeline
          'outcomes
          (list (status-subbucketing "valid-rival-only" rival-exs) rival-iter rival-time))]
 
        ; Only Sollya has succeeded
-       [(and (equal? 'valid sollya-status) (< sollya-time (*sampling-timeout*)))
+       [(equal? 'valid sollya-status)
         (timeline-push!
          timeline
          'outcomes
          (list (status-subbucketing "valid-sollya-only" sollya-exs) rival-iter sollya-time))]
 
        ; Only Baseline has succeeded
-       [(and (equal? 'valid baseline-status) (< baseline-time (*sampling-timeout*)))
+       [(equal? 'valid baseline-status)
         (timeline-push!
          timeline
          'outcomes
@@ -541,24 +528,21 @@
     [(equal? rival-status 'unsamplable)
      (cond
        ; Sollya and Baseline have succeeded
-       [(and (equal? 'valid sollya-status)
-             (equal? 'valid baseline-status)
-             (< sollya-time (*sampling-timeout*))
-             (< baseline-time (*sampling-timeout*)))
+       [(and (equal? 'valid sollya-status) (equal? 'valid baseline-status))
         (timeline-push!
          timeline
          'outcomes
          (list (status-subbucketing "valid-sollya+baseline" baseline-exs) rival-iter sollya-time))]
 
        ; Only Sollya has succeeded
-       [(and (equal? 'valid sollya-status) (< sollya-time (*sampling-timeout*)))
+       [(equal? 'valid sollya-status)
         (timeline-push!
          timeline
          'outcomes
          (list (status-subbucketing "valid-sollya-only" sollya-exs) rival-iter sollya-time))]
 
        ; Only Baseline has succeeded
-       [(and (equal? 'valid baseline-status) (< baseline-time (*sampling-timeout*)))
+       [(equal? 'valid baseline-status)
         (timeline-push!
          timeline
          'outcomes
