@@ -139,8 +139,8 @@
       (define distance ((discretization-distance disc) lo hi))
       (unless (= distance 0)
         (set! done? #f)
-        (when (and (ival-lo-fixed? out) (ival-hi-fixed? out))
-          (set! stuck? #t)))
+        #;(when (and (ival-lo-fixed? out) (ival-hi-fixed? out))
+            (set! stuck? #t)))
       (cond
         [(ival-err out) (set! bad? #t)]
         [(ival-err? out) (set! good? #f)])
