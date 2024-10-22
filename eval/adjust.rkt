@@ -105,7 +105,7 @@
     (for ([x (in-list tail-registers)]
           [bound (in-list ampl-bounds)]
           #:when (>= x varc)) ; when tail register is not a variable
-      (match-define (list up-bound lo-bound) bound)
+      (match-define (cons up-bound lo-bound) bound)
 
       ; Upper precision bound propogation
       (vector-set! vprecs-max
