@@ -195,10 +195,10 @@
      ;                          unknown part
 
      (define x (first srcs))
-     (if (>= (maxlog z) 1)
-         (list (cons (get-slack)
-                     (get-slack (prev-iter)))) ; assumes that log[1-x^2]/2 is equal to slack
-         (list (cons 1 0)))]
+     (list (if (>= (maxlog z) 1)
+               (cons (get-slack)
+                     (get-slack (prev-iter))) ; assumes that log[1-x^2]/2 is equal to slack
+               (cons 1 0)))]
 
     [(ival-acos)
      ; Γ[acos] = |- x / (sqrt(1-x^2) * arccos(x))|
@@ -207,10 +207,10 @@
      ;                          unknown part
 
      (define x (first srcs))
-     (if (>= (maxlog x) 0)
-         (list (cons (get-slack)
-                     (get-slack (prev-iter)))) ; assumes that log[1-x^2]/2 is equal to slack
-         (list (cons 0 0)))]
+     (list (if (>= (maxlog x) 0)
+               (cons (get-slack)
+                     (get-slack (prev-iter))) ; assumes that log[1-x^2]/2 is equal to slack
+               (cons 0 0)))]
 
     [(ival-atan)
      ; Γ[atan] = | x / ((1+x^2) * arctan(x))|
