@@ -47,7 +47,8 @@ def plot_histogram(args, valid=True):
 
     plt.legend()
     plt.tight_layout()
-    plt.savefig(args.path_valid if valid else args.path_all, format="png")
+    plt.savefig(args.path + "/histogram_valid.png" if valid else args.path + "/histogram_all.png", format="png")
+    plt.savefig(args.path + "/histogram_valid.pdf" if valid else args.path + "/histogram_all.pdf", format="pdf")
 
 
 def bucket_precisions_by_bins(data, bins):
@@ -60,8 +61,7 @@ def bucket_precisions_by_bins(data, bins):
 
 parser = argparse.ArgumentParser(prog='histograms.py', description='Script outputs mixed precision histograms for a Herbie run')
 parser.add_argument('-t', '--timeline', dest='timeline', default="report/timeline.json")
-parser.add_argument('-o1', '--output-path-valid', dest='path_valid', default="report/histograms_valid.png")
-parser.add_argument('-o2', '--output-path-all', dest='path_all', default="report/histograms_all.png")
+parser.add_argument('-o', '--output-path-valid', dest='path', default="report")
 
 args = parser.parse_args()
 plot_histogram(args, valid=True)

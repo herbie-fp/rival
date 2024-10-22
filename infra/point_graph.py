@@ -116,14 +116,14 @@ def load_outcomes(path):
     outcomes = pd.DataFrame(outcomes, columns=['time', 'rival_iter', 'tool_name', 'number_of_points'])
     return outcomes
 
-
 parser = argparse.ArgumentParser(prog='point_graph.py', description='Script outputs plots for a Herbie run')
 parser.add_argument('-t', '--timeline', dest='timeline', default="report/timeline.json")
-parser.add_argument('-o', '--output-path', dest='path', default="report/point_graph.png")
+parser.add_argument('-o', '--output-path', dest='path', default="report")
 args = parser.parse_args()
 
 outcomes = load_outcomes(args.timeline)
 fig, ax = plt.subplots(figsize=(4, 3.5))
 fig.tight_layout(pad=2.0)
 plot_points_graph(outcomes, ax)
-plt.savefig(args.path, format="png")
+plt.savefig(args.path + "/point_graph.png", format="png")
+plt.savefig(args.path + "/point_graph.pdf", format="pdf")

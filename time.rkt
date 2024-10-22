@@ -104,6 +104,7 @@
                           1))
             (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
+      (define baseline-precision (baseline-machine-precision baseline-machine))
 
       (define baseline-executions (baseline-profile baseline-machine 'executions))
       (for ([execution (in-vector baseline-executions)])
@@ -155,7 +156,7 @@
                            sollya-status
                            sollya-apply-time
                            sollya-exs
-                           rival-iter)))
+                           baseline-precision)))
 
       ; Count differences where baseline is better than rival
       (define rival-baseline-difference

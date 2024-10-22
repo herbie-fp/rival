@@ -5,12 +5,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def plot_speed_graph(outcomes, ax):
-    baseline_cmp = outcomes.loc[outcomes['tool_name'] == "valid-baseline"]
-    rival_cmp = outcomes.loc[outcomes['tool_name'] == "valid-rival"]
-    sollya_cmp = outcomes.loc[outcomes['tool_name'] == "valid-sollya"]
+    baseline_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-baseline") & (outcomes['rival_iter'] > 0)]
+    rival_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-rival") & (outcomes['rival_iter'] > 0)]
+    sollya_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-sollya") & (outcomes['rival_iter'] > 0)]
 
     def add_values(row):
-        return int(row['rival_iter']) + 1, (row['number_of_points'] / row['time']) * 1000
+        return int(row['rival_iter']), (row['number_of_points'] / row['time']) * 1000
 
     def tool_cmp2speed(x):
         return x.sort_values(by=['rival_iter']).apply(add_values, axis=1, result_type='expand')
@@ -22,7 +22,6 @@ def plot_speed_graph(outcomes, ax):
             label='baseline')
     ax.plot(tool_cmp2speed(sollya_cmp)[0], np.array(tool_cmp2speed(sollya_cmp)[1])/base, '-', linewidth=2.0, color='b',
             label='sollya')
-
 
     print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(tool_cmp2speed(rival_cmp)[1].sum()/np.array(tool_cmp2speed(sollya_cmp)[1]).sum(), 2)) + "\\xspace}")
     print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(
@@ -43,7 +42,7 @@ def load_outcomes(path):
 
 parser = argparse.ArgumentParser(prog='histograms.py', description='Script outputs mixed precision histograms for a Herbie run')
 parser.add_argument('-t', '--timeline', dest='timeline', default="report/timeline.json")
-parser.add_argument('-o', '--output-path', dest='path', default="report/ratio.png")
+parser.add_argument('-o', '--output-path', dest='path', default="report")
 args = parser.parse_args()
 
 outcomes = load_outcomes(args.timeline)
@@ -51,4 +50,5 @@ outcomes = load_outcomes(args.timeline)
 fig, ax = plt.subplots(figsize=(4, 3.5))
 fig.tight_layout(pad=2.0)
 plot_speed_graph(outcomes, ax)
-plt.savefig(args.path, format="png")
+plt.savefig(args.path + "/ratio_plot.png", format="png")
+plt.savefig(args.path + "/ratio_plot.pdf", format="pdf")

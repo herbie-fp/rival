@@ -14,7 +14,8 @@
 
 (provide baseline-compile
          baseline-apply
-         baseline-profile)
+         baseline-profile
+         (struct-out baseline-machine))
 
 (struct baseline-machine
         (arguments instructions
@@ -22,6 +23,7 @@
                    discs
                    registers
                    precisions
+                   [precision #:mutable]
                    [profile-ptr #:mutable]
                    profile-instruction
                    profile-number
@@ -48,6 +50,7 @@
                     discs
                     registers
                     precisions
+                    0
                     0
                     (make-vector (*rival-profile-executions*))
                     (make-vector (*rival-profile-executions*))
@@ -79,9 +82,10 @@
       [else (loop (* 2 prec))])))
 
 (define (baseline-machine-adjust machine)
-  (vector-fill! (baseline-machine-precisions machine) (bf-precision)))
+  (vector-fill! (baseline-machine-precisions machine) (baseline-machine-precision machine)))
 
 (define (baseline-machine-full machine inputs)
+  (set-baseline-machine-precision! machine (bf-precision))
   (baseline-machine-adjust machine)
   (baseline-machine-load machine inputs)
   (baseline-machine-run machine)
@@ -140,7 +144,7 @@
       (unless (= distance 0)
         (set! done? #f)
         #;(when (and (ival-lo-fixed? out) (ival-hi-fixed? out))
-            (set! stuck? #t)))
+          (set! stuck? #t)))
       (cond
         [(ival-err out) (set! bad? #t)]
         [(ival-err? out) (set! good? #f)])
