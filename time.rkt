@@ -49,7 +49,7 @@
   (unless (andmap symbol? vars)
     (raise 'time "Invalid variable list ~a" vars))
   (match-define `(bool flonum ...) (map read-from-string (hash-ref rec 'discs)))
-  (define discs (cons boolean-discretization (map (const flonum-discretization) (cdr exprs))))
+  (define discs (cons boolean-discretization (map (const (bf-discretization 53)) (cdr exprs))))
 
   ; Rival machine
   (define start-compile (current-inexact-milliseconds))
@@ -74,7 +74,7 @@
           (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
                           [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
             (define exs (vector-ref (rival-apply rival-machine (list->vector (map bf pt))) 1))
-            (list 'valid exs))))
+            (list 'valid (bigfloat->flonum exs)))))
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
       (define rival-iter (rival-machine-iteration rival-machine))
 
@@ -101,7 +101,7 @@
                                           (list->vector (map bf pt))
                                           #:timeout (*sampling-timeout*))
                           1))
-            (list 'valid exs))))
+            (list 'valid (bigfloat->flonum exs)))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
       (define baseline-precision (baseline-machine-precision baseline-machine))
 
