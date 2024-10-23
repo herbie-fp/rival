@@ -113,7 +113,7 @@ def plot_points_graph(outcomes, ax):
 
 def load_outcomes(path):
     outcomes = json.load(open(path, "r"))["outcomes"]
-    outcomes = pd.DataFrame(outcomes, columns=['time', 'rival_iter', 'tool_name', 'number_of_points'])
+    outcomes = pd.DataFrame(outcomes, columns=['time', 'rival_iter', 'baseline_precision', 'tool_name', 'number_of_points'])
     return outcomes
 
 parser = argparse.ArgumentParser(prog='point_graph.py', description='Script outputs plots for a Herbie run')
