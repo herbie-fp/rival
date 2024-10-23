@@ -20,9 +20,6 @@
     [4 4096]
     [5 8192]))
 
-(define (prev-iter)
-  (- (*sampling-iteration*) 1))
-
 (define (crosses-zero? x)
   (not (equal? (mpfr-sign (ival-lo x)) (mpfr-sign (ival-hi x)))))
 
@@ -196,8 +193,7 @@
 
      (define x (first srcs))
      (list (if (>= (maxlog z) 1)
-               (cons (get-slack)
-                     (get-slack (prev-iter))) ; assumes that log[1-x^2]/2 is equal to slack
+               (cons (get-slack) 0) ; assumes that log[1-x^2]/2 is equal to slack
                (cons 1 0)))]
 
     [(ival-acos)
@@ -208,8 +204,7 @@
 
      (define x (first srcs))
      (list (if (>= (maxlog x) 0)
-               (cons (get-slack)
-                     (get-slack (prev-iter))) ; assumes that log[1-x^2]/2 is equal to slack
+               (cons (get-slack) 0) ; assumes that log[1-x^2]/2 is equal to slack
                (cons 0 0)))]
 
     [(ival-atan)
@@ -279,7 +274,7 @@
      ;                           a possible uncertainty
      (define x (first srcs))
      (list (if (>= (maxlog x) 1)
-               (cons (get-slack) (get-slack (prev-iter)))
+               (cons (get-slack) 0)
                (cons 1 0)))]
 
     [(ival-acosh)
@@ -295,10 +290,8 @@
      (list (cons (+ (logspan x) 1) 0))]
 
     ; TODO
-    [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb)
-     (list (cons (get-slack) (get-slack (prev-iter))))]
+    [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb) (list (cons (get-slack) 0))]
     ; TODO
-    [(ival-ceil ival-floor ival-rint ival-round ival-trunc)
-     (list (cons (get-slack) (get-slack (prev-iter))))]
+    [(ival-ceil ival-floor ival-rint ival-round ival-trunc) (list (cons (get-slack) 0))]
 
     [else (map (λ (_) (cons 0 0)) srcs)])) ; exponents for arguments
