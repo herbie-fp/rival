@@ -14,9 +14,9 @@ def plot_speed_graph_rival_iter(outcomes, args):
     outcomes = outcomes.groupby(['rival_iter', 'tool_name'], as_index=False).sum()
     
     # Select appropriate tools
-    baseline_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-baseline")] # & (outcomes['baseline_precision'] > 73)
-    rival_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-rival")]
-    sollya_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-sollya")]
+    baseline_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-baseline") & (outcomes['rival_iter'] > 0)]
+    rival_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-rival") & (outcomes['rival_iter'] > 0)]
+    sollya_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-sollya") & (outcomes['rival_iter'] > 0)]
 
     # Some weird functions that creates speed per millisecond for each tool
     def add_values(row):
@@ -44,9 +44,8 @@ def plot_speed_graph_rival_iter(outcomes, args):
     plt.savefig(args.path + "/ratio_plot_iter.pdf", format="pdf")
     
     # Latex stuff
-    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(tool_cmp2speed(rival_cmp)[1].sum()/np.array(tool_cmp2speed(sollya_cmp)[1]).sum(), 2)) + "\\xspace}")
-    print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(
-        round(tool_cmp2speed(rival_cmp)[1].sum() / np.array(tool_cmp2speed(baseline_cmp)[1]).sum(), 2)) + "\\xspace}")
+    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(sollya_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
+    print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(round(baseline_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
     print("\\newcommand{\RivalMaxSpeedupOverSollya}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(sollya_cmp)[1])[-1], 2)) + "\\xspace}")
     print("\\newcommand{\RivalMaxSpeedupOverBaseline}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(baseline_cmp)[1])[-1], 2)) + "\\xspace}")
 
@@ -90,9 +89,8 @@ def plot_speed_graph_baseline_precision(outcomes, args):
     plt.savefig(args.path + "/ratio_plot_precision.pdf", format="pdf")
     
     # Latex stuff
-    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(tool_cmp2speed(rival_cmp)[1].sum()/np.array(tool_cmp2speed(sollya_cmp)[1]).sum(), 2)) + "\\xspace}")
-    print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(
-        round(tool_cmp2speed(rival_cmp)[1].sum() / np.array(tool_cmp2speed(baseline_cmp)[1]).sum(), 2)) + "\\xspace}")
+    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(sollya_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
+    print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(round(baseline_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
     print("\\newcommand{\RivalMaxSpeedupOverSollya}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(sollya_cmp)[1])[-1], 2)) + "\\xspace}")
     print("\\newcommand{\RivalMaxSpeedupOverBaseline}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(baseline_cmp)[1])[-1], 2)) + "\\xspace}")
     
