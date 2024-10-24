@@ -161,7 +161,10 @@
     [(ival-sin)
      ; maxlog(x) - minlog(z)
      (define x (first srcs))
-     (list (cons (- (maxlog x) (minlog z)) (- (maxlog z #:no-slack #t))))]
+     (list (cons (- (maxlog x) (minlog z))
+                 (if (> (minlog x) 1)
+                     (- (maxlog z #:no-slack #t))
+                     0)))]
 
     [(ival-cos)
      ; maxlog(x) - minlog(z) + min(maxlog(x), 0)

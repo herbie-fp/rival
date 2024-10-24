@@ -8,7 +8,7 @@
 (provide rival-compile
          *rival-use-shorthands*
          *rival-name-constants*
-         fn->ival-fn
+         fn->ival-fn ; for baseline
          exprs->batch) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))

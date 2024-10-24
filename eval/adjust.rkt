@@ -80,7 +80,7 @@
 ;   min-prec = (cdr (get-bounds parent))
 (define (precision-tuning ivec vregs vprecs-max varc vstart-precs)
   ; vector stores minimum additional precision that is needed to evaluate an instruction
-  (define vprecs-min (make-vector (vector-length vprecs-max) 0))
+  ; (define vprecs-min (make-vector (vector-length vprecs-max) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)]) ; reversed over indices of vregs
     (define op (car instr)) ; current operation
@@ -89,10 +89,10 @@
     (define output (vector-ref vregs n)) ; output of the current instr
 
     (define max-prec (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
-    (define min-prec (vector-ref vprecs-min (- n varc))) ; lower precision bound given from parent
+    ; (define min-prec (vector-ref vprecs-min (- n varc))) ; lower precision bound given from parent
 
-    (when (>= min-prec (*rival-max-precision*)) ; Early stopping on lower bound
-      (*sampling-iteration* (*rival-max-iterations*)))
+    #;(when (>= min-prec (*rival-max-precision*)) ; Early stopping on lower bound
+        (*sampling-iteration* (*rival-max-iterations*)))
 
     ; Final precision assignment based on the upper bound
     (define final-precision
@@ -112,7 +112,9 @@
                    (- x varc)
                    (max (vector-ref vprecs-max (- x varc)) (+ max-prec up-bound)))
 
+      (when (>= lo-bound (*rival-max-precision*)) ; Early stopping on lower bound
+        (*sampling-iteration* (*rival-max-iterations*)))
       ; Lower precision bound propogation
-      (vector-set! vprecs-min
-                   (- x varc)
-                   (max (vector-ref vprecs-min (- x varc)) (+ min-prec lo-bound))))))
+      #;(vector-set! vprecs-min
+                     (- x varc)
+                     (max (vector-ref vprecs-min (- x varc)) (+ min-prec lo-bound))))))
