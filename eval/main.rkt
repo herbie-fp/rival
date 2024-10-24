@@ -67,7 +67,8 @@
   (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
-      (parameterize ([*sampling-iteration* iter] [ground-truth-require-convergence #t])
+      (parameterize ([*sampling-iteration* iter]
+                     [ground-truth-require-convergence #t])
         (rival-machine-full machine (vector-map ival-real pt))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
@@ -79,6 +80,7 @@
 
 (define (rival-analyze machine rect)
   (define-values (good? done? bad? stuck? fvec)
-    (parameterize ([*sampling-iteration* 0] [ground-truth-require-convergence #f])
+    (parameterize ([*sampling-iteration* 0]
+                   [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
   (ival (or bad? stuck?) (not good?)))
