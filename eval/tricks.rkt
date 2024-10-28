@@ -89,30 +89,50 @@
 (define (get-bounds op z srcs)
   (case (object-name op)
     [(ival-mult)
-     ; k = 1: logspan(y)
-     ; k = 2: logspan(x)
+     ; Γ[*]'x     = 1
+     ; ↑ampl[*]'x = logspan(y)
+     ; ↓ampl[*]'x = 0
+     ; --------------
+     ; Γ[*]'y     = 1
+     ; ↑ampl[*]'y = logspan(x)
+     ; ↓ampl[*]'y = 0
      (define x (first srcs))
      (define y (second srcs))
      (list (cons (logspan y) 0) ; bounds per x
            (cons (logspan x) 0))] ; bounds per y
 
     [(ival-div)
-     ; k = 1: logspan(y)
-     ; k = 2: logspan(x) + 2 * logspan(y)
+     ; Γ[/]'x     = 1
+     ; ↑ampl[/]'x = logspan(y)
+     ; ↓ampl[/]'x = 0
+     ; --------------
+     ; Γ[/]'y     = 1
+     ; ↑ampl[/]'y = logspan(x) + 2 * logspan(y)
+     ; ↓ampl[/]'y = 0
      (define x (first srcs))
      (define y (second srcs))
      (list (cons (logspan y) 0) ; bounds per x
            (cons (+ (logspan x) (* 2 (logspan y))) 0))] ; bounds per y
 
     [(ival-sqrt ival-cbrt)
-     ; sqrt: logspan(x)/2 - 1
-     ; cbrt: logspan(x)*2/3 - 1
+     ; Γ[sqrt]'x     = 0.5
+     ; ↑ampl[sqrt]'x = logspan(x)/2 - 1
+     ; ↓ampl[sqrt]'x = 0
+     ; --------------
+     ; Γ[cbrt]'x     = 1/3
+     ; ↑ampl[cbrt]'x = logspan(x)*2/3 - 1
+     ; ↓ampl[cbrt]'x = 0
      (define x (first srcs))
      (list (cons (quotient (logspan x) 2) 0))]
 
     [(ival-add ival-sub)
-     ; k = 1: maxlog(x) - minlog(z)
-     ; k = 2: maxlog(y) - minlog(z)
+     ; Γ[+ & -]'x     = |x/(x+y)| & |x/(x-y)|
+     ; ↑ampl[+ & -]'x = maxlog(x) - minlog(z)
+     ; ↓ampl[+ & -]'x = minlog(x) - maxlog(z)
+     ; --------------
+     ; Γ[+ & -]'y     = |y/(x+y)| & |-y/(x-y)|
+     ; ↑ampl[+ & -]'y = maxlog(y) - minlog(z)
+     ; ↓ampl[+ & -]'y = minlog(y) - maxlog(z)
      (define x (first srcs))
      (define y (second srcs))
 
@@ -122,8 +142,13 @@
                  (- (minlog y #:no-slack #t) (maxlog z #:no-slack #t))))] ; bounds per y
 
     [(ival-pow)
-     ; k = 1: maxlog(y) + logspan(x) + logspan(z)
-     ; k = 2: maxlog(y) + max(|minlog(x)|,|maxlog(x)|) + logspan(z)
+     ; Γ[pow]'x     = |y|
+     ; ↑ampl[pow]'x = maxlog(y) + logspan(x) + logspan(z)
+     ; ↓ampl[pow]'x = minlog(y)
+     ; --------------
+     ; Γ[pow]'y     = |y*ln(x)|
+     ; ↑ampl[pow]'y = maxlog(y) + max(|minlog(x)|,|maxlog(x)|) + logspan(z)
+     ; ↓ampl[pow]'y = minlog(y)
      (define x (first srcs))
      (define y (second srcs))
 
@@ -147,72 +172,86 @@
                  (minlog y #:no-slack #t)))] ; bounds per y
 
     [(ival-exp ival-exp2)
-     ; maxlog(x) + logspan(z)
+     ; Γ[exp & exp2]'x     = |x| & |x*ln(2)|
+     ; ↑ampl[exp & exp2]'x = maxlog(x) + logspan(z)
+     ; ↓ampl[exp & exp2]'x = minlog(x)
      (define x (car srcs))
      (list (cons (+ (maxlog x) (logspan z)) (minlog x #:no-slack #t)))]
 
     [(ival-tan)
-     ; maxlog(x) + max(|minlog(z)|,|maxlog(z)|) + logspan(z) + 1
+     ; Γ[tan]'x     = |x / (cos(x) * sin(x))|
+     ; ↑ampl[tan]'x = maxlog(x) + max(|minlog(z)|,|maxlog(z)|) + logspan(z) + 1
+     ; ↓ampl[tan]'x = minlog(x) + min(|minlog(z)|,|maxlog(z)|)
      (define x (first srcs))
      (list (cons (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1)
                  (+ (minlog x #:no-slack #t)
                     (min (abs (maxlog z #:no-slack #t)) (abs (minlog z #:no-slack #t))))))]
 
     [(ival-sin)
-     ; maxlog(x) - minlog(z)
+     ; Γ[sin]'x     = |x * cos(x) / sin(x)|
+     ; ↑ampl[sin]'x = maxlog(x) - minlog(z)
+     ; ↓ampl[sin]'x = | - maxlog(z) - 1, if maxlog(x) > 1
+     ;                | 0 else
      (define x (first srcs))
      (list (cons (- (maxlog x) (minlog z))
-                 (if (> (minlog x) 1)
-                     (- (maxlog z #:no-slack #t))
+                 (if (>= (maxlog x) 1)
+                     (- -1 (maxlog z #:no-slack #t))
                      0)))]
 
     [(ival-cos)
-     ; maxlog(x) - minlog(z) + min(maxlog(x), 0)
+     ; Γ[cos]'x     = |x * sin(x) / cos(x)|
+     ; ↑ampl[cos]'x = maxlog(x) - minlog(z) + min(maxlog(x), 0)
+     ; ↓ampl[cos]'x = - maxlog(2) - 2
      (define x (first srcs))
-     (list (cons (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0)) (- (maxlog z #:no-slack #t))))]
+     (list (cons (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0))
+                 (- (- 2) (maxlog z #:no-slack #t))))]
 
     [(ival-sinh)
-     ; maxlog(x) + logspan(z) - min(minlog(x), 0)
+     ; Γ[sinh]'x     = |x * cosh(x) / sinh(x)|
+     ; ↑ampl[sinh]'x = maxlog(x) + logspan(z) - min(minlog(x), 0)
+     ; ↓ampl[sinh]'x = max(0, minlog(x))
      (define x (first srcs))
      (list (cons (- (+ (maxlog x) (logspan z)) (min (minlog x) 0)) (max 0 (minlog x #:no-slack #t))))]
 
     [(ival-cosh)
-     ; maxlog(x) + logspan(z) + min(maxlog(x), 0)
+     ; Γ[cosh]'x     = |x * sinh(x) / cosh(x)|
+     ; ↑ampl[cosh]'x = maxlog(x) + logspan(z) + min(maxlog(x), 0)
+     ; ↓ampl[cosh]'x = max(0, minlog(x) - 1)
      (define x (first srcs))
-     (list (cons (+ (maxlog x) (logspan z) (min (maxlog x) 0)) (max 0 (minlog x #:no-slack #t))))]
+     (list (cons (+ (maxlog x) (logspan z) (min (maxlog x) 0))
+                 (max 0 (- (minlog x #:no-slack #t) 1))))]
 
     [(ival-log ival-log2 ival-log10)
-     ; log:   logspan(x) - minlog(z)
-     ; log2:  logspan(x) - minlog(z) + 1
-     ; log10: logspan(x) - minlog(z) - 1
+     ; Γ[log & log2 & log10]'x     = |1 / ln(x)| & |ln(2) / ln(x)| & |ln(10) / ln(x)|
+     ; ↑ampl[log & log2 & log10]'x = logspan(x) - minlog(z) + 1
+     ; ↓ampl[log & log2 & log10]'x = - maxlog(z)
      (define x (first srcs))
      (list (cons (+ (- (logspan x) (minlog z)) 1) (- (maxlog z #:no-slack #t))))]
 
     [(ival-asin)
-     ; Γ[asin] = | x / (sqrt(1-x^2) * arcsin(x))|
-     ; ampl[asin] = maxlog(x) - log[1-x^2]/2 - minlog(z)
-     ;                          ^^^^^^^^^^^^
-     ;                          unknown part
-
+     ; Γ[asin]'x     = |x / (sqrt(1-x^2) * arcsin(x))|
+     ; ↑ampl[asin]'x = | slack, if maxlog(z) > 1
+     ;                 | 1 else
+     ; ↓ampl[asin]'x = 0
      (define x (first srcs))
      (list (if (>= (maxlog z) 1)
                (cons (get-slack) 0) ; assumes that log[1-x^2]/2 is equal to slack
                (cons 1 0)))]
 
     [(ival-acos)
-     ; Γ[acos] = |- x / (sqrt(1-x^2) * arccos(x))|
-     ; ampl[acos] = maxlog(x) - log[1-x^2]/2 - minlog(z)
-     ;                          ^^^^^^^^^^^^
-     ;                          unknown part
-
+     ; Γ[acos]'x     = |-x / (sqrt(1-x^2) * arccos(x))|
+     ; ↑ampl[acos]'x = | slack, if maxlog(x) >= 0
+     ;                 | 0 else
+     ; ↓ampl[acos]'x = 0
      (define x (first srcs))
      (list (if (>= (maxlog x) 0)
                (cons (get-slack) 0) ; assumes that log[1-x^2]/2 is equal to slack
                (cons 0 0)))]
 
     [(ival-atan)
-     ; Γ[atan] = | x / ((1+x^2) * arctan(x))|
-     ; ampl[atan] = logspan(x) - min(|minlog(x)|, |maxlog(x)|) - minlog(z)
+     ; Γ[atan]'x     = | x / ((1+x^2) * arctan(x))|
+     ; ↑ampl[atan]'x = - min(|minlog(x)|, |maxlog(x)|) - minlog(z) + logspan(x)
+     ; ↓ampl[atan]'x = - max(|minlog(x)|, |maxlog(x)|) - maxlog(z) - 2
      (define x (first srcs))
      (list (cons (- (logspan x) (min (abs (minlog x)) (abs (maxlog x))) (minlog z))
                  (- (- (max (abs (minlog x #:no-slack #t)) (abs (maxlog x #:no-slack #t))))
@@ -220,17 +259,20 @@
                     2)))]
 
     [(ival-fmod ival-remainder)
-     ; x mod y = x - y*q, where q is rnd_down(x/y)
-     ; k = 1: maxlog(x) - minlog(z)
-     ; k = 2: ~ log[y * rnd_down(x/y)] - log[mod(x,y)] <= maxlog(x) - minlog(z)
-     ;                            ^    ^
-     ;                           conditions of uncertainty
+     ; ; x mod y = x - y*q, where q is rnd_down(x/y)
+     ; Γ[mod]'x     ~ |x/mod(x,y)|
+     ; ↑ampl[mod]'x = maxlog(x) - minlog(z)
+     ; ↓ampl[mod]'x = minlog(x) - maxlog(z) or just 0
+     ; --------------
+     ; Γ[mod]'y     ` |y/mod(x,y)|
+     ; ↑ampl[mod]'y = maxlog(y) - minlog(z)
+     ; ↓ampl[mod]'y = minlog(y) - maxlog(z) or just 0
      (define x (first srcs))
      (define y (second srcs))
 
      (define slack
        (if (crosses-zero? y)
-           (get-slack) ; y crosses zero
+           (get-slack)
            0))
 
      (list (cons (- (maxlog x) (minlog z)) 0) ; bounds per x
@@ -238,25 +280,30 @@
 
     ; Currently log1p has a very poor approximation
     [(ival-log1p)
-     ; maxlog(x) - log[1+x] - minlog(z)
-     ;            ^^^^^^^^^^
-     ;            treated like a slack if x < 0
+     ; Γ[log1p]'x     ~ |x * log1p(x) / (1+x)|
+     ; ↑ampl[log1p]'x = | maxlog(x) - minlog(z) + slack, if x is negative
+     ;                  | maxlog(x) - minlog(z), else
+     ; ↓ampl[log1p]'x = 0
      (define x (first srcs))
      (define xhi (ival-hi x))
      (define xlo (ival-lo x))
 
      (list (if (or (equal? (mpfr-sign xlo) -1) (equal? (mpfr-sign xhi) -1))
-               (cons (max (+ (- (maxlog x) (minlog z)) (get-slack)) (get-slack)) 0) ; if x in negative
+               (cons (max (+ (- (maxlog x) (minlog z)) (get-slack)) (get-slack)) 0)
                (cons (- (maxlog x) (minlog z)) 0)))]
 
     ; Currently expm1 has a very poor solution for negative values
     [(ival-expm1)
-     ; log[Гexpm1] = log[x * e^x / expm1] <= max(1 + maxlog(x), 1 + maxlog(x) - minlog(z))
+     ; Γ[expm1]'x     = |x * e^x / expm1|
+     ; ↑ampl[expm1]'x = max(1 + maxlog(x), 1 + maxlog(x) - minlog(z))
+     ; ↓ampl[expm1]'x = 0
      (define x (first srcs))
      (list (cons (max (+ 1 (maxlog x)) (+ 1 (- (maxlog x) (minlog z)))) 0))]
 
     [(ival-atan2)
-     ; maxlog(x) + maxlog(y) - 2*max(minlog(x), minlog(y)) - minlog(z)
+     ; Γ[atan2]'x = Γ[atan2]'y = |xy / ((x^2 + y^2)*arctan(y/x))|
+     ; ↑ampl[expm1]'x          = maxlog(x) + maxlog(y) - 2*max(minlog(x), minlog(y)) - minlog(z)
+     ; ↓ampl[expm1]'x          = minlog(x) + minlog(y) - 2*min(maxlog(x), maxlog(y)) - maxlog(z)
      (define x (first srcs))
      (define y (second srcs))
 
@@ -267,21 +314,27 @@
                          (maxlog z #:no-slack #t))))]
 
     [(ival-tanh)
-     ; logspan(z) + logspan(x)
+     ; Γ[tanh]'x     = |x / (sinh(x) * cosh(x))|
+     ; ↑ampl[tanh]'x = logspan(z) + logspan(x)
+     ; ↓ampl[tanh]'x = 0
      (define x (first srcs))
      (list (cons (+ (logspan z) (logspan x)) 0))]
 
     [(ival-atanh)
-     ; log[Гarctanh] = maxlog(x) - log[(1-x^2)] - minlog(z) = 1 if x < 0.5, otherwise slack
-     ;                               ^^^^^^^
-     ;                           a possible uncertainty
+     ; Γ[atanh]'x     = |x / (log(1-x^2) * atanh(x))|
+     ; ↑ampl[atanh]'x = | 1, if x < 0.5
+     ;                  | slack
+     ; ↓ampl[atanh]'x = 0
      (define x (first srcs))
      (list (if (>= (maxlog x) 1)
                (cons (get-slack) 0)
                (cons 1 0)))]
 
     [(ival-acosh)
-     ; log[Гacosh] = log[x / (sqrt(x-1) * sqrt(x+1) * acosh)] <= -minlog(z) + slack
+     ; Γ[acosh]'x     = |x / (sqrt(x-1) * sqrt(x+1) * acosh)|
+     ; ↑ampl[acosh]'x = | -minlog(z) + slack, if minlog(z) < 2
+     ;                  | 0
+     ; ↓ampl[acosh]'x = 0
      (define z-exp (minlog z))
      (list (if (< z-exp 2) ; when acosh(x) < 1
                (cons (max (- (get-slack) z-exp) (get-slack)) 0)
