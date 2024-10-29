@@ -82,7 +82,7 @@ def plot_speed_graph_baseline_precision(outcomes, args):
             label='sollya')
 
     ax.legend()
-    ax.set_xlabel("Truth uniform precision")
+    ax.set_xlabel("True uniform precision")
     ax.set_ylabel("Ratio")
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     plt.savefig(args.path + "/ratio_plot_precision.png", format="png")

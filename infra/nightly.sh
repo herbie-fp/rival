@@ -62,6 +62,7 @@ function perf {
     python3 infra/ratio_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     python3 infra/point_graph.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     python3 infra/histograms.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/cnt_per_iters_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     cp profile.json "$REPORTDIR"/profile.json
     cp profile.js "$REPORTDIR"/profile.js
 }
@@ -71,6 +72,7 @@ function bench {
     python3 infra/ratio_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     python3 infra/point_graph.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     python3 infra/histograms.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/cnt_per_iters_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     cp profile.json "$REPORTDIR"/profile.json
     cp profile.js "$REPORTDIR"/profile.js
 }

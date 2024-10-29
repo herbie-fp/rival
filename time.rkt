@@ -403,6 +403,7 @@
     (html-add-plot html-port "ratio_plot_iter.png")
     (html-add-plot html-port "ratio_plot_precision.png")
     (html-add-plot html-port "point_graph.png")
+    (html-add-plot html-port "cnt_per_iters_plot.png")
     (html-add-histogram html-port "histogram_valid.png")
     (html-add-histogram html-port "histogram_all.png"))
 
