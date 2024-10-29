@@ -90,6 +90,12 @@
                         'mixsample-rival-all
                         (list (execution-time execution) name precision)))
 
+      ; Record number of instructions has been executed
+      (when (equal? rival-status 'valid)
+        (timeline-push! timeline
+                        'instr-executed-cnt
+                        (list 'rival rival-iter (vector-length rival-executions))))
+
       ; --------------------------- Baseline execution ----------------------------------------------
       (define baseline-start-apply (current-inexact-milliseconds))
       (match-define (list baseline-status baseline-exs)
@@ -116,6 +122,11 @@
         (timeline-push! timeline
                         'mixsample-baseline-all
                         (list (execution-time execution) name precision)))
+
+      (when (equal? rival-status 'valid)
+        (timeline-push! timeline
+                        'instr-executed-cnt
+                        (list 'baseline rival-iter (vector-length baseline-executions))))
 
       ; --------------------------- Sollya execution ------------------------------------------------
       ; Points for expressions where Sollya has not compiled do not go to the plot/speed graphs!
@@ -222,6 +233,11 @@
      (match-define (list time* name precision) args*)
      (define time (hash-ref mixsample-hash (list name precision) (λ () 0)))
      (hash-set! mixsample-hash (list name precision) (+ time time*))]
+    ['instr-executed-cnt
+     (define instr-cnt-hash (hash-ref timeline key))
+     (match-define (list tool iter cnt) args*)
+     (define cnt* (hash-ref instr-cnt-hash (list tool iter) (λ () 0)))
+     (hash-set! instr-cnt-hash (list tool iter) (+ cnt cnt*))]
     [else (error "Unknown key for timeline!")]))
 
 (define (timeline->jsexpr timeline)
@@ -239,7 +255,10 @@
           (list value (car key) (second key)))
         'mixsample-baseline-all
         (for/list ([(key value) (in-hash (hash-ref timeline 'mixsample-baseline-all))])
-          (list value (car key) (second key)))))
+          (list value (car key) (second key)))
+        'instr-executed-cnt
+        (for/list ([(key value) (in-hash (hash-ref timeline 'instr-executed-cnt))])
+          (list (~a (car key)) (second key) value))))
 
 (define (make-expression-table points test-id timeline-port)
   (newline)
@@ -257,7 +276,8 @@
            (cons 'mixsample-rival-valid (make-hash))
            (cons 'mixsample-baseline-valid (make-hash))
            (cons 'mixsample-rival-all (make-hash))
-           (cons 'mixsample-baseline-all (make-hash)))))
+           (cons 'mixsample-baseline-all (make-hash))
+           (cons 'instr-executed-cnt (make-hash)))))
 
   (define table
     (for/list ([rec (in-port read-json points)]
@@ -404,6 +424,7 @@
     (html-add-plot html-port "ratio_plot_precision.png")
     (html-add-plot html-port "point_graph.png")
     (html-add-plot html-port "cnt_per_iters_plot.png")
+    (html-add-plot html-port "repeats_plot.png")
     (html-add-histogram html-port "histogram_valid.png")
     (html-add-histogram html-port "histogram_all.png"))
 
