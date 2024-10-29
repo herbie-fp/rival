@@ -169,7 +169,9 @@
                  (minlog y #:no-slack #t)) ; bounds per x
            (cons (max (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
                       y-slack)
-                 (minlog y #:no-slack #t)))] ; bounds per y
+                 (if (> (minlog x) 2)
+                     (minlog y #:no-slack #t)
+                     0)))] ; bounds per y
 
     [(ival-exp ival-exp2)
      ; Γ[exp & exp2]'x     = |x| & |x*ln(2)|
