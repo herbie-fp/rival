@@ -71,19 +71,24 @@ def plot_speed_graph_baseline_precision(outcomes, args):
 
     # Sollya timings considered are as base since we are doing speed ratio comparison
     base = np.array(tool_cmp2speed(sollya_cmp)[1])
+    x = tool_cmp2speed(rival_cmp)[0]
 
     # Plot Rival
-    ax.plot(tool_cmp2speed(rival_cmp)[0], np.array(tool_cmp2speed(rival_cmp)[1])/base, '.-', linewidth=2.0, color='r', label='reval')
+    ax.plot(np.arange(len(x)), np.array(tool_cmp2speed(rival_cmp)[1])/base, '.-', linewidth=2.0, color='r', label='reval')
     # Plot Baseline
-    ax.plot(tool_cmp2speed(baseline_cmp)[0], np.array(tool_cmp2speed(baseline_cmp)[1])/base, '--', linewidth=2.0, color='g',
+    ax.plot(np.arange(len(x)), np.array(tool_cmp2speed(baseline_cmp)[1])/base, '--', linewidth=2.0, color='g',
             label='baseline')
     # Plot Sollya
-    ax.plot(tool_cmp2speed(sollya_cmp)[0], np.array(tool_cmp2speed(sollya_cmp)[1])/base, '-', linewidth=2.0, color='b',
+    ax.plot(np.arange(len(x)), np.array(tool_cmp2speed(sollya_cmp)[1])/base, '-', linewidth=2.0, color='b',
             label='sollya')
 
     ax.legend()
     ax.set_xlabel("True uniform precision")
     ax.set_ylabel("Ratio")
+    
+    ax.set_xticks(np.arange(len(x)), x)
+    ax.set_xticklabels(["$2^{" + str(i+7) + "}$" for i, x in enumerate(x)])
+    
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     plt.savefig(args.path + "/ratio_plot_precision.png", format="png")
     plt.savefig(args.path + "/ratio_plot_precision.pdf", format="pdf")
