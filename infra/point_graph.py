@@ -80,9 +80,6 @@ def plot_points_graph(outcomes, ax):
     print("\\newcommand{\SollyaZeros}{" + str(int(data[0][1])) + "\\xspace}")
     print("\\newcommand{\SollyaNonZero}{" + str(int(data[1][1])) + "\\xspace}")
 
-
-
-
     # Plotting top part of the bar
     bottom = np.zeros(len(category_labels))
     for label, weight, color in zip(series_labels, data, colors):

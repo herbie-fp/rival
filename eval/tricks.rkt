@@ -183,11 +183,12 @@
     [(ival-tan)
      ; Γ[tan]'x     = |x / (cos(x) * sin(x))|
      ; ↑ampl[tan]'x = maxlog(x) + max(|minlog(z)|,|maxlog(z)|) + logspan(z) + 1
-     ; ↓ampl[tan]'x = minlog(x) + min(|minlog(z)|,|maxlog(z)|)
+     ; ↓ampl[tan]'x = minlog(x) + min(|minlog(z)|,|maxlog(z)|) - 1
      (define x (first srcs))
      (list (cons (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1)
-                 (+ (minlog x #:no-slack #t)
-                    (min (abs (maxlog z #:no-slack #t)) (abs (minlog z #:no-slack #t))))))]
+                 (- (+ (minlog x #:no-slack #t)
+                       (min (abs (maxlog z #:no-slack #t)) (abs (minlog z #:no-slack #t))))
+                    1)))]
 
     [(ival-sin)
      ; Γ[sin]'x     = |x * cos(x) / sin(x)|
@@ -304,15 +305,15 @@
 
     [(ival-atan2)
      ; Γ[atan2]'x = Γ[atan2]'y = |xy / ((x^2 + y^2)*arctan(y/x))|
-     ; ↑ampl[expm1]'x          = maxlog(x) + maxlog(y) - 2*max(minlog(x), minlog(y)) - minlog(z)
-     ; ↓ampl[expm1]'x          = minlog(x) + minlog(y) - 2*min(maxlog(x), maxlog(y)) - maxlog(z)
+     ; ↑ampl[expm1]'x          = maxlog(x) + maxlog(y) - 2*min(minlog(x), minlog(y)) - minlog(z)
+     ; ↓ampl[expm1]'x          = minlog(x) + minlog(y) - 2*max(maxlog(x), maxlog(y)) - maxlog(z)
      (define x (first srcs))
      (define y (second srcs))
 
      (make-list 2
-                (cons (- (+ (maxlog x) (maxlog y)) (* 2 (max (minlog x) (minlog y))) (minlog z))
+                (cons (- (+ (maxlog x) (maxlog y)) (* 2 (min (minlog x) (minlog y))) (minlog z))
                       (- (+ (minlog x #:no-slack #t) (minlog y #:no-slack #t))
-                         (* 2 (min (maxlog x #:no-slack #t) (maxlog y #:no-slack #t)))
+                         (* 2 (max (maxlog x #:no-slack #t) (maxlog y #:no-slack #t)))
                          (maxlog z #:no-slack #t))))]
 
     [(ival-tanh)
