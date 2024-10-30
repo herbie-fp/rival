@@ -10,15 +10,15 @@ def plot_repeats_plot(outcomes, args):
     fig.tight_layout(pad=2.0)
     
     # Drop precision column and sum up based on iteration
-    rival = outcomes.loc[(outcomes['tool'] == "rival") & (outcomes['iter'] > 0)]
-    baseline = outcomes.loc[(outcomes['tool'] == "baseline") & (outcomes['iter'] > 0)]
-    
+    rival = (outcomes.loc[(outcomes['tool'] == "rival") & (outcomes['iter'] > 0)]).sort_values(by=['iter'])
+    baseline = (outcomes.loc[(outcomes['tool'] == "baseline") & (outcomes['iter'] > 0)]).sort_values(by=['iter'])
+
     ax.bar(np.arange(len(baseline)) + 0.9, baseline['number_of_instr_executions'], color="green", alpha=1, width=0.4, label='baseline', hatch='/')
     ax.bar(np.arange(len(rival)) + 1.1, rival['number_of_instr_executions'], color="red", alpha=0.7, width=0.4, label='reval')
     
     ax.legend()
     ax.set_xlabel("Iteration")
-    ax.set_ylabel("Number of instructions executions")
+    ax.set_ylabel("Number of instruction executions")
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     plt.tight_layout()
     plt.savefig(args.path + "/repeats_plot.png", format="png")

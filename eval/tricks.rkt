@@ -204,7 +204,7 @@
     [(ival-cos)
      ; Γ[cos]'x     = |x * sin(x) / cos(x)|
      ; ↑ampl[cos]'x = maxlog(x) - minlog(z) + min(maxlog(x), 0)
-     ; ↓ampl[cos]'x = - maxlog(2) - 2
+     ; ↓ampl[cos]'x = - maxlog(x) - 2
      (define x (first srcs))
      (list (cons (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0))
                  (- (- 2) (maxlog z #:no-slack #t))))]
@@ -344,13 +344,20 @@
                (cons 0 0)))]
 
     [(ival-pow2)
-     ; same as multiplication
+     ; Γ[acosh]'x = |2 x x* / x^2|
+     ; ↑ampl[pow2]'x = logspan(x) + 1
+     ; ↓ampl[pow2]'x = 0
      (define x (first srcs))
      (list (cons (+ (logspan x) 1) 0))]
 
     ; TODO
+    ; ↑ampl[...] = slack
+    ; ↓ampl[...] = 0
     [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb) (list (cons (get-slack) 0))]
+
     ; TODO
+    ; ↑ampl[...] = slack
+    ; ↓ampl[...] = 0
     [(ival-ceil ival-floor ival-rint ival-round ival-trunc) (list (cons (get-slack) 0))]
 
     [else (map (λ (_) (cons 0 0)) srcs)])) ; exponents for arguments

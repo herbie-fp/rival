@@ -91,6 +91,7 @@
                         (list (execution-time execution) name precision)))
 
       ; Record number of instructions has been executed
+
       (when (equal? rival-status 'valid)
         (timeline-push! timeline
                         'instr-executed-cnt
@@ -124,9 +125,10 @@
                         (list (execution-time execution) name precision)))
 
       (when (equal? rival-status 'valid)
+        (define baseline-iter (exact-round (log (exact-round (/ baseline-precision 73)) 2)))
         (timeline-push! timeline
                         'instr-executed-cnt
-                        (list 'baseline rival-iter (vector-length baseline-executions))))
+                        (list 'baseline baseline-iter (vector-length baseline-executions))))
 
       ; --------------------------- Sollya execution ------------------------------------------------
       ; Points for expressions where Sollya has not compiled do not go to the plot/speed graphs!
