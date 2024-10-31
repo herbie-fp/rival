@@ -43,12 +43,15 @@ def plot_histogram(args, valid=True):
     ax.margins(x=0.02)
     ax.set_ylabel("Seconds spent")
     ax.set_xlabel("Precision (number of bits)")
-    ax.set_title("Histogram for valid points" if valid else "Histogram for all the points")
-
+    
     plt.legend()
     plt.tight_layout()
-    plt.savefig(args.path + "/histogram_valid.png" if valid else args.path + "/histogram_all.png", format="png")
     plt.savefig(args.path + "/histogram_valid.pdf" if valid else args.path + "/histogram_all.pdf", format="pdf")
+
+    ax.set_title("Histogram for valid points" if valid else "Histogram for all the points")
+    plt.tight_layout()
+    plt.savefig(args.path + "/histogram_valid.png" if valid else args.path + "/histogram_all.png", format="png")
+    
 
 
 def bucket_precisions_by_bins(data, bins):

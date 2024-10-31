@@ -11,14 +11,16 @@ def plot_repeats_plot(outcomes, args):
     
     # Drop precision column and sum up based on iteration
     rival = (outcomes.loc[(outcomes['tool'] == "rival") & (outcomes['iter'] > 0)]).sort_values(by=['iter'])
+    rival_no_repeats = (outcomes.loc[(outcomes['tool'] == "rival-no-repeats") & (outcomes['iter'] > 0)]).sort_values(by=['iter'])
     baseline = (outcomes.loc[(outcomes['tool'] == "baseline") & (outcomes['iter'] > 0)]).sort_values(by=['iter'])
 
-    ax.bar(np.arange(len(baseline)) + 0.9, baseline['number_of_instr_executions'], color="green", alpha=1, width=0.4, label='baseline', hatch='/')
-    ax.bar(np.arange(len(rival)) + 1.1, rival['number_of_instr_executions'], color="red", alpha=0.7, width=0.4, label='reval')
+    ax.bar(np.arange(len(baseline)) + 0.925, 100, color="green", alpha=0.6, width=0.5, label='baseline', hatch='/')
+    percentages = np.array(rival['number_of_instr_executions']) / np.array(rival_no_repeats['number_of_instr_executions']) * 100
+    ax.bar(np.arange(len(rival)) + 1.075, percentages, color="red", alpha=1, width=0.5, label='reval')
     
     ax.legend()
     ax.set_xlabel("Iteration")
-    ax.set_ylabel("Number of instruction executions")
+    ax.set_ylabel("Percentage of instructions executed")
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     plt.tight_layout()
     plt.savefig(args.path + "/repeats_plot.png", format="png")

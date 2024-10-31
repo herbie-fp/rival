@@ -90,6 +90,7 @@ def plot_speed_graph_baseline_precision(outcomes, args):
     ax.set_xticklabels(["$2^{" + str(i+7) + "}$" for i, x in enumerate(x)])
     
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
+    plt.tight_layout()
     plt.savefig(args.path + "/ratio_plot_precision.png", format="png")
     plt.savefig(args.path + "/ratio_plot_precision.pdf", format="pdf")
     

@@ -90,12 +90,17 @@
                         'mixsample-rival-all
                         (list (execution-time execution) name precision)))
 
-      ; Record number of instructions has been executed
-
+      ; Record percentage of instructions has been executed
       (when (equal? rival-status 'valid)
+        (define rival-no-repeats-instr-cnt
+          (* (+ 1 rival-iter) (vector-length (rival-machine-instructions rival-machine))))
+        (define rival-instr-cnt (vector-length rival-executions))
+        ; Report instruction that has been executed
+        (timeline-push! timeline 'instr-executed-cnt (list 'rival rival-iter rival-instr-cnt))
+        ; Report the total number of instruction that could be executed with no repeats
         (timeline-push! timeline
                         'instr-executed-cnt
-                        (list 'rival rival-iter (vector-length rival-executions))))
+                        (list 'rival-no-repeats rival-iter rival-no-repeats-instr-cnt)))
 
       ; --------------------------- Baseline execution ----------------------------------------------
       (define baseline-start-apply (current-inexact-milliseconds))

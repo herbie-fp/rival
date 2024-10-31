@@ -22,8 +22,8 @@ def plot_cnt_per_iters(outcomes, args):
     rival = rival.drop(['baseline_precision'], axis=1)
     rival = rival.groupby(['rival_iter'], as_index=False, sort=True).sum()
     
-    ax.bar(np.arange(len(baseline)) + 0.9, baseline['number_of_points'], color="green", alpha=1, width=0.4, label='baseline', hatch='/')
-    ax.bar(np.arange(len(rival)) + 1.1, rival['number_of_points'], color="red", alpha=0.7, width=0.4, label='reval')
+    ax.bar(np.arange(len(baseline)) + 0.925, baseline['number_of_points'], color="green", alpha=1, width=0.5, label='baseline', hatch='/')
+    ax.bar(np.arange(len(rival)) + 1.075, rival['number_of_points'], color="red", alpha=0.7, width=0.5, label='reval')
     
     ax.legend()
     ax.set_xlabel("Iteration")
