@@ -12,7 +12,7 @@ def plot_speed_graph_rival_iter(outcomes, args):
     # Drop precision column and sum up based on iteration
     outcomes = outcomes.drop(['baseline_precision'], axis=1)
     outcomes = outcomes.groupby(['rival_iter', 'tool_name'], as_index=False).sum()
-    
+
     # Select appropriate tools
     baseline_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-baseline") & (outcomes['rival_iter'] > 0)]
     rival_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-rival") & (outcomes['rival_iter'] > 0)]
@@ -44,10 +44,10 @@ def plot_speed_graph_rival_iter(outcomes, args):
     plt.savefig(args.path + "/ratio_plot_iter.pdf", format="pdf")
     
     # Latex stuff
-    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(sollya_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
-    print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(round(baseline_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
-    print("\\newcommand{\RivalMaxSpeedupOverSollya}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(sollya_cmp)[1])[-1], 2)) + "\\xspace}")
-    print("\\newcommand{\RivalMaxSpeedupOverBaseline}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(baseline_cmp)[1])[-1], 2)) + "\\xspace}")
+    # print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(sollya_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
+    # print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(round(baseline_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
+    # print("\\newcommand{\RivalMaxSpeedupOverSollya}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(sollya_cmp)[1])[-1], 2)) + "\\xspace}")
+    # print("\\newcommand{\RivalMaxSpeedupOverBaseline}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(baseline_cmp)[1])[-1], 2)) + "\\xspace}")
 
 def plot_speed_graph_baseline_precision(outcomes, args):
     # Create figure
@@ -62,6 +62,17 @@ def plot_speed_graph_baseline_precision(outcomes, args):
     baseline_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-baseline") & (outcomes['baseline_precision'] > 73)]
     rival_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-rival") & (outcomes['baseline_precision'] > 73)]
     sollya_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-sollya") & (outcomes['baseline_precision'] > 73)]
+
+    print("\\newcommand{\NumTunedPoints}{" + rival_cmp['number_of_points'].sum() + "\\xspace}")
+
+    rival_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-rival") & (outcomes['baseline_precision'] == 73)]['time'])
+    baseline_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-baseline") & (outcomes['baseline_precision'] == 73)]['time'])
+    sollya_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-sollya") & (outcomes['baseline_precision'] == 73)]['time'])
+
+    print("\\newcommand{\RivalInitialSpeedupOverSollya}{" + str(round(sollya_initial/rival_initial, 2)) + "\\xspace}")
+    print("\\newcommand{\RivalInitialSpeedupOverBaseline}{" + str(round(baseline_initial/rival_initial, 2)) + "\\xspace}")
+
+    
 
     # Some weird functions that creates speed per millisecond for each tool
     def add_values(row):

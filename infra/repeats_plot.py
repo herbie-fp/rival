@@ -10,17 +10,39 @@ def plot_repeats_plot(outcomes, args):
     fig.tight_layout(pad=2.0)
     
     # Drop precision column and sum up based on iteration
-    rival = (outcomes.loc[(outcomes['tool'] == "rival") & (outcomes['iter'] > 0)]).sort_values(by=['iter'])
-    rival_no_repeats = (outcomes.loc[(outcomes['tool'] == "rival-no-repeats") & (outcomes['iter'] > 0)]).sort_values(by=['iter'])
-    baseline = (outcomes.loc[(outcomes['tool'] == "baseline") & (outcomes['iter'] > 0)]).sort_values(by=['iter'])
+    rival = (outcomes.loc[(outcomes['tool'] == "rival")]).sort_values(by=['iter'])
+    rival_no_repeats = (outcomes.loc[(outcomes['tool'] == "rival-no-repeats")]).sort_values(by=['iter'])
+    baseline = (outcomes.loc[(outcomes['tool'] == "baseline")]).sort_values(by=['iter'])
 
-    ax.bar(np.arange(len(baseline)) + 0.925, 100, color="green", alpha=1, width=0.5, label='baseline', hatch='/')
-    percentages = np.array(rival['number_of_instr_executions']) / np.array(rival_no_repeats['number_of_instr_executions']) * 100
-    ax.bar(np.arange(len(rival)) + 1.075, percentages, color="red", alpha=0.7, width=0.5, label='reval')
+    # ax.bar(np.arange(len(baseline)) - 0.075, 100, color="green", alpha=1, width=0.5, label='baseline', hatch='/')
+    percentages = (1.0 - np.array(rival['number_of_instr_executions']) / np.array(rival_no_repeats['number_of_instr_executions'])) * 100
+    ax.bar(np.arange(len(rival)), percentages, color="red", alpha=0.7, label='reval')
+
+    average = round((1.0 - (rival['number_of_instr_executions'].sum() / rival_no_repeats['number_of_instr_executions'].sum())) * 100, 2)
+    print("\\newcommand{\AveragePercentageOfSkippedInstr}{" + str(average) + "\\xspace}")
+    maximum = round((1.0 - (np.array(rival['number_of_instr_executions'])[-1] / np.array(rival_no_repeats['number_of_instr_executions'])[-1])) * 100, 2)
+    print("\\newcommand{\MaximumPercentageOfSkippedInstr}{" + str(maximum) + "\\xspace}")
+
+    # Print percentages
+    for bar in ax.patches:
+        if bar.get_height() == 0:
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + bar.get_y() - bar.get_height()/2 + 0.5,
+                str(round(bar.get_height(), 2)) + "%",
+                ha='center',
+                color='black')
+        else:
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + bar.get_y() - bar.get_height()/2 + 0.5,
+                str(round(bar.get_height(), 2)) + "%",
+                ha='center',
+                color='black')
     
     ax.legend()
     ax.set_xlabel("Iteration")
-    ax.set_ylabel("Percentage of instructions executed")
+    ax.set_ylabel("Percentage of instructions skipped")
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     plt.tight_layout()
     plt.savefig(args.path + "/repeats_plot.png", format="png")
