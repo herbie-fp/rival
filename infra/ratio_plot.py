@@ -63,7 +63,7 @@ def plot_speed_graph_baseline_precision(outcomes, args):
     rival_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-rival") & (outcomes['baseline_precision'] > 73)]
     sollya_cmp = outcomes.loc[(outcomes['tool_name'] == "valid-sollya") & (outcomes['baseline_precision'] > 73)]
 
-    print("\\newcommand{\NumTunedPoints}{" + rival_cmp['number_of_points'].sum() + "\\xspace}")
+    print("\\newcommand{\\NumTunedPoints}{" + rival_cmp['number_of_points'].sum() + "\\xspace}")
 
     rival_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-rival") & (outcomes['baseline_precision'] == 73)]['time'])
     baseline_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-baseline") & (outcomes['baseline_precision'] == 73)]['time'])
