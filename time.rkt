@@ -312,6 +312,10 @@
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
 
+  (println "!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+  (printf "EARLY STOPPING UNDERSHOOT = ~a\n" (*early-stopping-undershoot*))
+  (println "!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+
   (when timeline-port
     (write-json (timeline->jsexpr timeline) timeline-port)
     (close-output-port timeline-port))

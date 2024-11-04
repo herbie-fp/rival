@@ -7,11 +7,13 @@
          *rival-profile-executions*
          *ampl-tuning-bits*
          *sampling-iteration*
-         *base-tuning-precision*)
+         *base-tuning-precision*
+         *early-stopping-undershoot*)
 
 (define *rival-max-precision* (make-parameter 10000))
 (define *rival-max-iterations* (make-parameter 5))
 (define *rival-profile-executions* (make-parameter 1000))
+(define *early-stopping-undershoot* (make-parameter 0))
 
 (struct discretization (target convert distance))
 

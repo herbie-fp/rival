@@ -29,14 +29,14 @@ def plot_repeats_plot(outcomes, args):
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
                 bar.get_height() + bar.get_y() - bar.get_height()/2 + 0.5,
-                str(round(bar.get_height(), 2)) + "%",
+                str(round(bar.get_height(), 1)) + "%",
                 ha='center',
                 color='black')
         else:
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
                 bar.get_height() + bar.get_y() - bar.get_height()/2 + 0.5,
-                str(round(bar.get_height(), 2)) + "%",
+                str(round(bar.get_height(), 1)) + "%",
                 ha='center',
                 color='black')
     

@@ -76,6 +76,8 @@
 ;                        max( *base-tuning-precision* (+ max-prec vstart-precs[i])),
 ;   max-prec = (car (get-bounds parent))
 (define (precision-tuning ivec vregs vprecs-max varc vstart-precs)
+  (define early-stopping-lower-bound #f)
+  (define early-stopping-upper-bound #f)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)]) ; reversed over indices of vregs
     (define op (car instr)) ; current operation
@@ -89,6 +91,8 @@
     (define final-precision
       (max (+ max-prec (vector-ref vstart-precs (- n varc))) (*base-tuning-precision*)))
     (vector-set! vprecs-max (- n varc) (min final-precision (*rival-max-precision*)))
+    (when (>= final-precision (*rival-max-precision*))
+      (set! early-stopping-upper-bound #t))
 
     (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
 
@@ -104,4 +108,8 @@
                    (max (vector-ref vprecs-max (- x varc)) (+ max-prec up-bound)))
 
       (when (>= lo-bound (*rival-max-precision*)) ; Early stopping on lower bound
-        (*sampling-iteration* (*rival-max-iterations*))))))
+        (set! early-stopping-lower-bound #t)
+        (*sampling-iteration* (*rival-max-iterations*)))))
+
+  (when (and early-stopping-upper-bound (not early-stopping-lower-bound))
+    (*early-stopping-undershoot* (add1 (*early-stopping-undershoot*)))))
