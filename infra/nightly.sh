@@ -64,6 +64,7 @@ function perf {
     python3 infra/histograms.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     python3 infra/cnt_per_iters_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     python3 infra/repeats_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/density_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     cp profile.json "$REPORTDIR"/profile.json
     cp profile.js "$REPORTDIR"/profile.js
 }
@@ -75,6 +76,7 @@ function bench {
     python3 infra/histograms.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     python3 infra/cnt_per_iters_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     python3 infra/repeats_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/density_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     cp profile.json "$REPORTDIR"/profile.json
     cp profile.js "$REPORTDIR"/profile.js
 }

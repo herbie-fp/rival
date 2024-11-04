@@ -77,8 +77,9 @@
             (list 'valid exs))))
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
       (define rival-iter (rival-machine-iteration rival-machine))
-
       (define rival-executions (rival-profile rival-machine 'executions))
+
+      ; Store histograms data
       (for ([execution (in-vector rival-executions)])
         (define name (symbol->string (execution-name execution)))
         (define precision (execution-precision execution))
@@ -89,6 +90,17 @@
         (timeline-push! timeline
                         'mixsample-rival-all
                         (list (execution-time execution) name precision)))
+
+      ; Store density plot data
+      (when (equal? rival-status 'valid)
+        (define h (make-hash))
+        (for ([exec (in-vector rival-executions)])
+          (match-define (execution name number precision time) exec)
+          (unless (equal? name 'adjust)
+            (define precision* (hash-ref h (list name number) (λ () 0)))
+            (hash-set! h (list name number) (max precision precision*))))
+        (for ([(_ precision) (in-hash h)])
+          (timeline-push! timeline 'density (list 'rival precision))))
 
       ; Record percentage of instructions has been executed
       (when (equal? rival-status 'valid)
@@ -116,8 +128,9 @@
             (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
       (define baseline-precision (baseline-machine-precision baseline-machine))
-
       (define baseline-executions (baseline-profile baseline-machine 'executions))
+
+      ; Store histograms data
       (for ([execution (in-vector baseline-executions)])
         (define name (symbol->string (execution-name execution)))
         (define precision (execution-precision execution))
@@ -129,8 +142,19 @@
                         'mixsample-baseline-all
                         (list (execution-time execution) name precision)))
 
+      ; Store density plot data
+      (when (equal? baseline-status 'valid)
+        (define h* (make-hash))
+        (for ([exec (in-vector baseline-executions)])
+          (match-define (execution name number precision time) exec)
+          (define precision* (hash-ref h* (list name number) (λ () 0)))
+          (hash-set! h* (list name number) (max precision precision*)))
+        (for ([(_ precision) (in-hash h*)])
+          (timeline-push! timeline 'density (list 'baseline precision))))
+
+      ; Record percentage of instructions has been executed
       (when (equal? rival-status 'valid)
-        (define baseline-iter (exact-round (log (exact-round (/ baseline-precision 73)) 2)))
+        (define baseline-iter (exact-round (log (exact-round (/ baseline-precision 63)) 2)))
         (timeline-push! timeline
                         'instr-executed-cnt
                         (list 'baseline baseline-iter (vector-length baseline-executions))))
@@ -245,6 +269,11 @@
      (match-define (list tool iter cnt) args*)
      (define cnt* (hash-ref instr-cnt-hash (list tool iter) (λ () 0)))
      (hash-set! instr-cnt-hash (list tool iter) (+ cnt cnt*))]
+    ['density
+     (define density-hash (hash-ref timeline key))
+     (match-define (list tool precision) args*)
+     (define cnt (hash-ref density-hash (list tool precision) (λ () 0)))
+     (hash-set! density-hash (list tool precision) (+ cnt 1))]
     [else (error "Unknown key for timeline!")]))
 
 (define (timeline->jsexpr timeline)
@@ -265,6 +294,9 @@
           (list value (car key) (second key)))
         'instr-executed-cnt
         (for/list ([(key value) (in-hash (hash-ref timeline 'instr-executed-cnt))])
+          (list (~a (car key)) (second key) value))
+        'density
+        (for/list ([(key value) (in-hash (hash-ref timeline 'density))])
           (list (~a (car key)) (second key) value))))
 
 (define (make-expression-table points test-id timeline-port)
@@ -284,7 +316,8 @@
            (cons 'mixsample-baseline-valid (make-hash))
            (cons 'mixsample-rival-all (make-hash))
            (cons 'mixsample-baseline-all (make-hash))
-           (cons 'instr-executed-cnt (make-hash)))))
+           (cons 'instr-executed-cnt (make-hash))
+           (cons 'density (make-hash)))))
 
   (define table
     (for/list ([rec (in-port read-json points)]
@@ -312,9 +345,9 @@
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
 
-  (println "!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+  (printf "!!!!!!!!!!!!!!!!!!!!!!!!!\n")
   (printf "EARLY STOPPING UNDERSHOOT = ~a\n" (*early-stopping-undershoot*))
-  (println "!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+  (printf "!!!!!!!!!!!!!!!!!!!!!!!!!\n")
 
   (when timeline-port
     (write-json (timeline->jsexpr timeline) timeline-port)
@@ -436,6 +469,7 @@
     (html-add-plot html-port "point_graph.png")
     (html-add-plot html-port "cnt_per_iters_plot.png")
     (html-add-plot html-port "repeats_plot.png")
+    (html-add-plot html-port "density_plot.png")
     (html-add-histogram html-port "histogram_valid.png")
     (html-add-histogram html-port "histogram_all.png"))
 
