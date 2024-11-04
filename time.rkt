@@ -514,11 +514,11 @@
         (timeline-push! timeline
                         'outcomes
                         (list "valid-rival" rival-iter baseline-precision rival-time))
-        (if (fl= rival-exs sollya-exs)
+        (if (or (fl= rival-exs sollya-exs)
+                (and (fl= rival-exs (fl 0.0)) (fl= sollya-exs (fl -0.0)))
+                (and (fl= rival-exs (fl -0.0)) (fl= sollya-exs (fl 0.0))))
             (timeline-push! timeline 'outcomes (list "sollya-correct-rounding" 0 0 0))
-            (if (equal? (flonums-between rival-exs sollya-exs) 1)
-                (timeline-push! timeline 'outcomes (list "sollya-faithful-rounding" 0 0 0))
-                (timeline-push! timeline 'outcomes (list "sollya-off-results" 0 0 0))))]
+            (timeline-push! timeline 'outcomes (list "sollya-faithful-rounding" 0 0 0)))]
 
        ; Baseline and Rival have succeeded
        [(and (equal? 'valid baseline-status) (equal? rival-status 'valid))
