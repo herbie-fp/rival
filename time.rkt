@@ -92,7 +92,7 @@
                         (list (execution-time execution) name precision)))
 
       ; Store density plot data
-      (when (equal? rival-status 'valid)
+      (when (and (equal? rival-status 'valid) (> rival-iter 0))
         (define h (make-hash))
         (for ([exec (in-vector rival-executions)])
           (match-define (execution name number precision time) exec)
@@ -143,7 +143,7 @@
                         (list (execution-time execution) name precision)))
 
       ; Store density plot data
-      (when (equal? baseline-status 'valid)
+      (when (and (equal? rival-status 'valid) (> rival-iter 0))
         (define h* (make-hash))
         (for ([exec (in-vector baseline-executions)])
           (match-define (execution name number precision time) exec)
@@ -344,10 +344,6 @@
               (~r i-time #:precision '(= 3) #:min-width 8)
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
-
-  (printf "!!!!!!!!!!!!!!!!!!!!!!!!!\n")
-  (printf "EARLY STOPPING UNDERSHOOT = ~a\n" (*early-stopping-undershoot*))
-  (printf "!!!!!!!!!!!!!!!!!!!!!!!!!\n")
 
   (when timeline-port
     (write-json (timeline->jsexpr timeline) timeline-port)
