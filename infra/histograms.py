@@ -24,7 +24,7 @@ def plot_histogram(args, valid=True):
 
     fig, ax = plt.subplots(figsize=(6.5, 2.5))
 
-    bins = 2 ** np.arange(6, 17, 1)
+    bins = 2 ** np.arange(5, 17, 1)
 
     buckets_base = bucket_precisions_by_bins(baseline, bins)
     buckets_rival = bucket_precisions_by_bins(rival, bins)
@@ -38,7 +38,7 @@ def plot_histogram(args, valid=True):
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
 
     ax.set_xticks(np.arange(len(bins)), bins)
-    ax.set_xticklabels(["$2^{" + str(i+6) + "}$" if i != 10 else "tuning\noverheads" for i, x in enumerate(bins)])
+    ax.set_xticklabels(["$2^{" + str(i+5) + "}$" if i != 11 else "tuning\noverheads" for i, x in enumerate(bins)])
 
     ax.margins(x=0.02)
     ax.set_ylabel("Seconds spent")
@@ -52,8 +52,6 @@ def plot_histogram(args, valid=True):
     plt.tight_layout()
     plt.savefig(args.path + "/histogram_valid.png" if valid else args.path + "/histogram_all.png", format="png")
     
-
-
 def bucket_precisions_by_bins(data, bins):
     x = [0] * len(bins)
     for i in range(len(bins) - 1):
