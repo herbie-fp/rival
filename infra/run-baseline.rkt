@@ -61,7 +61,7 @@
 (define (ival-real x)
   (ival x))
 
-(define (baseline-apply machine pt #:timeout [timeout 20.0])
+(define (baseline-apply machine pt)
   (define start-time (current-inexact-milliseconds))
   (define discs (baseline-machine-discs machine))
   (define start-prec
@@ -76,8 +76,7 @@
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
       [stuck? (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [(or (>= (* 2 prec) (*rival-max-precision*)) ; max precision is taken from eval/machine.rkt
-           (> (- (current-inexact-milliseconds) start-time) (+ timeout 5.0)))
+      [(>= (* 2 prec) (*rival-max-precision*)) ; max precision is taken from eval/machine.rkt
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else (loop (* 2 prec))])))
 

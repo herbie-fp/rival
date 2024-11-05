@@ -78,7 +78,7 @@
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
       (define rival-iter (rival-machine-iteration rival-machine))
       (define rival-executions (rival-profile rival-machine 'executions))
-
+      
       ; Store histograms data
       (for ([execution (in-vector rival-executions)])
         (define name (symbol->string (execution-name execution)))
@@ -92,7 +92,8 @@
                         (list (execution-time execution) name precision)))
 
       ; Store density plot data
-      (when (and (equal? rival-status 'valid) (> rival-iter 0))
+      (when (and (equal? rival-status 'valid)
+                 (> rival-iter 0))
         (define h (make-hash))
         (for ([exec (in-vector rival-executions)])
           (match-define (execution name number precision time) exec)
@@ -100,8 +101,10 @@
             (define precision* (hash-ref h (list name number) (λ () 0)))
             (hash-set! h (list name number) (max precision precision*))))
         (for ([(_ precision) (in-hash h)])
-          (timeline-push! timeline 'density (list 'rival precision))))
-
+          (timeline-push! timeline
+                          'density
+                          (list 'rival precision))))
+        
       ; Record percentage of instructions has been executed
       (when (equal? rival-status 'valid)
         (define rival-no-repeats-instr-cnt
@@ -122,8 +125,7 @@
                           [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
             (define exs
               (vector-ref (baseline-apply baseline-machine
-                                          (list->vector (map bf pt))
-                                          #:timeout (*sampling-timeout*))
+                                          (list->vector (map bf pt)))
                           1))
             (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
@@ -143,15 +145,18 @@
                         (list (execution-time execution) name precision)))
 
       ; Store density plot data
-      (when (and (equal? rival-status 'valid) (> rival-iter 0))
+      (when (and (equal? rival-status 'valid)
+                 (> rival-iter 0))
         (define h* (make-hash))
         (for ([exec (in-vector baseline-executions)])
           (match-define (execution name number precision time) exec)
           (define precision* (hash-ref h* (list name number) (λ () 0)))
           (hash-set! h* (list name number) (max precision precision*)))
         (for ([(_ precision) (in-hash h*)])
-          (timeline-push! timeline 'density (list 'baseline precision))))
-
+          (timeline-push! timeline
+                          'density
+                          (list 'baseline precision))))
+      
       ; Record percentage of instructions has been executed
       (when (equal? rival-status 'valid)
         (define baseline-iter (exact-round (log (exact-round (/ baseline-precision 63)) 2)))
