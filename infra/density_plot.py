@@ -16,7 +16,9 @@ def plot_density(args):
     rival = rival.groupby(by=['precision'], as_index=False, sort=True).sum()
     
     fig, ax = plt.subplots(figsize=(4, 3.5))
-    fig.tight_layout(pad=2.0)
+    
+    print("COUNTS PER BUCKETS")
+    print(rival["count"])
     
     ax.bar(rival['precision']+0.025, rival["count"], color="red", alpha=0.7, width=0.05, label='reval')
     

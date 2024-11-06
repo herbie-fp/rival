@@ -4,7 +4,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def plot_points_graph(outcomes, ax):
+def plot_points_graph(outcomes):
+    fig, ax = plt.subplots(figsize=(4, 3.5))
+
     series_labels = ['zero', 'non-zero']
     colors = ['tab:blue',  'tab:orange', 'tab:green']
 
@@ -85,7 +87,11 @@ def plot_points_graph(outcomes, ax):
     for label, weight, color in zip(series_labels, data, colors):
         ax.bar(np.arange(len(category_labels)), weight, label=label, bottom=bottom, color=color)
         bottom += weight
-
+        
+    ax.set_xlabel("Tool")
+    ax.set_ylabel("Number of points")
+    fig.tight_layout()
+     
     y_offset = 80
     for i, total in enumerate(bottom):
         ax.text(i, total + y_offset, str(int(total)), ha='center', color='black')
@@ -102,10 +108,9 @@ def plot_points_graph(outcomes, ax):
     ax.set_xticks(np.arange(len(category_labels)), category_labels)
     ax.legend(loc='upper center')
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
-    ax.set_xlabel("Tool")
-    ax.set_ylabel("Number of points")
-    ax.margins(y=0.1)
-    fig.tight_layout(pad=1.0)
+    
+    plt.savefig(args.path + "/point_graph.png", format="png")
+    plt.savefig(args.path + "/point_graph.pdf", format="pdf")
 
 
 def load_outcomes(path):
@@ -119,8 +124,5 @@ parser.add_argument('-o', '--output-path', dest='path', default="report")
 args = parser.parse_args()
 
 outcomes = load_outcomes(args.timeline)
-fig, ax = plt.subplots(figsize=(4, 3.5))
-fig.tight_layout(pad=2.0)
-plot_points_graph(outcomes, ax)
-plt.savefig(args.path + "/point_graph.png", format="png")
-plt.savefig(args.path + "/point_graph.pdf", format="pdf")
+plot_points_graph(outcomes)
+

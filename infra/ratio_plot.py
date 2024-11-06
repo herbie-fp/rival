@@ -65,9 +65,9 @@ def plot_speed_graph_baseline_precision(outcomes, args):
 
     print("\\newcommand{\\NumTunedPoints}{" + str(rival_cmp['number_of_points'].sum()) + "\\xspace}")
 
-    rival_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-rival") & (outcomes['baseline_precision'] == 63)]['time'])
-    baseline_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-baseline") & (outcomes['baseline_precision'] == 63)]['time'])
-    sollya_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-sollya") & (outcomes['baseline_precision'] == 63)]['time'])
+    rival_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-rival") & (outcomes['baseline_precision'] == 63)]['time'].iloc[0])
+    baseline_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-baseline") & (outcomes['baseline_precision'] == 63)]['time'].iloc[0])
+    sollya_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-sollya") & (outcomes['baseline_precision'] == 63)]['time'].iloc[0])
 
     print("\\newcommand{\\RivalInitialSpeedupOverSollya}{" + str(round(sollya_initial/rival_initial, 2)) + "\\xspace}")
     print("\\newcommand{\\RivalInitialSpeedupOverBaseline}{" + str(round(baseline_initial/rival_initial, 2)) + "\\xspace}")
