@@ -8,13 +8,14 @@
          *rival-profile-executions*
          *ampl-tuning-bits*
          *sampling-iteration*
+         *lower-bound-early-stopping*
          *base-tuning-precision*)
 
 (define *rival-max-precision* (make-parameter 10000))
 (define *rival-min-precision* (make-parameter 20))
 (define *rival-max-iterations* (make-parameter 5))
 (define *rival-profile-executions* (make-parameter 1000))
-(define *early-stopping-undershoot* (make-parameter 0))
+(define *lower-bound-early-stopping* (make-parameter #f))
 
 (struct discretization (target convert distance))
 

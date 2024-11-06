@@ -76,13 +76,12 @@
 ;                        max( *base-tuning-precision* (+ max-prec vstart-precs[i])),
 ;   max-prec = (car (get-bounds parent))
 (define (precision-tuning ivec vregs vprecs-max varc vstart-precs)
-  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
-        [n (in-range (- (vector-length vregs) 1) -1 -1)]) ; reversed over indices of vregs
-    (define op (car instr)) ; current operation
+  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
+        [n (in-range (- (vector-length vregs) 1) -1 -1)])
+    (define op (car instr))
     (define tail-registers (cdr instr))
-    (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers)) ; tail of the current instr
-    (define output (vector-ref vregs n)) ; output of the current instr
-
+    (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
+    (define output (vector-ref vregs n))
     (define max-prec (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
 
     ; Final precision assignment based on the upper bound
@@ -91,9 +90,12 @@
            (*rival-max-precision*)))
     (vector-set! vprecs-max (- n varc) final-precision)
 
-    (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
+    ; Early stopping based on higher bound
+    (when (and (not (*lower-bound-early-stopping*)) (equal? final-precision (*rival-max-precision*)))
+      (*sampling-iteration* (*rival-max-iterations*)))
 
     ; Precision propogation for each tail instruction
+    (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
     (for ([x (in-list tail-registers)]
           [bound (in-list ampl-bounds)]
           #:when (>= x varc)) ; when tail register is not a variable
@@ -104,5 +106,6 @@
                    (- x varc)
                    (max (vector-ref vprecs-max (- x varc)) (+ max-prec up-bound)))
 
-      (when (>= lo-bound (*rival-max-precision*)) ; Early stopping on lower bound
+      ; Early stopping based on lower bound
+      (when (and (*lower-bound-early-stopping*) (>= lo-bound (*rival-max-precision*)))
         (*sampling-iteration* (*rival-max-iterations*))))))
