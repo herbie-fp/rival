@@ -49,7 +49,7 @@ def plot_points_graph(outcomes, ax):
     infinite_difference += outcomes.loc[outcomes['tool_name'] == 'valid-rival-only-inf']['number_of_points'].sum()
 
     sollya_faithful_cnt = outcomes.loc[outcomes['tool_name'] == 'sollya-faithful-roduning']['number_of_points'].sum()
-    sollya_correct_cnt = outcomes.loc[outcomes['tool_name'] == 'sollya-correct-roduning']['number_of_points'].sum()
+    sollya_correct_cnt = outcomes.loc[outcomes['tool_name'] == 'sollya-correct-roudning']['number_of_points'].sum()
 
     sollya_exit_times = outcomes.loc[outcomes['tool_name'] == 'exit-sollya']['time'].sum()/1000
     sollya_exit_cnt = outcomes.loc[outcomes['tool_name'] == 'exit-sollya']['number_of_points'].sum()
