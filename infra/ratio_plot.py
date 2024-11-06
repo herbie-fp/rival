@@ -69,8 +69,8 @@ def plot_speed_graph_baseline_precision(outcomes, args):
     baseline_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-baseline") & (outcomes['baseline_precision'] == 63)]['time'])
     sollya_initial = float(outcomes.loc[(outcomes['tool_name'] == "valid-sollya") & (outcomes['baseline_precision'] == 63)]['time'])
 
-    print("\\newcommand{\RivalInitialSpeedupOverSollya}{" + str(round(sollya_initial/rival_initial, 2)) + "\\xspace}")
-    print("\\newcommand{\RivalInitialSpeedupOverBaseline}{" + str(round(baseline_initial/rival_initial, 2)) + "\\xspace}")
+    print("\\newcommand{\\RivalInitialSpeedupOverSollya}{" + str(round(sollya_initial/rival_initial, 2)) + "\\xspace}")
+    print("\\newcommand{\\RivalInitialSpeedupOverBaseline}{" + str(round(baseline_initial/rival_initial, 2)) + "\\xspace}")
 
     
 
@@ -108,13 +108,13 @@ def plot_speed_graph_baseline_precision(outcomes, args):
     # Latex stuff
     average_over_sollya = round(sollya_cmp['time'].sum() / rival_cmp['time'].sum(), 2)
     average_over_baseline = round(baseline_cmp['time'].sum() / rival_cmp['time'].sum(), 2)
-    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(average_over_sollya) + "\\xspace}")
-    print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(average_over_baseline) + "\\xspace}")
+    print("\\newcommand{\\RivalAvgSpeedupOverSollya}{" + str(average_over_sollya) + "\\xspace}")
+    print("\\newcommand{\\RivalAvgSpeedupOverBaseline}{" + str(average_over_baseline) + "\\xspace}")
     
     max_over_sollya = max([round(i/j, 2) for i, j in zip(np.array(tool_cmp2speed(rival_cmp)[1]), np.array(tool_cmp2speed(sollya_cmp)[1]))])
     max_over_baseline = max([round(i/j, 2) for i, j in zip(np.array(tool_cmp2speed(rival_cmp)[1]), np.array(tool_cmp2speed(baseline_cmp)[1]))])
-    print("\\newcommand{\RivalMaxSpeedupOverSollya}{" + str(max_over_sollya) + "\\xspace}")
-    print("\\newcommand{\RivalMaxSpeedupOverBaseline}{" + str(max_over_baseline) + "\\xspace}")
+    print("\\newcommand{\\RivalMaxSpeedupOverSollya}{" + str(max_over_sollya) + "\\xspace}")
+    print("\\newcommand{\\RivalMaxSpeedupOverBaseline}{" + str(max_over_baseline) + "\\xspace}")
     
 def load_outcomes(path):
     outcomes = json.load(open(path, "r"))["outcomes"]

@@ -48,8 +48,8 @@ def plot_points_graph(outcomes, ax):
     infinite_difference += outcomes.loc[outcomes['tool_name'] == 'valid-rival+sollya-inf']['number_of_points'].sum()
     infinite_difference += outcomes.loc[outcomes['tool_name'] == 'valid-rival-only-inf']['number_of_points'].sum()
 
-    sollya_faithful_cnt = outcomes.loc[outcomes['tool_name'] == 'sollya-faithful-roduning']['number_of_points'].sum()
-    sollya_correct_cnt = outcomes.loc[outcomes['tool_name'] == 'sollya-correct-roudning']['number_of_points'].sum()
+    sollya_faithful_cnt = outcomes.loc[outcomes['tool_name'] == 'sollya-faithful-rounding']['number_of_points'].sum()
+    sollya_correct_cnt = outcomes.loc[outcomes['tool_name'] == 'sollya-correct-rounding']['number_of_points'].sum()
 
     sollya_exit_times = outcomes.loc[outcomes['tool_name'] == 'exit-sollya']['time'].sum()/1000
     sollya_exit_cnt = outcomes.loc[outcomes['tool_name'] == 'exit-sollya']['number_of_points'].sum()
@@ -60,25 +60,25 @@ def plot_points_graph(outcomes, ax):
     base_exit_times = outcomes.loc[outcomes['tool_name'] == 'exit-baseline']['time'].sum()/1000
     base_exit_cnt = outcomes.loc[outcomes['tool_name'] == 'exit-baseline']['number_of_points'].sum()
 
-    print("\\newcommand{\SollyaExitTime}{" + str(round(sollya_exit_times, 2)) + "\\xspace}")
-    print("\\newcommand{\RivalExitTime}{" + str(round(rival_exit_times, 2)) + "\\xspace}")
-    print("\\newcommand{\BaselineExitTime}{" + str(round(base_exit_times, 2)) + "\\xspace}")
-    print("\\newcommand{\RivalExitTimetoSollya}{" + str(round(sollya_exit_times/rival_exit_times, 2)) + "\\xspace}")
-    print("\\newcommand{\RivalExitTimetoBaseline}{" + str(round(base_exit_times / rival_exit_times, 2)) + "\\xspace}")
+    print("\\newcommand{\\SollyaExitTime}{" + str(round(sollya_exit_times, 2)) + "\\xspace}")
+    print("\\newcommand{\\RivalExitTime}{" + str(round(rival_exit_times, 2)) + "\\xspace}")
+    print("\\newcommand{\\BaselineExitTime}{" + str(round(base_exit_times, 2)) + "\\xspace}")
+    print("\\newcommand{\\RivalExitTimetoSollya}{" + str(round(sollya_exit_times/rival_exit_times, 2)) + "\\xspace}")
+    print("\\newcommand{\\RivalExitTimetoBaseline}{" + str(round(base_exit_times / rival_exit_times, 2)) + "\\xspace}")
 
-    print("\\newcommand{\SollyaExitCnt}{" + str(sollya_exit_cnt) + "\\xspace}")
-    print("\\newcommand{\RivalExitCnt}{" + str(rival_exit_cnt) + "\\xspace}")
-    print("\\newcommand{\BaselineExitCnt}{" + str(base_exit_cnt) + "\\xspace}")
+    print("\\newcommand{\\SollyaExitCnt}{" + str(sollya_exit_cnt) + "\\xspace}")
+    print("\\newcommand{\\RivalExitCnt}{" + str(rival_exit_cnt) + "\\xspace}")
+    print("\\newcommand{\\BaselineExitCnt}{" + str(base_exit_cnt) + "\\xspace}")
 
-    print("\\newcommand{\CorrecttoFaithfulSollya}{" + str(round(100*sollya_correct_cnt/(sollya_faithful_cnt+sollya_correct_cnt), 2)) + "\\xspace}")
-    print("\\newcommand{\SollyaFaithfulCnt}{" + str(sollya_faithful_cnt) + "\\xspace}")
-    print("\\newcommand{\SamplingInfiniteDifference}{" + str(infinite_difference) + "\\xspace}")
-    print("\\newcommand{\RivalZeros}{" + str(int(data[0][0])) + "\\xspace}")
-    print("\\newcommand{\BaselineZeros}{" + str(int(data[0][2])) + "\\xspace}")
-    print("\\newcommand{\RivalNonZero}{" + str(int(data[1][0])) + "\\xspace}")
-    print("\\newcommand{\BaselineNonZero}{" + str(int(data[1][2])) + "\\xspace}")
-    print("\\newcommand{\SollyaZeros}{" + str(int(data[0][1])) + "\\xspace}")
-    print("\\newcommand{\SollyaNonZero}{" + str(int(data[1][1])) + "\\xspace}")
+    print("\\newcommand{\\CorrecttoFaithfulSollya}{" + str(round(100*sollya_correct_cnt/(sollya_faithful_cnt+sollya_correct_cnt), 2)) + "\\xspace}")
+    print("\\newcommand{\\SollyaFaithfulCnt}{" + str(sollya_faithful_cnt) + "\\xspace}")
+    print("\\newcommand{\\SamplingInfiniteDifference}{" + str(infinite_difference) + "\\xspace}")
+    print("\\newcommand{\\RivalZeros}{" + str(int(data[0][0])) + "\\xspace}")
+    print("\\newcommand{\\BaselineZeros}{" + str(int(data[0][2])) + "\\xspace}")
+    print("\\newcommand{\\RivalNonZero}{" + str(int(data[1][0])) + "\\xspace}")
+    print("\\newcommand{\\BaselineNonZero}{" + str(int(data[1][2])) + "\\xspace}")
+    print("\\newcommand{\\SollyaZeros}{" + str(int(data[0][1])) + "\\xspace}")
+    print("\\newcommand{\\SollyaNonZero}{" + str(int(data[1][1])) + "\\xspace}")
 
     # Plotting top part of the bar
     bottom = np.zeros(len(category_labels))
