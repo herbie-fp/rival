@@ -271,7 +271,9 @@
   (define repeats (make-vector register-count #f)) ; flags whether an op should be evaluated
   (define precisions (make-vector register-count)) ; vector that stores working precisions
   ;; starting precisions for the first, un-tuned iteration
-  (define initial-precisions (setup-vstart-precs instructions (length vars) roots discs))
+  (define initial-precisions
+    (make-vector register-count
+                 (+ (apply max (map discretization-target (rest discs))) (*base-tuning-precision*))))
 
   (rival-machine (list->vector vars)
                  instructions
@@ -289,33 +291,3 @@
                  (make-vector (*rival-profile-executions*))
                  (make-flvector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))))
-
-; Function sets up vstart-precs vector, where all the precisions
-; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
-; where depth is the depth of a node in the given computational tree (ivec)
-(define (setup-vstart-precs ivec varc roots discs)
-  (define ivec-len (vector-length ivec))
-  (define vstart-precs (make-vector ivec-len 0))
-
-  (for ([root (in-vector roots)]
-        [disc (in-list discs)]
-        #:when (>= root varc))
-    (vector-set! vstart-precs
-                 (- root varc)
-                 (+ (discretization-target disc) (*base-tuning-precision*))))
-
-  (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)] ; reversed over ivec
-        [n (in-range (- ivec-len 1) -1 -1)]) ; reversed over indices of vstart-precs
-    (define current-prec (vector-ref vstart-precs n))
-
-    (define tail-registers (cdr instr))
-    (for ([idx (in-list tail-registers)]
-          #:when (>= idx varc))
-      (define idx-prec (vector-ref vstart-precs (- idx varc)))
-      (vector-set! vstart-precs
-                   (- idx varc)
-                   (max ; sometimes an instruction can be in many tail registers
-                    idx-prec ; We wanna make sure that we do not tune a precision down
-                    (+ current-prec (*ampl-tuning-bits*))))))
-
-  vstart-precs)

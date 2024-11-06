@@ -26,7 +26,7 @@
                    registers
                    repeats
                    precisions
-                   initial-precisions
+                   [initial-precisions #:mutable]
                    output-distance
                    [iteration #:mutable]
                    [bumps #:mutable]
