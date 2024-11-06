@@ -78,7 +78,7 @@
       (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
       (define rival-iter (rival-machine-iteration rival-machine))
       (define rival-executions (rival-profile rival-machine 'executions))
-      
+
       ; Store histograms data
       (for ([execution (in-vector rival-executions)])
         (define name (symbol->string (execution-name execution)))
@@ -92,19 +92,18 @@
                         (list (execution-time execution) name precision)))
 
       ; Store density plot data
-      (when (and (equal? rival-status 'valid)
-                 (> rival-iter 0))
+      (when (and (equal? rival-status 'valid) (> rival-iter 0))
         (define h (make-hash))
+        (define max-prec 0)
         (for ([exec (in-vector rival-executions)])
           (match-define (execution name number precision time) exec)
           (unless (equal? name 'adjust)
             (define precision* (hash-ref h (list name number) (λ () 0)))
-            (hash-set! h (list name number) (max precision precision*))))
+            (hash-set! h (list name number) (max precision precision*))
+            (set! max-prec (max precision precision* max-prec))))
         (for ([(_ precision) (in-hash h)])
-          (timeline-push! timeline
-                          'density
-                          (list 'rival precision))))
-        
+          (timeline-push! timeline 'density (~a (exact->inexact (/ precision max-prec)) #:width 5))))
+
       ; Record percentage of instructions has been executed
       (when (equal? rival-status 'valid)
         (define rival-no-repeats-instr-cnt
@@ -123,10 +122,7 @@
         (parameterize ([*rival-max-precision* 32256])
           (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
                           [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
-            (define exs
-              (vector-ref (baseline-apply baseline-machine
-                                          (list->vector (map bf pt)))
-                          1))
+            (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt))) 1))
             (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
       (define baseline-precision (baseline-machine-precision baseline-machine))
@@ -144,19 +140,6 @@
                         'mixsample-baseline-all
                         (list (execution-time execution) name precision)))
 
-      ; Store density plot data
-      (when (and (equal? rival-status 'valid)
-                 (> rival-iter 0))
-        (define h* (make-hash))
-        (for ([exec (in-vector baseline-executions)])
-          (match-define (execution name number precision time) exec)
-          (define precision* (hash-ref h* (list name number) (λ () 0)))
-          (hash-set! h* (list name number) (max precision precision*)))
-        (for ([(_ precision) (in-hash h*)])
-          (timeline-push! timeline
-                          'density
-                          (list 'baseline precision))))
-      
       ; Record percentage of instructions has been executed
       (when (equal? rival-status 'valid)
         (define baseline-iter (exact-round (log (exact-round (/ baseline-precision 63)) 2)))
@@ -276,9 +259,9 @@
      (hash-set! instr-cnt-hash (list tool iter) (+ cnt cnt*))]
     ['density
      (define density-hash (hash-ref timeline key))
-     (match-define (list tool precision) args*)
-     (define cnt (hash-ref density-hash (list tool precision) (λ () 0)))
-     (hash-set! density-hash (list tool precision) (+ cnt 1))]
+     (define precision args*)
+     (define cnt (hash-ref density-hash precision (λ () 0)))
+     (hash-set! density-hash precision (+ cnt 1))]
     [else (error "Unknown key for timeline!")]))
 
 (define (timeline->jsexpr timeline)
@@ -302,7 +285,7 @@
           (list (~a (car key)) (second key) value))
         'density
         (for/list ([(key value) (in-hash (hash-ref timeline 'density))])
-          (list (~a (car key)) (second key) value))))
+          (list key value))))
 
 (define (make-expression-table points test-id timeline-port)
   (newline)

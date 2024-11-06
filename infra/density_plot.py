@@ -7,31 +7,18 @@ import argparse
 
 def load_outcomes(path):
     outcomes = json.load(open(path, "r"))["density"]
-    outcomes = pd.DataFrame(outcomes, columns=['tool', 'precision', 'count'])
+    outcomes = pd.DataFrame(outcomes, columns=['precision', 'count'])
     return outcomes
 
 def plot_density(args):
-    outcomes = load_outcomes(args.timeline)
-    baseline = outcomes[outcomes['tool'] == "baseline"].drop('tool', axis=1)
-    rival = outcomes[outcomes['tool'] == "rival"].drop('tool', axis=1)
-    
-    max_precision = max(baseline['precision'].max(), rival['precision'].max())
-    min_precision = min(baseline['precision'].min(), rival['precision'].min())
+    rival = load_outcomes(args.timeline)
+    rival['precision'] = np.array(rival['precision'], dtype=float) - np.array(rival['precision'], dtype=float) % 0.05
+    rival = rival.groupby(by=['precision'], as_index=False, sort=True).sum()
     
     fig, ax = plt.subplots(figsize=(4, 3.5))
     fig.tight_layout(pad=2.0)
     
-    # Normalizing precisions
-    rival['precision'] = (np.array(rival['precision']) - min_precision) / (max_precision - min_precision)
-    rival['precision'] = rival['precision'] - rival['precision'] % 0.1
-    rival = rival.groupby(by=['precision'], as_index=False).sum()
-    
-    baseline['precision'] = (np.array(baseline['precision']) - min_precision) / (max_precision - min_precision)
-    baseline['precision'] = baseline['precision'] - baseline['precision'] % 0.1
-    baseline = baseline.groupby(by=['precision'], as_index=False).sum()
-
-    ax.bar(baseline['precision']+0.035, baseline['count'], color="green", alpha=1, width=0.07, label='baseline', hatch='/')
-    ax.bar(rival['precision']+0.055, rival["count"], color="red", alpha=0.7, width=0.07, label='reval')
+    ax.bar(rival['precision']+0.025, rival["count"], color="red", alpha=0.7, width=0.05, label='reval')
     
     ax.set_ylabel("Number of operations")
     ax.set_xlabel("Precision (normalized)")

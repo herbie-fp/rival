@@ -106,10 +106,15 @@ def plot_speed_graph_baseline_precision(outcomes, args):
     plt.savefig(args.path + "/ratio_plot_precision.pdf", format="pdf")
     
     # Latex stuff
-    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(sollya_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
-    print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(round(baseline_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
-    print("\\newcommand{\RivalMaxSpeedupOverSollya}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(sollya_cmp)[1])[-1], 2)) + "\\xspace}")
-    print("\\newcommand{\RivalMaxSpeedupOverBaseline}{" + str(round(np.array(tool_cmp2speed(rival_cmp)[1])[-1]/np.array(tool_cmp2speed(baseline_cmp)[1])[-1], 2)) + "\\xspace}")
+    average_over_sollya = round(sollya_cmp['time'].sum() / rival_cmp['time'].sum(), 2)
+    average_over_baseline = round(baseline_cmp['time'].sum() / rival_cmp['time'].sum(), 2)
+    print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(average_over_sollya) + "\\xspace}")
+    print("\\newcommand{\RivalAvgSpeedupOverBaseline}{" + str(average_over_baseline) + "\\xspace}")
+    
+    max_over_sollya = max([round(i/j, 2) for i, j in zip(np.array(tool_cmp2speed(rival_cmp)[1]), np.array(tool_cmp2speed(sollya_cmp)[1]))])
+    max_over_baseline = max([round(i/j, 2) for i, j in zip(np.array(tool_cmp2speed(rival_cmp)[1]), np.array(tool_cmp2speed(baseline_cmp)[1]))])
+    print("\\newcommand{\RivalMaxSpeedupOverSollya}{" + str(max_over_sollya) + "\\xspace}")
+    print("\\newcommand{\RivalMaxSpeedupOverBaseline}{" + str(max_over_baseline) + "\\xspace}")
     
 def load_outcomes(path):
     outcomes = json.load(open(path, "r"))["outcomes"]
