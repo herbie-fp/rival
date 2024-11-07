@@ -18,9 +18,10 @@ def plot_histogram(args, valid=True):
     adjust_time = round(rival[rival["op"] == 'adjust']['time'].sum()/1000, 2)
     rival = rival[rival["op"] != 'adjust']
 
-    print("\\newcommand{\\TuningTime}{" + str(adjust_time) + "\\xspace}")
-    print("\\newcommand{\\TuningTimePercentage}{" + str(round(adjust_time/rival['time'].sum()*1000 * 100, 1)) + "}")
-    print("\\newcommand{\\RivalSpeedupHistograms}{" + str(round(rival['time'].sum()/baseline['time'].sum(), 2)) + "}")
+    if valid:
+        print("\\newcommand{\\TuningTime}{" + str(adjust_time) + "\\xspace}")
+        print("\\newcommand{\\TuningTimePercentage}{" + str(round(adjust_time/rival['time'].sum()*1000 * 100, 1)) + "}")
+        print("\\newcommand{\\RivalSpeedupHistograms}{" + str(round(rival['time'].sum()/baseline['time'].sum(), 2)) + "}")
 
     fig, ax = plt.subplots(figsize=(6.5, 2.5))
 
