@@ -34,13 +34,9 @@
 (define (rival-machine-run machine)
   (define ivec (rival-machine-instructions machine))
   (define varc (vector-length (rival-machine-arguments machine)))
-  (define precisions
-    (if (zero? (rival-machine-iteration machine))
-        (rival-machine-initial-precisions machine)
-        (rival-machine-precisions machine)))
+  (define precisions (rival-machine-precisions machine))
   (define repeats (rival-machine-repeats machine))
   (define vregs (rival-machine-registers machine))
-
   ; parameter for sampling histogram table
   (define first-iter? (zero? (rival-machine-iteration machine)))
 
@@ -101,42 +97,9 @@
 
 (define (rival-machine-adjust machine)
   (define iter (rival-machine-iteration machine))
-  (unless (zero? iter)
-    (when (equal? iter 1)
-      (setup-vstart-precs! machine))
-    (define start (current-inexact-milliseconds))
-    (backward-pass machine)
-    (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))
-
-; Function sets up vstart-precs vector, where all the precisions
-; are equal to (+ (discretization-target disc) (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
-; where depth is the depth of a node in the given computational tree (ivec)
-(define (setup-vstart-precs! machine)
-  (define ivec (rival-machine-instructions machine))
-  (define varc (vector-length (rival-machine-arguments machine)))
-  (define roots (rival-machine-outputs machine))
-  (define discs (rival-machine-discs machine))
-  (define ivec-len (vector-length ivec))
-  (define vstart-precs (rival-machine-initial-precisions machine))
-  (vector-fill! vstart-precs 0)
-
-  (for ([root (in-vector roots)]
-        [disc (in-vector discs)]
-        #:when (>= root varc))
-    (vector-set! vstart-precs
-                 (- root varc)
-                 (+ (discretization-target disc) (*base-tuning-precision*))))
-
-  (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)] ; reversed over ivec
-        [n (in-range (- ivec-len 1) -1 -1)]) ; reversed over indices of vstart-precs
-    (define current-prec (vector-ref vstart-precs n))
-
-    (define tail-registers (cdr instr))
-    (for ([idx (in-list tail-registers)]
-          #:when (>= idx varc))
-      (define idx-prec (vector-ref vstart-precs (- idx varc)))
-      (vector-set! vstart-precs
-                   (- idx varc)
-                   (max ; sometimes an instruction can be in many tail registers
-                    idx-prec ; We wanna make sure that we do not tune a precision down
-                    (+ current-prec (*ampl-tuning-bits*)))))))
+  (match (zero? iter)
+    [#f
+     (define start (current-inexact-milliseconds))
+     (backward-pass machine)
+     (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))]
+    [#t (vector-fill! (rival-machine-precisions machine) (rival-machine-initial-precision machine))]))

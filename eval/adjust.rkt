@@ -18,7 +18,7 @@
   (define vregs (rival-machine-registers machine))
   (define vrepeats (rival-machine-repeats machine))
   (define vprecs (rival-machine-precisions machine))
-  (define vstart-precs (rival-machine-initial-precisions machine))
+  (define vstart-precs (rival-machine-incremental-precisions machine))
   (define current-iter (rival-machine-iteration machine))
   (define bumps (rival-machine-bumps machine))
 

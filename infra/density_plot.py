@@ -24,6 +24,7 @@ def plot_density(args):
     
     ax.set_ylabel("Number of operations")
     ax.set_xlabel("Precision (normalized)")
+    ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     
     plt.legend()
     plt.tight_layout()

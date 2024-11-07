@@ -26,8 +26,9 @@
                    registers
                    repeats
                    precisions
-                   [initial-precisions #:mutable]
+                   incremental-precisions
                    output-distance
+                   initial-precision
                    [iteration #:mutable]
                    [bumps #:mutable]
                    [profile-ptr #:mutable]
