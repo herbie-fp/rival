@@ -21,7 +21,7 @@ def plot_histogram(args, valid=True):
     if valid:
         print("\\newcommand{\\TuningTime}{" + str(adjust_time) + "\\xspace}")
         print("\\newcommand{\\TuningTimePercentage}{" + str(round(adjust_time/rival['time'].sum()*1000 * 100, 1)) + "}")
-        print("\\newcommand{\\RivalSpeedupHistograms}{" + str(round(rival['time'].sum()/baseline['time'].sum(), 2)) + "}")
+        print("\\newcommand{\\RivalSpeedupHistograms}{" + str(round((baseline['time'].sum()-rival['time'].sum())/baseline['time'].sum() * 100, 2)) + "}")
 
     fig, ax = plt.subplots(figsize=(6.5, 2.5))
 

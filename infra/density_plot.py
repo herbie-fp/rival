@@ -17,14 +17,13 @@ def plot_density(args):
     
     fig, ax = plt.subplots(figsize=(4, 3.5))
     
-    print("COUNTS PER BUCKETS")
-    print(rival["count"])
-    
     ax.bar(rival['precision']+0.025, rival["count"], color="red", alpha=0.7, width=0.05, label='reval')
     
     ax.set_ylabel("Number of operations")
     ax.set_xlabel("Precision (normalized)")
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
+
+    print("\\newcommand{\\DensityPercentageOfLowerPrecision}{" + str(round(rival["count"][:4].sum() / rival["count"].sum() * 100, 2)) + "}")
     
     plt.legend()
     plt.tight_layout()
