@@ -642,10 +642,15 @@
        [else
         (timeline-push! timeline
                         'outcomes
-                        (list "exit-baseline" rival-iter baseline-precision baseline-time))
-        (timeline-push! timeline
-                        'outcomes
-                        (list "exit-sollya" rival-iter baseline-precision sollya-time))
-        (timeline-push! timeline
-                        'outcomes
-                        (list "exit-rival" rival-iter baseline-precision rival-time))])]))
+                        (list "exit-baseline"
+                              rival-iter
+                              baseline-precision
+                              (min baseline-time (*sampling-timeout*))))
+        (timeline-push!
+         timeline
+         'outcomes
+         (list "exit-sollya" rival-iter baseline-precision (min sollya-time (*sampling-timeout*))))
+        (timeline-push!
+         timeline
+         'outcomes
+         (list "exit-rival" rival-iter baseline-precision (min rival-time (*sampling-timeout*))))])]))
