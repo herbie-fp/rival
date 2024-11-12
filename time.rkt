@@ -104,7 +104,7 @@
                           (list (execution-time execution) name precision))))
 
       ; Store density plot data
-      (when (and (equal? rival-status 'valid) (> rival-iter 0))
+      (when (> rival-iter 0)
         (define h (make-hash))
         (define max-prec 0)
         (for ([exec (in-vector rival-executions)])
@@ -141,7 +141,7 @@
       (define baseline-executions (baseline-profile baseline-machine 'executions))
 
       ; Store histograms data
-      (when (and (equal? rival-status 'valid) (> rival-iter 0))
+      (when (> rival-iter 0)
         (for ([execution (in-vector baseline-executions)])
           (define name (symbol->string (execution-name execution)))
           (define precision (execution-precision execution))
