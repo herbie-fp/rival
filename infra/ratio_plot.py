@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 def plot_speed_graph_rival_iter(outcomes, args):
     # Create figure
     fig, ax = plt.subplots(figsize=(4, 3.5))
-    fig.tight_layout(pad=2.0)
     
     # Drop precision column and sum up based on iteration
     outcomes = outcomes.drop(['baseline_precision'], axis=1)
