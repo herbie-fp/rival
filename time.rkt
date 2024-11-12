@@ -201,11 +201,11 @@
                            baseline-precision
                            rival-iter))
 
-        (when (< (*sampling-timeout*) sollya-apply-time)
+        (when (<= (*sampling-timeout*) sollya-apply-time)
           (*sollya-timeout* (add1 (*sollya-timeout*))))
-        (when (< (*sampling-timeout*) rival-apply-time)
+        (when (<= (*sampling-timeout*) rival-apply-time)
           (*rival-timeout* (add1 (*rival-timeout*))))
-        (when (< (*sampling-timeout*) baseline-apply-time)
+        (when (<= (*sampling-timeout*) baseline-apply-time)
           (*baseline-timeout* (add1 (*baseline-timeout*)))))
 
       ; Count differences where baseline is better than rival
