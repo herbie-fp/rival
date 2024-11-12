@@ -38,6 +38,7 @@ def plot_cnt_per_iters(outcomes, args):
     ax.legend()
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Count of converged points")
+    plt.ticklabel_format(axis='y', style='sci', scilimits=(4,4))
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     plt.tight_layout()
     plt.savefig(args.path + "/cnt_per_iters_plot.png", format="png")

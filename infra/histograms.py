@@ -39,7 +39,7 @@ def plot_histogram(args, valid=True):
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
 
     ax.set_xticks(np.arange(len(bins)), bins)
-    ax.set_xticklabels(["$2^{" + str(i+5) + "}$" if i != 11 else "tuning\noverheads" for i, x in enumerate(bins)])
+    ax.set_xticklabels(["$2^{" + str(i+5) + "}$" if i != 11 else "tuning" for i, x in enumerate(bins)])
 
     ax.margins(x=0.02)
     ax.set_ylabel("Seconds spent")

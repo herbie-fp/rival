@@ -18,6 +18,12 @@
 (define sample-vals (make-parameter 5000))
 (define *sampling-timeout* (make-parameter 20.0)) ; this parameter is used for plots generation
 
+; These parameters are used for latex data
+(define *num-tuned-benchmarks* (make-parameter 0))
+(define *rival-timeout* (make-parameter 0))
+(define *baseline-timeout* (make-parameter 0))
+(define *sollya-timeout* (make-parameter 0))
+
 (define (time-operation ival-fn bf-fn itypes otype)
   (define n
     (if (set-member? slow-tests ival-fn)
@@ -65,6 +71,7 @@
                                  #f)])
       (sollya-compile exprs vars 53))) ; prec=53 is an imitation of flonum
 
+  (define tuned-bench #f)
   (define times
     (for/list ([pt (in-list (hash-ref rec 'points))])
       ; --------------------------- Rival execution -------------------------------------------------
@@ -79,17 +86,22 @@
       (define rival-iter (rival-machine-iteration rival-machine))
       (define rival-executions (rival-profile rival-machine 'executions))
 
+      (when (and (> rival-iter 0) (not tuned-bench))
+        (set! tuned-bench #t)
+        (*num-tuned-benchmarks* (add1 (*num-tuned-benchmarks*))))
+
       ; Store histograms data
-      (for ([execution (in-vector rival-executions)])
-        (define name (symbol->string (execution-name execution)))
-        (define precision (execution-precision execution))
-        (when (equal? rival-status 'valid)
+      (when (and (equal? rival-status 'valid) (> rival-iter 0))
+        (for ([execution (in-vector rival-executions)])
+          (define name (symbol->string (execution-name execution)))
+          (define precision (execution-precision execution))
+          (when (equal? rival-status 'valid)
+            (timeline-push! timeline
+                            'mixsample-rival-valid
+                            (list (execution-time execution) name precision)))
           (timeline-push! timeline
-                          'mixsample-rival-valid
-                          (list (execution-time execution) name precision)))
-        (timeline-push! timeline
-                        'mixsample-rival-all
-                        (list (execution-time execution) name precision)))
+                          'mixsample-rival-all
+                          (list (execution-time execution) name precision))))
 
       ; Store density plot data
       (when (and (equal? rival-status 'valid) (> rival-iter 0))
@@ -129,16 +141,17 @@
       (define baseline-executions (baseline-profile baseline-machine 'executions))
 
       ; Store histograms data
-      (for ([execution (in-vector baseline-executions)])
-        (define name (symbol->string (execution-name execution)))
-        (define precision (execution-precision execution))
-        (when (equal? baseline-status 'valid)
+      (when (and (equal? rival-status 'valid) (> rival-iter 0))
+        (for ([execution (in-vector baseline-executions)])
+          (define name (symbol->string (execution-name execution)))
+          (define precision (execution-precision execution))
+          (when (equal? baseline-status 'valid)
+            (timeline-push! timeline
+                            'mixsample-baseline-valid
+                            (list (execution-time execution) name precision)))
           (timeline-push! timeline
-                          'mixsample-baseline-valid
-                          (list (execution-time execution) name precision)))
-        (timeline-push! timeline
-                        'mixsample-baseline-all
-                        (list (execution-time execution) name precision)))
+                          'mixsample-baseline-all
+                          (list (execution-time execution) name precision))))
 
       ; Record percentage of instructions has been executed
       (when (equal? rival-status 'valid)
@@ -186,7 +199,14 @@
                            sollya-apply-time
                            sollya-exs
                            baseline-precision
-                           rival-iter)))
+                           rival-iter))
+
+        (when (< (*sampling-timeout*) sollya-apply-time)
+          (*sollya-timeout* (add1 (*sollya-timeout*))))
+        (when (< (*sampling-timeout*) rival-apply-time)
+          (*rival-timeout* (add1 (*rival-timeout*))))
+        (when (< (*sampling-timeout*) baseline-apply-time)
+          (*baseline-timeout* (add1 (*baseline-timeout*)))))
 
       ; Count differences where baseline is better than rival
       (define rival-baseline-difference
@@ -333,6 +353,13 @@
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
 
+  (printf "!!!!!!!!\n")
+  (printf "NUMBER OF TUNED BENCHMARKS = ~a\n" (*num-tuned-benchmarks*))
+  (printf "RIVAL TIMEOUTS = ~a\n" (*rival-timeout*))
+  (printf "BASELINE TIMEOUTS = ~a\n" (*baseline-timeout*))
+  (printf "SOLLYA TIMEOUTS = ~a\n" (*sollya-timeout*))
+  (printf "!!!!!!!!\n")
+
   (when timeline-port
     (write-json (timeline->jsexpr timeline) timeline-port)
     (close-output-port timeline-port))
@@ -450,6 +477,7 @@
   (when expression-table
     (html-add-plot html-port "ratio_plot_iter.png")
     (html-add-plot html-port "ratio_plot_precision.png")
+    (html-add-plot html-port "ratio_plot_precision_base_norm.png")
     (html-add-plot html-port "point_graph.png")
     (html-add-plot html-port "cnt_per_iters_plot.png")
     (html-add-plot html-port "repeats_plot.png")
@@ -642,15 +670,10 @@
        [else
         (timeline-push! timeline
                         'outcomes
-                        (list "exit-baseline"
-                              rival-iter
-                              baseline-precision
-                              (min baseline-time (*sampling-timeout*))))
-        (timeline-push!
-         timeline
-         'outcomes
-         (list "exit-sollya" rival-iter baseline-precision (min sollya-time (*sampling-timeout*))))
-        (timeline-push!
-         timeline
-         'outcomes
-         (list "exit-rival" rival-iter baseline-precision (min rival-time (*sampling-timeout*))))])]))
+                        (list "exit-baseline" rival-iter baseline-precision baseline-time))
+        (timeline-push! timeline
+                        'outcomes
+                        (list "exit-sollya" rival-iter baseline-precision sollya-time))
+        (timeline-push! timeline
+                        'outcomes
+                        (list "exit-rival" rival-iter baseline-precision rival-time))])]))
