@@ -4,9 +4,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
+import matplotlib.ticker as mtick
+
 def plot_repeats_plot(outcomes, args):
     # Create figure
-    fig, ax = plt.subplots(figsize=(4, 2.5))
+    fig, ax = plt.subplots(figsize=(4, 3))
     fig.tight_layout(pad=2.0)
     
     # Drop precision column and sum up based on iteration
@@ -25,11 +27,15 @@ def plot_repeats_plot(outcomes, args):
 
     ax.legend()
     ax.set_xlabel("Iteration")
-    ax.set_ylabel("Instructions executed %")
+    ax.set_ylabel("Instructions executed")
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
+    ax.yaxis.set_major_formatter(mtick.PercentFormatter())
+    plt.tight_layout()
+    plt.savefig(args.path + "/repeats_plot.pdf", format="pdf")
+    
+    ax.set_title("Repeats plot")
     plt.tight_layout()
     plt.savefig(args.path + "/repeats_plot.png", format="png")
-    plt.savefig(args.path + "/repeats_plot.pdf", format="pdf")
     
 def load_outcomes(path):
     outcomes = json.load(open(path, "r"))["instr-executed-cnt"]

@@ -353,12 +353,11 @@
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
 
-  (printf "!!!!!!!!\n")
-  (printf "NUMBER OF TUNED BENCHMARKS = ~a\n" (*num-tuned-benchmarks*))
-  (printf "RIVAL TIMEOUTS = ~a\n" (*rival-timeout*))
-  (printf "BASELINE TIMEOUTS = ~a\n" (*baseline-timeout*))
-  (printf "SOLLYA TIMEOUTS = ~a\n" (*sollya-timeout*))
-  (printf "!!!!!!!!\n")
+  (printf "\nDATA:\n")
+  (printf "\tNUMBER OF TUNED BENCHMARKS = ~a\n" (*num-tuned-benchmarks*))
+  (printf "\tRIVAL TIMEOUTS = ~a\n" (*rival-timeout*))
+  (printf "\tBASELINE TIMEOUTS = ~a\n" (*baseline-timeout*))
+  (printf "\tSOLLYA TIMEOUTS = ~a\n" (*sollya-timeout*))
 
   (when timeline-port
     (write-json (timeline->jsexpr timeline) timeline-port)
@@ -437,13 +436,9 @@
         (values #f #f)))
   (list operation-table expression-table expression-footer))
 
-(define (html-add-plot port path)
+(define (html-add-plot port path #:width width #:height height)
   (when port
-    (fprintf port (format "<img src=\"~a\" width=\"320\" height=\"280\">" path))))
-
-(define (html-add-histogram port path)
-  (when port
-    (fprintf port (format "<img src=\"~a\" width=\"650\" height=\"250\">" path))))
+    (fprintf port (format "<img src=\"~a\" width=\"~a\" height=\"~a\">" path width height))))
 
 (define (generate-html html-port profile-port operation-table expression-table expression-footer dir)
   (html-write html-port)
@@ -475,15 +470,15 @@
     (html-end-table html-port))
 
   (when expression-table
-    (html-add-plot html-port "ratio_plot_iter.png")
-    (html-add-plot html-port "ratio_plot_precision.png")
-    (html-add-plot html-port "ratio_plot_precision_base_norm.png")
-    (html-add-plot html-port "point_graph.png")
-    (html-add-plot html-port "cnt_per_iters_plot.png")
-    (html-add-plot html-port "repeats_plot.png")
-    (html-add-plot html-port "density_plot.png")
-    (html-add-histogram html-port "histogram_valid.png")
-    (html-add-histogram html-port "histogram_all.png"))
+    (html-add-plot html-port "ratio_plot_iter.png" #:width 400 #:height 250)
+    (html-add-plot html-port "ratio_plot_precision.png" #:width 400 #:height 250)
+    (html-add-plot html-port "ratio_plot_precision_base_norm.png" #:width 400 #:height 250)
+    (html-add-plot html-port "point_graph.png" #:width 400 #:height 350)
+    (html-add-plot html-port "cnt_per_iters_plot.png" #:width 400 #:height 300)
+    (html-add-plot html-port "repeats_plot.png" #:width 400 #:height 300)
+    (html-add-plot html-port "density_plot.png" #:width 400 #:height 300)
+    (html-add-plot html-port "histogram_valid.png" #:width 650 #:height 275)
+    (html-add-plot html-port "histogram_all.png" #:width 650 #:height 200))
 
   (when profile-port
     (html-write-profile html-port)))

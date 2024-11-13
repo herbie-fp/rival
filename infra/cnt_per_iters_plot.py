@@ -7,7 +7,7 @@ import matplotlib
 
 def plot_cnt_per_iters(outcomes, args):
     # Create figure
-    fig, ax = plt.subplots(figsize=(4, 2.5))
+    fig, ax = plt.subplots(figsize=(4, 3))
     fig.tight_layout(pad=2.0)
     
     # Drop precision column and sum up based on iteration
@@ -42,8 +42,12 @@ def plot_cnt_per_iters(outcomes, args):
     plt.ticklabel_format(axis='y', style='sci', scilimits=(4,4))
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     plt.tight_layout()
-    plt.savefig(args.path + "/cnt_per_iters_plot.png", format="png")
     plt.savefig(args.path + "/cnt_per_iters_plot.pdf", format="pdf")
+    
+    ax.set_title("Convergence distribution")
+    plt.tight_layout()
+    plt.savefig(args.path + "/cnt_per_iters_plot.png", format="png")
+   
 
 def load_outcomes(path):
     outcomes = json.load(open(path, "r"))["outcomes"]

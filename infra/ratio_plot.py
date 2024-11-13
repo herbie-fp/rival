@@ -40,8 +40,12 @@ def plot_speed_graph_rival_iter(outcomes, args):
     ax.set_xlabel("Difficulty")
     ax.set_ylabel("Ratio")
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
-    plt.savefig(args.path + "/ratio_plot_iter.png", format="png")
     plt.savefig(args.path + "/ratio_plot_iter.pdf", format="pdf")
+    
+    ax.set_title("Ratio plot per iteration")
+    plt.tight_layout()
+    plt.savefig(args.path + "/ratio_plot_iter.png", format="png")
+    
     
     # Latex stuff
     # print("\\newcommand{\RivalAvgSpeedupOverSollya}{" + str(round(sollya_cmp['time'].sum() / rival_cmp['time'].sum(), 2)) + "\\xspace}")
@@ -107,11 +111,18 @@ def plot_speed_graph_baseline_precision(outcomes, args, sollya_norm=False):
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     plt.tight_layout()
     if sollya_norm:
-        plt.savefig(args.path + "/ratio_plot_precision.png", format="png")
         plt.savefig(args.path + "/ratio_plot_precision.pdf", format="pdf")
+        
+        ax.set_title("Ratio plot per precision, Sollya normalized")
+        plt.tight_layout()
+        plt.savefig(args.path + "/ratio_plot_precision.png", format="png")
+    
     else:
-        plt.savefig(args.path + "/ratio_plot_precision_base_norm.png", format="png")
         plt.savefig(args.path + "/ratio_plot_precision_base_norm.pdf", format="pdf")
+        
+        ax.set_title("Ratio plot per precision, Baseline normalized")
+        plt.tight_layout()
+        plt.savefig(args.path + "/ratio_plot_precision_base_norm.png", format="png")
       
     # Latex stuff  
     if sollya_norm:

@@ -16,7 +16,7 @@ def plot_density(args):
     rival['precision'] = np.array(rival['precision'], dtype=float) - np.array(rival['precision'], dtype=float) % 0.05
     rival = rival.groupby(by=['precision'], as_index=False, sort=True).sum()
     
-    fig, ax = plt.subplots(figsize=(4, 2.5))
+    fig, ax = plt.subplots(figsize=(4, 3))
     
     ax.bar(rival['precision']+0.025, rival["count"], color="red", alpha=0.7, width=0.05, label='reval')
     
@@ -29,6 +29,9 @@ def plot_density(args):
     plt.legend()
     plt.tight_layout()
     plt.savefig(args.path + "/density_plot.pdf", format="pdf")
+    
+    ax.set_title("Density plot")
+    plt.tight_layout()
     plt.savefig(args.path + "/density_plot.png", format="png")
 
 parser = argparse.ArgumentParser(prog='histograms.py', description='Script outputs mixed precision histograms for a Herbie run')

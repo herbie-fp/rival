@@ -103,7 +103,7 @@ parser.add_argument('-t', '--timeline', dest='timeline', default="report/timelin
 parser.add_argument('-o', '--output-path-valid', dest='path', default="report")
 
 args = parser.parse_args()
-plot_histogram_all(args)
 matplotlib.rcParams.update({'font.size': 11})
+plot_histogram_all(args)
 plot_histogram_valid(args)
 
