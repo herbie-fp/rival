@@ -24,7 +24,25 @@ def plot_repeats_plot(outcomes, args):
     # ax.bar(np.arange(len(baseline)) + 0.925, 100, color="green", alpha=1, width=0.5, label='baseline', hatch='/')
     percentages = np.array(rival['number_of_instr_executions']) / np.array(rival_no_repeats['number_of_instr_executions']) * 100
     ax.bar(np.arange(len(rival)) + 1.075, percentages, color="red", alpha=0.7, width=0.5, label='reval')
-
+    
+    # Print percentages
+    # for bar in ax.patches:
+    #     if bar.get_height() == 0:
+    #         ax.text(
+    #             bar.get_x() + bar.get_width() / 2,
+    #             bar.get_height() + bar.get_y() - bar.get_height()/2 + 0.5,
+    #             str(int(bar.get_height())) + "%",
+    #             ha='center',
+    #             color='black')
+    #     else:
+    #         ax.text(
+    #             bar.get_x() + bar.get_width() / 2,
+    #             bar.get_height() + bar.get_y() - bar.get_height()/2 + 0.5,
+    #             str(int(bar.get_height())) + "%",
+    #             ha='center',
+    #             color='black')
+    plt.ylim(0, 100)
+    
     ax.legend()
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Instructions executed")
