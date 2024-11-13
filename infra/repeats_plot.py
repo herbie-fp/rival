@@ -21,7 +21,7 @@ def plot_repeats_plot(outcomes, args):
     maximum = round((1.0 - (np.array(rival['number_of_instr_executions'])[-1] / np.array(rival_no_repeats['number_of_instr_executions'])[-1])) * 100, 2)
     print("\\newcommand{\\MaximumPercentageOfSkippedInstr}{" + str(maximum) + "}")
 
-    ax.bar(np.arange(len(baseline)) + 0.925, 100, color="green", alpha=1, width=0.5, label='baseline', hatch='/')
+    # ax.bar(np.arange(len(baseline)) + 0.925, 100, color="green", alpha=1, width=0.5, label='baseline', hatch='/')
     percentages = np.array(rival['number_of_instr_executions']) / np.array(rival_no_repeats['number_of_instr_executions']) * 100
     ax.bar(np.arange(len(rival)) + 1.075, percentages, color="red", alpha=0.7, width=0.5, label='reval')
 
