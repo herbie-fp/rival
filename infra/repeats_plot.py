@@ -3,9 +3,10 @@ import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
 def plot_repeats_plot(outcomes, args):
     # Create figure
-    fig, ax = plt.subplots(figsize=(4, 3.5))
+    fig, ax = plt.subplots(figsize=(4, 2.5))
     fig.tight_layout(pad=2.0)
     
     # Drop precision column and sum up based on iteration
@@ -24,7 +25,7 @@ def plot_repeats_plot(outcomes, args):
 
     ax.legend()
     ax.set_xlabel("Iteration")
-    ax.set_ylabel("Percentage of instructions executed")
+    ax.set_ylabel("Instructions executed %")
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
     plt.tight_layout()
     plt.savefig(args.path + "/repeats_plot.png", format="png")
@@ -39,4 +40,5 @@ parser.add_argument('-t', '--timeline', dest='timeline', default="report/timelin
 parser.add_argument('-o', '--output-path', dest='path', default="report")
 args = parser.parse_args()
 outcomes = load_outcomes(args.timeline)
+matplotlib.rcParams.update({'font.size': 12})
 plot_repeats_plot(outcomes, args)

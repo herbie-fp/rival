@@ -1,6 +1,7 @@
 import numpy as np
 import requests
 from matplotlib import pyplot as plt, ticker
+import matplotlib
 import pandas as pd
 import json
 import argparse
@@ -15,7 +16,7 @@ def plot_density(args):
     rival['precision'] = np.array(rival['precision'], dtype=float) - np.array(rival['precision'], dtype=float) % 0.05
     rival = rival.groupby(by=['precision'], as_index=False, sort=True).sum()
     
-    fig, ax = plt.subplots(figsize=(4, 3.5))
+    fig, ax = plt.subplots(figsize=(4, 2.5))
     
     ax.bar(rival['precision']+0.025, rival["count"], color="red", alpha=0.7, width=0.05, label='reval')
     
@@ -35,4 +36,5 @@ parser.add_argument('-t', '--timeline', dest='timeline', default="report/timelin
 parser.add_argument('-o', '--output-path', dest='path', default="report")
 
 args = parser.parse_args()
+matplotlib.rcParams.update({'font.size': 12})
 plot_density(args)
