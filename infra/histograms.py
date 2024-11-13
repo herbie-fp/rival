@@ -1,6 +1,7 @@
 import numpy as np
 import requests
 from matplotlib import pyplot as plt, ticker
+import matplotlib
 import pandas as pd
 import json
 import argparse
@@ -22,7 +23,7 @@ def plot_histogram_valid(args):
     print("\\newcommand{\\TuningTimePercentage}{" + str(round(adjust_time/rival['time'].sum()*1000 * 100, 1)) + "}")
     print("\\newcommand{\\RivalSpeedupHistograms}{" + str(round((baseline['time'].sum()-rival['time'].sum())/baseline['time'].sum() * 100, 2)) + "}")
 
-    fig, ax = plt.subplots(figsize=(6.5, 4))
+    fig, ax = plt.subplots(figsize=(6.5, 4.1))
 
     bins = 2 ** np.arange(5, 17, 1)
 
@@ -102,5 +103,7 @@ parser.add_argument('-t', '--timeline', dest='timeline', default="report/timelin
 parser.add_argument('-o', '--output-path-valid', dest='path', default="report")
 
 args = parser.parse_args()
-plot_histogram_valid(args)
 plot_histogram_all(args)
+matplotlib.rcParams.update({'font.size': 11})
+plot_histogram_valid(args)
+
