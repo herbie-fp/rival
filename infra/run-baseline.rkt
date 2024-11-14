@@ -92,7 +92,8 @@
   (define precision (bf-precision))
 
   (parameterize ([bf-precision precision])
-    (for ([instr (in-vector ivec)] [n (in-naturals varc)])
+    (for ([instr (in-vector ivec)]
+          [n (in-naturals varc)])
       (define start (current-inexact-milliseconds))
       (vector-set! vregs n (apply-instruction instr vregs))
       (define name (object-name (car instr)))
@@ -123,7 +124,9 @@
   (define stuck? #f)
   (define fvec
     (for/vector #:length (vector-length rootvec)
-                ([root (in-vector rootvec)] [disc (in-list discs)] [n (in-naturals)])
+                ([root (in-vector rootvec)]
+                 [disc (in-list discs)]
+                 [n (in-naturals)])
       (define out (vector-ref vregs root))
       (define lo ((discretization-convert disc) (ival-lo out)))
       (define hi ((discretization-convert disc) (ival-hi out)))

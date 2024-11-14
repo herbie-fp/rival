@@ -6,7 +6,9 @@
          ival-remainder)
 
 (define (bfmul* a b)
-  (if (or (bfzero? a) (bfzero? b)) 0.bf (bfmul a b)))
+  (if (or (bfzero? a) (bfzero? b))
+      0.bf
+      (bfmul a b)))
 
 (define (ival-fmod-pos x y err? err)
   ;; Assumes both `x` and `y` are entirely positive

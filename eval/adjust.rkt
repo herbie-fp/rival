@@ -35,7 +35,8 @@
 
   ; Step 1b. Checking if a operation should be computed again at all
   (define vuseful (make-vector (vector-length ivec) #f))
-  (for ([root (in-vector rootvec)] #:when (>= root varc))
+  (for ([root (in-vector rootvec)]
+        #:when (>= root varc))
     (vector-set! vuseful (- root varc) #t))
   (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
         [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
@@ -44,7 +45,8 @@
     (cond
       [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vuseful i #f)]
       [useful?
-       (for ([arg (in-list (cdr instr))] #:when (>= arg varc))
+       (for ([arg (in-list (cdr instr))]
+             #:when (>= arg varc))
          (vector-set! vuseful (- arg varc) #t))]))
 
   ; Step 2. Precision tuning
@@ -74,7 +76,8 @@
   (unless any-false?
     (set-rival-machine-bumps! machine (add1 bumps))
     (define slack (get-slack))
-    (for ([prec (in-vector vprecs)] [n (in-range (vector-length vprecs))])
+    (for ([prec (in-vector vprecs)]
+          [n (in-range (vector-length vprecs))])
       (define prec* (min (*rival-max-precision*) (+ prec slack)))
       (when (equal? prec* (*rival-max-precision*))
         (*sampling-iteration* (*rival-max-iterations*)))
@@ -135,9 +138,15 @@
   (define hi (ival-hi x))
   (cond
     ; x = [0.bf, ...]
-    [(bfzero? lo) (if (bfinfinite? hi) (- (get-slack)) (- (min (mpfr-exp hi) 0) (get-slack)))]
+    [(bfzero? lo)
+     (if (bfinfinite? hi)
+         (- (get-slack))
+         (- (min (mpfr-exp hi) 0) (get-slack)))]
     ; x = [..., 0.bf]
-    [(bfzero? hi) (if (bfinfinite? lo) (- (get-slack)) (- (min (mpfr-exp lo) 0) (get-slack)))]
+    [(bfzero? hi)
+     (if (bfinfinite? lo)
+         (- (get-slack))
+         (- (min (mpfr-exp lo) 0) (get-slack)))]
     [(crosses-zero? x) ; x = [-..., +...]
      (cond
        [(and (bfinfinite? hi) (bfinfinite? lo)) (- (get-slack))]
@@ -205,7 +214,10 @@
 
      ; when output crosses zero and x is negative - means that y was fractional and not fixed (specific of Rival)
      ; solution - add more slack for y to converge
-     (define slack (if (and (crosses-zero? z) (bfnegative? (ival-lo x))) (get-slack) 0))
+     (define slack
+       (if (and (crosses-zero? z) (bfnegative? (ival-lo x)))
+           (get-slack)
+           0))
 
      (list (+ (maxlog y) (logspan x) (logspan z)) ; exponent per x
            (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) slack))] ; exponent per y
@@ -332,7 +344,9 @@
      ;                               ^^^^^^^
      ;                           a possible uncertainty
      (define x (first srcs))
-     (list (if (>= (maxlog x) 1) (get-slack) 1))]
+     (list (if (>= (maxlog x) 1)
+               (get-slack)
+               1))]
 
     [(ival-acosh)
      ; log[Гacosh] = log[x / (sqrt(x-1) * sqrt(x+1) * acosh)] <= -minlog(z) + slack

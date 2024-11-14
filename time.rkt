@@ -313,7 +313,8 @@
 (define (html-write-row port row)
   (when port
     (fprintf port "<tr>")
-    (for ([cell (in-list row)] [heading (in-list current-heading)])
+    (for ([cell (in-list row)]
+          [heading (in-list current-heading)])
       (define unit
         (match heading
           [(list _ s) s]
