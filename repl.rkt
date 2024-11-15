@@ -60,17 +60,23 @@
       (hash-ref (repl-context repl) name)
       (rival-compile (list (fix-up-fpcore name)) '() (repl-discretizations repl))))
 
+(define (->bf x)
+  (if (number? x)
+      (bf x)
+      x))
+
 (define (repl-apply repl machine vals)
   (with-handlers ([exn:rival:invalid? (const "Domain error")]
                   [exn:rival:unsamplable? (const "Could not evaluate")])
     (parameterize ([bf-precision (repl-precision repl)])
-      (vector-ref (rival-apply machine (list->vector (map bf vals))) 0))))
+      (rival-apply machine (list->vector (map ->bf vals))))))
 
-(define (repl-save-machine! repl name args body)
-  (hash-set!
-   (repl-context repl)
-   name
-   (rival-compile (list (fix-up-fpcore body)) args (list (bf-discretization (repl-precision repl))))))
+(define (repl-save-machine! repl name args bodies)
+  (hash-set! (repl-context repl)
+             name
+             (rival-compile (map fix-up-fpcore bodies)
+                            args
+                            (map (const (bf-discretization (repl-precision repl))) bodies))))
 
 (define (check-args! name machine vals)
   (unless (= (vector-length (rival-machine-arguments machine)) (length vals))
@@ -156,16 +162,17 @@
             (raise-user-error 'set "Precision must be an integer greater than 3"))
           (set-repl-precision! repl n)]
          [`(define (,(? symbol? name) ,(? symbol? args) ...)
-             ,body)
-          (repl-save-machine! repl name args body)]
-         [`(eval ,name ,(? real? vals) ...)
+             ,bodies ...)
+          (repl-save-machine! repl name args bodies)]
+         [`(eval ,name ,(? (disjoin real? boolean?) vals) ...)
           (define machine (repl-get-machine repl name))
           (check-args! name machine vals)
           (define out (repl-apply repl machine vals))
-          (displayln (if (string? out)
-                         out
-                         (bigfloat->string out)))]
-         [`(explain ,name ,(? real? vals) ...)
+          (if (string? out)
+              (displayln out)
+              (for ([val (in-vector out)])
+                (displayln (bigfloat->string val))))]
+         [`(explain ,name ,(? (disjoin real? boolean?) vals) ...)
           (define machine (repl-get-machine repl name))
           (check-args! name machine vals)
 
@@ -186,9 +193,9 @@
           (displayln "This is the Rival REPL, a demo of the Rival real evaluator.")
           (newline)
           (displayln "Commands:")
-          (displayln "  (set precision <n>)                  Set working precision to n")
-          (displayln "  (define (<name> <args> ...) <body>)  Define a named function")
-          (displayln "  (eval <name> <vals> ...)             Evaluate a named function")
+          (displayln "  (set precision <n>)                      Set working precision to n")
+          (displayln "  (define (<name> <args> ...) <body> ...)  Define a named function")
+          (displayln "  (eval <name> <vals> ...)                 Evaluate a named function")
           (displayln
            "  (explain <name> <vals> ...)          Show profile for evaluating a named function")
           (newline)
