@@ -193,9 +193,9 @@
           (displayln "This is the Rival REPL, a demo of the Rival real evaluator.")
           (newline)
           (displayln "Commands:")
-          (displayln "  (set precision <n>)                  Set working precision to n")
-          (displayln "  (define (<name> <args> ...) <body>)  Define a named function")
-          (displayln "  (eval <name> <vals> ...)             Evaluate a named function")
+          (displayln "  (set precision <n>)                      Set working precision to n")
+          (displayln "  (define (<name> <args> ...) <body> ...)  Define a named function")
+          (displayln "  (eval <name> <vals> ...)                 Evaluate a named function")
           (displayln
            "  (explain <name> <vals> ...)          Show profile for evaluating a named function")
           (newline)
