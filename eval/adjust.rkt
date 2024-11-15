@@ -138,6 +138,7 @@
   (define hi (ival-hi x))
   (cond
     ; x = [0.bf, ...]
+    [(and (bfzero? lo) (bfzero? hi)) (get-slack)]
     [(bfzero? lo)
      (if (bfinfinite? hi)
          (- (get-slack))
