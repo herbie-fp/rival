@@ -7,7 +7,8 @@
 (define (profile->json p)
   (define nodes (cons (profile-*-node p) (profile-nodes p)))
   (define loc-hash
-    (for/hash ([node (in-list nodes)] [n (in-naturals)])
+    (for/hash ([node (in-list nodes)]
+               [n (in-naturals)])
       (values (node-loc node) n)))
   (define node-hash
     (for/hash ([node (in-list nodes)])

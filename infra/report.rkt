@@ -56,7 +56,12 @@
   (apply min (map (lambda (d) (if (number? d) d +inf.0)) data)))
 
 (define (get-bold-index data good)
-  (define processed (map (lambda (d) (if (number? d) (exact->inexact d) d)) data))
+  (define processed
+    (map (lambda (d)
+           (if (number? d)
+               (exact->inexact d)
+               d))
+         data))
   (cond
     [(equal? good 'none) (length processed)]
     [(or (equal? good 'min) (equal? good 'max))
@@ -75,7 +80,9 @@
   (define strings (map latex-format-item data))
   (define-values (before after) (split-at strings bold-index))
   (define modified-after
-    (if (> (length after) 0) (cons (make-latex-bold (first after)) (rest after)) empty))
+    (if (> (length after) 0)
+        (cons (make-latex-bold (first after)) (rest after))
+        empty))
   (append before modified-after))
 
 (define (make-latex-row data #:good [good 'none])
@@ -181,7 +188,10 @@
   (equal? bigfloat '+nan.bf))
 
 (define (output-var name val port [comment ""])
-  (define comment-string (if (equal? comment "") "" (format "% ~a" comment)))
+  (define comment-string
+    (if (equal? comment "")
+        ""
+        (format "% ~a" comment)))
   (fprintf port "\\newcommand{\\~a}{~a\\xspace}~a\n" name val comment-string))
 
 (define (round1 num)

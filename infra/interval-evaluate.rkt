@@ -89,7 +89,9 @@
     [else (lambda xs #f)]))
 
 (define (convert-number expression use-mpfi?)
-  (if use-mpfi? (iv expression) (mk-ival (bf expression))))
+  (if use-mpfi?
+      (iv expression)
+      (mk-ival (bf expression))))
 
 (define (interval-evaluate expression variables point use-mpfi?)
   (cond

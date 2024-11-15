@@ -101,11 +101,17 @@
 (define (ival-lgamma x)
   ; The starred versions allow #f for an empty interval
   (define (ival-lo-val* x)
-    (if x (ival-lo-val x) 0.bf))
+    (if x
+        (ival-lo-val x)
+        0.bf))
   (define (ival-split* i x)
-    (if i (ival-split i x) (values #f #f)))
+    (if i
+        (ival-split i x)
+        (values #f #f)))
   (define (ival-union* a b)
-    (if (and a b) (ival-union a b) (or a b)))
+    (if (and a b)
+        (ival-union a b)
+        (or a b)))
 
   (define-values (xneg xpos) (ival-split x 0.bf))
   (define-values (xnegl xrest) (ival-split* xneg (bfceiling (ival-lo-val* xneg))))

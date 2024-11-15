@@ -97,10 +97,14 @@
   (bffloor (bflog2 (bfabs x))))
 
 (define (bfcopysign x y)
-  (if (bfnan? y) +nan.bf (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf))))
+  (if (bfnan? y)
+      +nan.bf
+      (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf))))
 
 (define (bffdim x y)
-  (if (bfgt? x y) (bfsub x y) 0.bf))
+  (if (bfgt? x y)
+      (bfsub x y)
+      0.bf))
 
 (define (and-fn . as)
   (andmap values as))

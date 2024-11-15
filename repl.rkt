@@ -19,7 +19,9 @@
     [_ expr]))
 
 (define (normalize-function-name name)
-  (if (string-prefix? name "ival-") (substring name 5) name))
+  (if (string-prefix? name "ival-")
+      (substring name 5)
+      name))
 
 (define (executions-iterations execs)
   (define iter 0)
@@ -117,7 +119,8 @@
                     (define iter (/ (- col 2) 2))
                     (define time
                       (apply +
-                             (for/list ([exec (in-list execs*)] #:when (= (car exec) iter))
+                             (for/list ([exec (in-list execs*)]
+                                        #:when (= (car exec) iter))
                                (execution-time (cdr exec)))))
                     (~r (* time 1000) #:precision '(= 1))]
                    [(row 0)
@@ -141,7 +144,8 @@
 (define (rival-repl p)
   (let/ec
    k
-   (parameterize ([read-decimal-as-inexact #f] [*rival-name-constants* #t])
+   (parameterize ([read-decimal-as-inexact #f]
+                  [*rival-name-constants* #t])
      (define repl (make-repl))
      (when (terminal-port? p)
        (display "> "))
@@ -158,7 +162,9 @@
           (define machine (repl-get-machine repl name))
           (check-args! name machine vals)
           (define out (repl-apply repl machine vals))
-          (displayln (if (string? out) out (bigfloat->string out)))]
+          (displayln (if (string? out)
+                         out
+                         (bigfloat->string out)))]
          [`(explain ,name ,(? real? vals) ...)
           (define machine (repl-get-machine repl name))
           (check-args! name machine vals)
