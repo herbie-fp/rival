@@ -91,7 +91,7 @@
         (*num-tuned-benchmarks* (add1 (*num-tuned-benchmarks*))))
 
       ; Store histograms data
-      (when (and (equal? rival-status 'valid) (> rival-iter 0))
+      (when (> rival-iter 0)
         (for ([execution (in-vector rival-executions)])
           (define name (symbol->string (execution-name execution)))
           (define precision (execution-precision execution))
