@@ -153,13 +153,6 @@
                           'mixsample-baseline-all
                           (list (execution-time execution) name precision))))
 
-      ; Record percentage of instructions has been executed
-      (when (equal? rival-status 'valid)
-        (define baseline-iter (exact-round (log (exact-round (/ baseline-precision 63)) 2)))
-        (timeline-push! timeline
-                        'instr-executed-cnt
-                        (list 'baseline baseline-iter (vector-length baseline-executions))))
-
       ; --------------------------- Sollya execution ------------------------------------------------
       ; Points for expressions where Sollya has not compiled do not go to the plot/speed graphs!
       ; Also, if Rival's status is invalid - these points do not go to the graphs!
