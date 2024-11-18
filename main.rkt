@@ -116,4 +116,6 @@
            racket/cmdline)
   (command-line #:program "racket -l rival"
                 #:args ([file #f])
-                (if file (call-with-input-file file rival-repl) (rival-repl (current-input-port)))))
+                (if file
+                    (call-with-input-file file rival-repl)
+                    (rival-repl (current-input-port)))))

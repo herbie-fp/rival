@@ -162,7 +162,10 @@
 
 (define (ival-split i val)
   (cond
-    [(boolean? val) (if val (values i #f) (values #f i))]
+    [(boolean? val)
+     (if val
+         (values i #f)
+         (values #f i))]
     [(bflte? (ival-hi-val i) val) (values i #f)]
     [(bfgte? (ival-lo-val i) val) (values #f i)]
     [else (split-ival i val)]))
@@ -313,7 +316,8 @@
 
 ;; Helpers for defining interval functions
 
-(define-syntax-rule (define* name expr) (define name (procedure-rename expr 'name)))
+(define-syntax-rule (define* name expr)
+  (define name (procedure-rename expr 'name)))
 
 (define ((monotonic bffn) x)
   (match-define (ival lo hi err? err) x)
@@ -378,7 +382,9 @@
 ;; precision, not the output precision, so (rnd 'down bfround xxx) can
 ;; return +inf.bf
 (define ((fix-rounding f) x)
-  (if (>= (bigfloat-exponent x) 0) (bfrint x) (f x)))
+  (if (>= (bigfloat-exponent x) 0)
+      (bfrint x)
+      (f x)))
 
 (define* ival-rint (monotonic bfrint))
 (define* ival-round (monotonic (fix-rounding bfround)))
@@ -555,7 +561,8 @@
 (define (ival-!= . as)
   (if (null? as)
       ival-true
-      (let loop ([head (car as)] [tail (cdr as)])
+      (let loop ([head (car as)]
+                 [tail (cdr as)])
         (if (null? tail)
             ival-true
             (ival-and (foldl ival-and ival-true (map (curry ival-!=2 head) tail))
@@ -574,7 +581,11 @@
 
 (define (ival-then a . as)
   (match-define (ival alo ahi aerr? aerr) a)
-  (for/fold ([lo alo] [hi ahi] [err? aerr?] [err aerr] #:result (ival lo hi err? err))
+  (for/fold ([lo alo]
+             [hi ahi]
+             [err? aerr?]
+             [err aerr]
+             #:result (ival lo hi err? err))
             ([a (in-list as)])
     (match-define (ival alo ahi aerr? aerr) a)
     (values alo ahi (or err? aerr?) (or err aerr))))
@@ -588,7 +599,9 @@
     [else
      (define out (ival-then c (ival-union x y)))
      ; If condition is movable output should be too
-     (if (not (and (ival-lo-fixed? c) (ival-hi-fixed? c))) (ival-mobilize out) out)]))
+     (if (not (and (ival-lo-fixed? c) (ival-hi-fixed? c)))
+         (ival-mobilize out)
+         out)]))
 
 (define (ival-mobilize x)
   (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) x)
@@ -633,5 +646,6 @@
   (define err (ormap (lambda (iv) (ival-err iv)) ivs))
   (define hi! (andmap (lambda (iv) (ival-hi-fixed? iv)) ivs))
   (define lo! (andmap (lambda (iv) (ival-lo-fixed? iv)) ivs))
-  (for/list ([u upper] [l lower])
+  (for/list ([u upper]
+             [l lower])
     (ival (endpoint l lo!) (endpoint u hi!) err? err)))

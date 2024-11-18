@@ -54,7 +54,8 @@
               (if (equal? (bigfloat-precision pt) (bigfloat-precision (ival-hi ival)))
                   (bf<= pt (ival-hi ival))
                   (bf<= pt
-                        (parameterize ([bf-precision (bigfloat-precision pt)] [bf-rounding-mode 'up])
+                        (parameterize ([bf-precision (bigfloat-precision pt)]
+                                       [bf-rounding-mode 'up])
                           (bfcopy (ival-hi ival))))))])
       (and (not (ival-err ival)) (or (equal? pt (ival-lo ival)) (equal? pt (ival-hi ival))))))
 
@@ -67,32 +68,48 @@
   (cond
     [(< (bigfloat-precision x) (bigfloat-precision y))
      (bf= x
-          (parameterize ([bf-rounding-mode rnd-mode] [bf-precision (bigfloat-precision x)])
+          (parameterize ([bf-rounding-mode rnd-mode]
+                         [bf-precision (bigfloat-precision x)])
             (bfcopy y)))]
     [(> (bigfloat-precision x) (bigfloat-precision y))
      (bf= y
-          (parameterize ([bf-rounding-mode rnd-mode] [bf-precision (bigfloat-precision y)])
+          (parameterize ([bf-rounding-mode rnd-mode]
+                         [bf-precision (bigfloat-precision y)])
             (bfcopy x)))]
     [else (bf= y x)]))
 
 (define (value-lte? bf1 bf2)
-  (if (boolean? bf1) (or (not bf1) bf2) (bf<= bf1 bf2)))
+  (if (boolean? bf1)
+      (or (not bf1) bf2)
+      (bf<= bf1 bf2)))
 
 (define (ival-refines? coarse fine)
   (and
    (or (ival-err fine)
        (and ((if (ival-lo-fixed? coarse) value-equals? value-lte?) (ival-lo coarse) (ival-lo fine))
             ((if (ival-hi-fixed? coarse) value-equals? value-lte?) (ival-hi fine) (ival-hi coarse))))
-   (if (ival-lo-fixed? coarse) (ival-lo-fixed? fine) #t)
-   (if (ival-hi-fixed? coarse) (ival-hi-fixed? fine) #t)
-   (if (ival-err? fine) (ival-err? coarse) #t)
-   (if (ival-err coarse) (ival-err fine) #t)))
+   (if (ival-lo-fixed? coarse)
+       (ival-lo-fixed? fine)
+       #t)
+   (if (ival-hi-fixed? coarse)
+       (ival-hi-fixed? fine)
+       #t)
+   (if (ival-err? fine)
+       (ival-err? coarse)
+       #t)
+   (if (ival-err coarse)
+       (ival-err fine)
+       #t)))
 
 (define (bfatan2-no0 y x)
-  (if (and (bfzero? y) (bfzero? x)) +nan.bf (bfatan2 y x)))
+  (if (and (bfzero? y) (bfzero? x))
+      +nan.bf
+      (bfatan2 y x)))
 
 (define ((bftrig-narrow fn) x)
-  (if (> (+ (bigfloat-exponent x) (bigfloat-precision x)) (expt 2 20)) 0.bf (fn x)))
+  (if (> (+ (bigfloat-exponent x) (bigfloat-precision x)) (expt 2 20))
+      0.bf
+      (fn x)))
 
 (define function-table
   (list (list ival-neg bf- '(real) 'real)
@@ -182,7 +199,9 @@
      (define exponent (random -1023 1023)) ; Pretend-double
      (define significand (bf (random-bits (bf-precision)) (- (bf-precision))))
      (define val (bfshift (bf+ 1.bf significand) exponent))
-     (if (= (random 0 2) 1) (bf- val) val)]))
+     (if (= (random 0 2) 1)
+         (bf- val)
+         val)]))
 
 (define (sample-wide-interval v1)
   (define v2 (sample-bigfloat))
@@ -214,7 +233,9 @@
           (sample-constant-interval value)]
          [1 (sample-narrow-interval value)]
          [_ (sample-wide-interval value)]))
-     (if (ival-err x) (sample-interval type) x)]
+     (if (ival-err x)
+         (sample-interval type)
+         x)]
     ['bool
      (match (random 0 3)
        [0 (ival #f)]
@@ -236,7 +257,10 @@
          (define range (- (bigfloats-between (ival-lo ival) (ival-hi ival)) reduction))
          (define offset (+ (if (bfinfinite? (ival-lo ival)) 1 0) (random-natural (+ range 1))))
          (bfstep (ival-lo ival) offset)])
-      (let ([p (random 0 2)]) (if (= p 0) (ival-lo ival) (ival-hi ival)))))
+      (let ([p (random 0 2)])
+        (if (= p 0)
+            (ival-lo ival)
+            (ival-hi ival)))))
 
 (define-simple-check (check-ival-valid? ival) (ival-valid? ival))
 
@@ -259,7 +283,8 @@
       (sample-precision)))
 
   (define is
-    (for/list ([arg args] [in-prec in-precs])
+    (for/list ([arg args]
+               [in-prec in-precs])
       (parameterize ([bf-precision in-prec])
         (sample-interval arg))))
   (define iy
@@ -272,7 +297,8 @@
   (define y #f)
   (for ([_ (in-range num-witnesses)])
     (set! xs
-          (for/list ([i is] [in-prec in-precs])
+          (for/list ([i is]
+                     [in-prec in-precs])
             (parameterize ([bf-precision in-prec])
               (sample-from i))))
     (set! y
@@ -283,7 +309,9 @@
 
   (with-check-info
    (['intervals is] ['points xs] ['iy iy] ['y y] ['precs (list out-prec in-precs)])
-   (for ([k (in-naturals)] [i is] [x xs])
+   (for ([k (in-naturals)]
+         [i is]
+         [x xs])
      (define-values (ilo ihi) (ival-split i x))
      (when (and ilo ihi)
        (define iylo
