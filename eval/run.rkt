@@ -97,9 +97,8 @@
 
 (define (rival-machine-adjust machine)
   (define iter (rival-machine-iteration machine))
-  (match (zero? iter)
-    [#f
-     (define start (current-inexact-milliseconds))
-     (backward-pass machine)
-     (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))]
-    [#t (vector-fill! (rival-machine-precisions machine) (rival-machine-initial-precision machine))]))
+  (let ([start (current-inexact-milliseconds)])
+    (if (zero? iter)
+        (vector-fill! (rival-machine-precisions machine) (rival-machine-initial-precision machine))
+        (backward-pass machine))
+    (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))

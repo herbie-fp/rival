@@ -23,8 +23,7 @@
 (define (crosses-zero? x)
   (not (equal? (mpfr-sign (ival-lo x)) (mpfr-sign (ival-hi x)))))
 
-; We assume the interval x is valid. Critical not to take mpfr-exp of inf or 0,
-; the results are platform-dependant
+; We assume the interval x is valid. Critical not to take mpfr-exp of inf or 0
 (define (maxlog x #:no-slack [no-slack #f])
   (define iter
     (if no-slack
