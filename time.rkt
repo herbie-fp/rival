@@ -104,7 +104,7 @@
                           (list (execution-time execution) name precision))))
 
       ; Store density plot data
-      (when (> rival-iter 0)
+      (when (and (equal? rival-status 'valid) (> rival-iter 0))
         (define h (make-hash))
         (define max-prec 0)
         (for ([exec (in-vector rival-executions)])
@@ -116,7 +116,7 @@
         (for ([(_ precision) (in-hash h)])
           (timeline-push! timeline 'density (~a (exact->inexact (/ precision max-prec)) #:width 5))))
 
-      ; Record percentage of instructions has been executed
+      ; Record the percentage of instructions has been executed
       (when (equal? rival-status 'valid)
         (define rival-no-repeats-instr-cnt
           (* (+ 1 rival-iter) (vector-length (rival-machine-instructions rival-machine))))
