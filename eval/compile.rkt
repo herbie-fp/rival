@@ -273,7 +273,7 @@
   ;; vector for adjusting precisions
   (define incremental-precisions (setup-vstart-precs instructions (length vars) roots discs))
   (define initial-precision
-    (+ (apply max (map discretization-target (rest discs))) (*base-tuning-precision*)))
+    (+ (argmax identity (map discretization-target (rest discs))) (*base-tuning-precision*)))
 
   (rival-machine (list->vector vars)
                  instructions
