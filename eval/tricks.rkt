@@ -48,7 +48,7 @@
   (define hi (ival-hi x))
   (cond
     ; x = [0.bf, 0.bf]
-    [(and (bfzero? lo) (bfzero? hi)) (get-slack)]
+    [(and (bfzero? lo) (bfzero? hi)) (get-slack iter)]
     [(bfzero? lo) ; x = [0.bf, ...]
      (if (bfinfinite? hi)
          (- (get-slack iter))
