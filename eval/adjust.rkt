@@ -91,7 +91,7 @@
 
     ; Early stopping based on higher bound
     (when (and (not (*lower-bound-early-stopping*)) (equal? final-precision (*rival-max-precision*)))
-      (*sampling-iteration* (*rival-max-iterations*)))
+      (*last-iteration* #t))
 
     ; Precision propogation for each tail instruction
     (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
@@ -107,4 +107,4 @@
 
       ; Early stopping based on lower bound
       (when (and (*lower-bound-early-stopping*) (>= lo-bound (*rival-max-precision*)))
-        (*sampling-iteration* (*rival-max-iterations*))))))
+        (*last-iteration* #t)))))

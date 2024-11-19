@@ -14,11 +14,7 @@
 (define (get-slack [iter (*sampling-iteration*)])
   (match iter
     [0 0]
-    [1 512]
-    [2 1024]
-    [3 2048]
-    [4 4096]
-    [5 8192]))
+    [_ (* (expt 2 (- iter 1)) 512)]))
 
 (define (crosses-zero? x)
   (not (equal? (mpfr-sign (ival-lo x)) (mpfr-sign (ival-hi x)))))
