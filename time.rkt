@@ -64,12 +64,19 @@
 
   ; Baseline and Sollya machines
   (define baseline-machine (baseline-compile exprs vars discs))
+
   (define sollya-machine
-    (with-handlers ([exn:fail? (λ (e)
-                                 (printf "Sollya didn't compile")
-                                 (printf "~a\n" e)
-                                 #f)])
-      (sollya-compile exprs vars 53))) ; prec=53 is an imitation of flonum
+    (match (or (equal? (cdr exprs) `((* (fmod (exp x) (sqrt (cos x))) (exp (neg x))))) ; id 65
+               (equal? (cdr exprs) `((* (exp (neg w)) (pow l (exp w)))))) ; id 68
+      [#t
+       (printf "Sollya didn't compile due to the bugs in evaluation of:\n\t~a\n" exprs)
+       #f]
+      [#f
+       (with-handlers ([exn:fail? (λ (e)
+                                    (printf "Sollya didn't compile")
+                                    (printf "~a\n" e)
+                                    #f)])
+         (sollya-compile exprs vars 53))])) ; prec=53 is an imitation of flonum
 
   (define tuned-bench #f)
   (define times
