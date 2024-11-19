@@ -47,13 +47,13 @@
   (define lo (ival-lo x))
   (define hi (ival-hi x))
   (cond
-    ; x = [0.bf, ...]
-    [(bfzero? lo)
+    ; x = [0.bf, 0.bf]
+    [(and (bfzero? lo) (bfzero? hi)) (get-slack)]
+    [(bfzero? lo) ; x = [0.bf, ...]
      (if (bfinfinite? hi)
          (- (get-slack iter))
          (- (min (mpfr-exp hi) 0) (get-slack iter)))]
-    ; x = [..., 0.bf]
-    [(bfzero? hi)
+    [(bfzero? hi) ; x = [..., 0.bf]
      (if (bfinfinite? lo)
          (- (get-slack iter))
          (- (min (mpfr-exp lo) 0) (get-slack iter)))]
