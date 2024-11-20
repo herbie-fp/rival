@@ -26,9 +26,12 @@
 (define (rival-machine-full machine inputs)
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine)
-  (rival-machine-load machine inputs)
-  (rival-machine-run machine)
-  (rival-machine-return machine))
+  (cond
+    [(*last-iteration*) (values #f #f #f #t #f)]
+    [else
+     (rival-machine-load machine inputs)
+     (rival-machine-run machine)
+     (rival-machine-return machine)]))
 
 (struct exn:rival exn:fail ())
 (struct exn:rival:invalid exn:rival (pt))
@@ -75,8 +78,6 @@
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
       [stuck? (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [(*last-iteration*)
-       (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else (loop (+ 1 iter))])))
 
 (define (rival-analyze machine rect)
