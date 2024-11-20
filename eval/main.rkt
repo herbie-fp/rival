@@ -67,6 +67,9 @@
     (define-values (good? done? bad? stuck? fvec)
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
+        (when (> (*sampling-iteration*) 10)
+          (println pt)
+          (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt)))
         (rival-machine-full machine (vector-map ival-real pt))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]

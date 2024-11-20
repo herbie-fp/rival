@@ -4,7 +4,9 @@
          "../ops/all.rkt"
          "machine.rkt"
          racket/list
-         racket/match)
+         racket/match
+         math/flonum
+         math/bigfloat)
 
 (provide backward-pass)
 
@@ -33,7 +35,15 @@
         #:when out-dr?)
     (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
-  ; Step 1b. Checking if a operation should be computed again at all
+  ; Step 1b. Adding slack in case of overflow/underflow
+  (for ([reg (in-vector vregs varc)]
+        [n (in-naturals)])
+    (when (and (bigfloat? (ival-lo reg))
+               (or (and (bfinfinite? (ival-hi reg)) (ival-hi-fixed? reg))
+                   (and (bfzero? (ival-lo reg)) (ival-lo-fixed? reg))))
+      (vector-set! vprecs-new n (get-slack))))
+
+  ; Step 1c. Checking if a operation should be computed again at all
   (define vuseful (make-vector (vector-length ivec) #f))
   (for ([root (in-vector rootvec)]
         #:when (>= root varc))
@@ -75,6 +85,7 @@
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
 (define (precision-tuning ivec vregs vprecs-max varc vstart-precs)
+  #;(printf "\niter=~a\n" (*sampling-iteration*))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)])
     (define op (car instr))
@@ -95,6 +106,22 @@
 
     ; Precision propogation for each tail instruction
     (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
+
+    ; --------------- DEBUGGING
+    #;(define (distance x)
+        (if (boolean? (ival-lo x))
+            (equal? (ival-lo x) (ival-hi x))
+            (parameterize ([bf-precision (bigfloat-precision (ival-lo x))])
+              (bigfloats-between (ival-lo x) (ival-hi x)))))
+    #;(printf "~a) ~a at ~a, ampls=~a, distance=~a\n"
+              n
+              instr
+              final-precision
+              ampl-bounds
+              (distance output))
+    #;(printf "\toutput=~a\n" output)
+    ; ---------------
+
     (for ([x (in-list tail-registers)]
           [bound (in-list ampl-bounds)]
           #:when (>= x varc)) ; when tail register is not a variable

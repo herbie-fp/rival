@@ -418,6 +418,8 @@
 ;; Since MPFR has a cap on exponents, no value can be more than twice MAX_VAL
 (define exp-overflow-threshold (bfadd (bflog (bfprev +inf.bf)) 1.bf))
 (define exp2-overflow-threshold (bfadd (bflog2 (bfprev +inf.bf)) 1.bf))
+(define sinh-overflow-threshold (bfadd (bfasinh (bfprev +inf.bf)) 1.bf))
+(define acosh-overflow-threshold (bfadd (bfacosh (bfprev +inf.bf)) 1.bf))
 
 (define (ival-exp x)
   (define y ((monotonic bfexp) x))
@@ -497,8 +499,12 @@
                     (bf=? (ival-lo-val y) 0.bf)
                     (bf=? (ival-hi-val y) 0.bf))))]))
 
-(define* ival-cosh (compose (monotonic bfcosh) ival-exact-fabs))
-(define* ival-sinh (monotonic bfsinh))
+(define*
+ ival-cosh
+ (compose (overflows-at (monotonic bfcosh) (bfneg acosh-overflow-threshold) acosh-overflow-threshold)
+          ival-exact-fabs))
+(define* ival-sinh
+         (overflows-at (monotonic bfsinh) (bfneg sinh-overflow-threshold) sinh-overflow-threshold))
 (define* ival-tanh (monotonic bftanh))
 (define* ival-asinh (monotonic bfasinh))
 (define* ival-acosh (compose (monotonic bfacosh) (clamp 1.bf +inf.bf)))
