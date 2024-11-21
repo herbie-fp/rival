@@ -35,15 +35,7 @@
         #:when out-dr?)
     (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
-  ; Step 1b. Adding slack in case of overflow/underflow
-  (for ([reg (in-vector vregs varc)]
-        [n (in-naturals)])
-    (when (and (bigfloat? (ival-lo reg))
-               (or (and (bfinfinite? (ival-hi reg)) (ival-hi-fixed? reg))
-                   (and (bfzero? (ival-lo reg)) (ival-lo-fixed? reg))))
-      (vector-set! vprecs-new n (get-slack))))
-
-  ; Step 1c. Checking if a operation should be computed again at all
+  ; Step 1b. Checking if a operation should be computed again at all
   (define vuseful (make-vector (vector-length ivec) #f))
   (for ([root (in-vector rootvec)]
         #:when (>= root varc))
@@ -96,8 +88,17 @@
 
     ; Final precision assignment based on the upper bound
     (define final-precision
-      (min (max (+ max-prec (vector-ref vstart-precs (- n varc))) (*rival-min-precision*))
-           (*rival-max-precision*)))
+      (max (+ max-prec (vector-ref vstart-precs (- n varc))) (*rival-min-precision*)))
+
+    ; Add slack to overflows/underflows
+    (when (and (bigfloat? (ival-lo output))
+               (or (and (ival-lo-fixed? output)
+                        (or (bfinfinite? (ival-lo output)) (bfzero? (ival-lo output))))
+                   (and (ival-hi-fixed? output)
+                        (or (bfinfinite? (ival-hi output)) (bfzero? (ival-hi output))))))
+      (set! final-precision (+ final-precision (get-slack))))
+
+    (set! final-precision (min final-precision (*rival-max-precision*)))
     (vector-set! vprecs-max (- n varc) final-precision)
 
     ; Early stopping based on higher bound

@@ -164,14 +164,16 @@
            0))
 
      (if (*lower-bound-early-stopping*)
-         (list (cons (+ (maxlog y) (logspan x) (logspan z) x-slack)
+         (list (cons (max (+ (maxlog y) (logspan x) (logspan z) x-slack) x-slack)
                      (minlog y #:no-slack #t)) ; bounds per x
-               (cons (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+               (cons (max (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+                          y-slack)
                      (if (> (minlog x) 2)
                          (minlog y #:no-slack #t)
                          0))) ; bounds per y
-         (list (cons (+ (maxlog y) (logspan x) (logspan z) x-slack) 0) ; bounds per x
-               (cons (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+         (list (cons (max (+ (maxlog y) (logspan x) (logspan z) x-slack) x-slack) 0) ; bounds per x
+               (cons (max (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+                          y-slack)
                      0)))] ; bounds per y
 
     [(ival-exp ival-exp2)
@@ -297,7 +299,7 @@
            0))
 
      (list (cons (- (maxlog x) (minlog z)) 0) ; bounds per x
-           (cons (max (+ (- (maxlog x) (minlog z)) slack) slack) 0))] ; bounds per y
+           (cons (+ (- (maxlog x) (minlog z)) slack) 0))] ; bounds per y
 
     ; Currently log1p has a very poor approximation
     [(ival-log1p)
@@ -310,7 +312,7 @@
      (define xlo (ival-lo x))
 
      (list (if (or (equal? (mpfr-sign xlo) -1) (equal? (mpfr-sign xhi) -1))
-               (cons (max (+ (- (maxlog x) (minlog z)) (get-slack)) (get-slack)) 0)
+               (cons (+ (- (maxlog x) (minlog z)) (get-slack)) 0)
                (cons (- (maxlog x) (minlog z)) 0)))]
 
     ; Currently expm1 has a very poor solution for negative values
@@ -362,7 +364,7 @@
      ; ↓ampl[acosh]'x = 0
      (define z-exp (minlog z))
      (list (if (< z-exp 2) ; when acosh(x) < 1
-               (cons (max (- (get-slack) z-exp) (get-slack)) 0)
+               (cons (- (get-slack) z-exp) 0)
                (cons 0 0)))]
 
     [(ival-pow2)
