@@ -57,6 +57,7 @@
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
+  (define any-false? #f)
   (for ([instr (in-vector ivec)]
         [useful? (in-vector vuseful)]
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
@@ -67,10 +68,23 @@
       (or (not useful?)
           (and (<= prec-new prec-old)
                (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) (cdr instr)))))
+    (set! any-false? (or any-false? (not repeat)))
     (vector-set! vrepeats n repeat))
 
   ; Step 4. Copying new precisions into vprecs
-  (vector-copy! vprecs 0 vprecs-new))
+  (vector-copy! vprecs 0 vprecs-new)
+
+  ; Step 5. If precisions have not changed but the point didn't converge. A problem exists - add slack to every op
+  (unless any-false?
+    (set-rival-machine-bumps! machine (add1 bumps))
+    (define slack (get-slack))
+    (for ([prec (in-vector vprecs)]
+          [n (in-range (vector-length vprecs))])
+      (define prec* (min (*rival-max-precision*) (+ prec slack)))
+      (when (equal? prec* (*rival-max-precision*))
+        (*last-iteration* #t))
+      (vector-set! vprecs n prec*))
+    (vector-fill! vrepeats #f)))
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking, the upper precision bound is calculated as:

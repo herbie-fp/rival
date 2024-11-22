@@ -185,18 +185,19 @@
 
         ; -------------------------------- Combining results ----------------------------------------
         ; When all the machines have compiled and produced results - write the results to outcomes
-        (point-bucketing timeline
-                         rival-status
-                         rival-apply-time
-                         rival-exs
-                         baseline-status
-                         baseline-apply-time
-                         baseline-exs
-                         sollya-status
-                         sollya-apply-time
-                         sollya-exs
-                         baseline-precision
-                         rival-iter)
+        (when (> (*sampling-timeout*) sollya-apply-time)
+          (point-bucketing timeline
+                           rival-status
+                           rival-apply-time
+                           rival-exs
+                           baseline-status
+                           baseline-apply-time
+                           baseline-exs
+                           sollya-status
+                           sollya-apply-time
+                           sollya-exs
+                           baseline-precision
+                           rival-iter))
 
         (when (<= (*sampling-timeout*) sollya-apply-time)
           (*sollya-timeout* (add1 (*sollya-timeout*))))
