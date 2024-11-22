@@ -16,9 +16,9 @@
   (discretization n
                   (lambda (x)
                     (parameterize ([bf-precision n])
-                      (bfcopy x)))
+                      (if (equal? (bigfloats-between 0.bf x) 1)
+                          (bf 0)
+                          (bfcopy x))))
                   (lambda (x y)
                     (parameterize ([bf-precision n])
-                      (if (bfzero? x)
-                          (max (- (abs (bigfloats-between x y)) 1) 0)
-                          (abs (bigfloats-between x y)))))))
+                      (abs (bigfloats-between x y))))))
