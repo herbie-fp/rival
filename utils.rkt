@@ -19,4 +19,6 @@
                       (bfcopy x)))
                   (lambda (x y)
                     (parameterize ([bf-precision n])
-                      (abs (bigfloats-between x y))))))
+                      (if (bfzero? x)
+                          (max (- (abs (bigfloats-between x y)) 1) 0)
+                          (abs (bigfloats-between x y)))))))
