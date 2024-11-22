@@ -92,13 +92,13 @@
 
     ; Add slack to overflows/underflows
     (when (and (bigfloat? (ival-lo output))
-               (or (and (ival-lo-fixed? output)
-                        (or (bfinfinite? (ival-lo output)) (bfzero? (ival-lo output))))
-                   (and (ival-hi-fixed? output)
-                        (or (bfinfinite? (ival-hi output)) (bfzero? (ival-hi output))))))
+               (or (bfinfinite? (ival-lo output))
+                   (bfzero? (ival-lo output))
+                   (bfinfinite? (ival-hi output))
+                   (bfzero? (ival-hi output))))
       (set! final-precision (+ final-precision (get-slack))))
-
     (set! final-precision (min final-precision (*rival-max-precision*)))
+
     (vector-set! vprecs-max (- n varc) final-precision)
 
     ; Early stopping based on higher bound
