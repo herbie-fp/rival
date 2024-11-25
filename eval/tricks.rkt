@@ -14,20 +14,16 @@
 (define (get-slack [iter (*sampling-iteration*)])
   (match iter
     [0 0]
-    [1 512]
-    [2 1024]
-    [3 2048]
-    [4 4096]
-    [5 8192]))
+    [_ (* (expt 2 (- iter 1)) 512)]))
 
 (define (crosses-zero? x)
   (not (equal? (mpfr-sign (ival-lo x)) (mpfr-sign (ival-hi x)))))
 
 ; We assume the interval x is valid. Critical not to take mpfr-exp of inf or 0
-(define (maxlog x #:no-slack [no-slack #f])
+(define (maxlog x #:less-slack [less-slack #f])
   (define iter
-    (if no-slack
-        0
+    (if less-slack
+        (- (*sampling-iteration*) 1)
         (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
@@ -39,10 +35,10 @@
     [else
      (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1)])) ; x does not contain inf, safe with respect to 0.bf
 
-(define (minlog x #:no-slack [no-slack #f])
+(define (minlog x #:less-slack [less-slack #f])
   (define iter
-    (if no-slack
-        0
+    (if less-slack
+        (- (*sampling-iteration*) 1)
         (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
@@ -137,9 +133,9 @@
 
      (if (*lower-bound-early-stopping*)
          (list (cons (- (maxlog x) (minlog z))
-                     (- (minlog x #:no-slack #t) (maxlog z #:no-slack #t))) ; bounds per x
+                     (- (minlog x #:less-slack #t) (maxlog z #:less-slack #t))) ; bounds per x
                (cons (- (maxlog y) (minlog z))
-                     (- (minlog y #:no-slack #t) (maxlog z #:no-slack #t)))) ; bounds per y
+                     (- (minlog y #:less-slack #t) (maxlog z #:less-slack #t)))) ; bounds per y
          (list (cons (- (maxlog x) (minlog z)) 0) ; bounds per x
                (cons (- (maxlog y) (minlog z)) 0)))] ; bounds per y
 
@@ -168,14 +164,16 @@
            0))
 
      (if (*lower-bound-early-stopping*)
-         (list (cons (+ (maxlog y) (logspan x) (logspan z) x-slack)
-                     (minlog y #:no-slack #t)) ; bounds per x
-               (cons (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+         (list (cons (max (+ (maxlog y) (logspan x) (logspan z) x-slack) x-slack)
+                     (minlog y #:less-slack #t)) ; bounds per x
+               (cons (max (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+                          y-slack)
                      (if (> (minlog x) 2)
-                         (minlog y #:no-slack #t)
+                         (minlog y #:less-slack #t)
                          0))) ; bounds per y
-         (list (cons (+ (maxlog y) (logspan x) (logspan z) x-slack) 0) ; bounds per x
-               (cons (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+         (list (cons (max (+ (maxlog y) (logspan x) (logspan z) x-slack) x-slack) 0) ; bounds per x
+               (cons (max (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+                          y-slack)
                      0)))] ; bounds per y
 
     [(ival-exp ival-exp2)
@@ -184,7 +182,7 @@
      ; ↓ampl[exp & exp2]'x = minlog(x)
      (define x (car srcs))
      (if (*lower-bound-early-stopping*)
-         (list (cons (+ (maxlog x) (logspan z)) (minlog x #:no-slack #t)))
+         (list (cons (+ (maxlog x) (logspan z)) (minlog x #:less-slack #t)))
          (list (cons (+ (maxlog x) (logspan z)) 0)))]
 
     [(ival-tan)
@@ -194,8 +192,8 @@
      (define x (first srcs))
      (if (*lower-bound-early-stopping*)
          (list (cons (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1)
-                     (- (+ (minlog x #:no-slack #t)
-                           (min (abs (maxlog z #:no-slack #t)) (abs (minlog z #:no-slack #t))))
+                     (- (+ (minlog x #:less-slack #t)
+                           (min (abs (maxlog z #:less-slack #t)) (abs (minlog z #:less-slack #t))))
                         1)))
          (list (cons (+ (maxlog x) (max (abs (maxlog z)) (abs (minlog z))) (logspan z) 1) 0)))]
 
@@ -208,7 +206,7 @@
      (if (*lower-bound-early-stopping*)
          (list (cons (- (maxlog x) (minlog z))
                      (if (>= (maxlog x) 1)
-                         (- -1 (maxlog z #:no-slack #t))
+                         (- -1 (maxlog z #:less-slack #t))
                          0)))
          (list (cons (- (maxlog x) (minlog z)) 0)))]
 
@@ -219,7 +217,7 @@
      (define x (first srcs))
      (if (*lower-bound-early-stopping*)
          (list (cons (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0))
-                     (- (- 2) (maxlog z #:no-slack #t))))
+                     (- (- 2) (maxlog z #:less-slack #t))))
          (list (cons (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0)) 0)))]
 
     [(ival-sinh)
@@ -229,7 +227,7 @@
      (define x (first srcs))
      (if (*lower-bound-early-stopping*)
          (list (cons (- (+ (maxlog x) (logspan z)) (min (minlog x) 0))
-                     (max 0 (minlog x #:no-slack #t))))
+                     (max 0 (minlog x #:less-slack #t))))
          (list (cons (- (+ (maxlog x) (logspan z)) (min (minlog x) 0)) 0)))]
 
     [(ival-cosh)
@@ -239,7 +237,7 @@
      (define x (first srcs))
      (if (*lower-bound-early-stopping*)
          (list (cons (+ (maxlog x) (logspan z) (min (maxlog x) 0))
-                     (max 0 (- (minlog x #:no-slack #t) 1))))
+                     (max 0 (- (minlog x #:less-slack #t) 1))))
          (list (cons (+ (maxlog x) (logspan z) (min (maxlog x) 0)) 0)))]
 
     [(ival-log ival-log2 ival-log10)
@@ -248,7 +246,7 @@
      ; ↓ampl[log & log2 & log10]'x = - maxlog(z)
      (define x (first srcs))
      (if (*lower-bound-early-stopping*)
-         (list (cons (+ (- (logspan x) (minlog z)) 1) (- (maxlog z #:no-slack #t))))
+         (list (cons (+ (- (logspan x) (minlog z)) 1) (- (maxlog z #:less-slack #t))))
          (list (cons (+ (- (logspan x) (minlog z)) 1) 0)))]
 
     [(ival-asin)
@@ -278,8 +276,8 @@
      (define x (first srcs))
      (if (*lower-bound-early-stopping*)
          (list (cons (- (logspan x) (min (abs (minlog x)) (abs (maxlog x))) (minlog z))
-                     (- (- (max (abs (minlog x #:no-slack #t)) (abs (maxlog x #:no-slack #t))))
-                        (maxlog z #:no-slack #t)
+                     (- (- (max (abs (minlog x #:less-slack #t)) (abs (maxlog x #:less-slack #t))))
+                        (maxlog z #:less-slack #t)
                         2)))
          (list (cons (- (logspan x) (min (abs (minlog x)) (abs (maxlog x))) (minlog z)) 0)))]
 
@@ -301,7 +299,7 @@
            0))
 
      (list (cons (- (maxlog x) (minlog z)) 0) ; bounds per x
-           (cons (max (+ (- (maxlog x) (minlog z)) slack) slack) 0))] ; bounds per y
+           (cons (+ (- (maxlog x) (minlog z)) slack) 0))] ; bounds per y
 
     ; Currently log1p has a very poor approximation
     [(ival-log1p)
@@ -314,7 +312,7 @@
      (define xlo (ival-lo x))
 
      (list (if (or (equal? (mpfr-sign xlo) -1) (equal? (mpfr-sign xhi) -1))
-               (cons (max (+ (- (maxlog x) (minlog z)) (get-slack)) (get-slack)) 0)
+               (cons (+ (- (maxlog x) (minlog z)) (get-slack)) 0)
                (cons (- (maxlog x) (minlog z)) 0)))]
 
     ; Currently expm1 has a very poor solution for negative values
@@ -335,9 +333,9 @@
      (if (*lower-bound-early-stopping*)
          (make-list 2
                     (cons (- (+ (maxlog x) (maxlog y)) (* 2 (min (minlog x) (minlog y))) (minlog z))
-                          (- (+ (minlog x #:no-slack #t) (minlog y #:no-slack #t))
-                             (* 2 (max (maxlog x #:no-slack #t) (maxlog y #:no-slack #t)))
-                             (maxlog z #:no-slack #t))))
+                          (- (+ (minlog x #:less-slack #t) (minlog y #:less-slack #t))
+                             (* 2 (max (maxlog x #:less-slack #t) (maxlog y #:less-slack #t)))
+                             (maxlog z #:less-slack #t))))
          (make-list 2
                     (cons (- (+ (maxlog x) (maxlog y)) (* 2 (min (minlog x) (minlog y))) (minlog z))
                           0)))]
@@ -366,7 +364,7 @@
      ; ↓ampl[acosh]'x = 0
      (define z-exp (minlog z))
      (list (if (< z-exp 2) ; when acosh(x) < 1
-               (cons (max (- (get-slack) z-exp) (get-slack)) 0)
+               (cons (- (get-slack) z-exp) 0)
                (cons 0 0)))]
 
     [(ival-pow2)
