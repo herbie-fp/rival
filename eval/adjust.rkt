@@ -75,13 +75,16 @@
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
 (define (precision-tuning ivec vregs vprecs-max varc vstart-precs)
+  (define vprecs-min (make-vector (vector-length ivec) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)])
     (define op (car instr))
     (define tail-registers (cdr instr))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
     (define output (vector-ref vregs n))
+
     (define max-prec (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
+    (define min-prec (vector-ref vprecs-min (- n varc))) ; lower precision bound given from parent
 
     ; Final precision assignment based on the upper bound
     (define final-precision
@@ -89,9 +92,14 @@
            (*rival-max-precision*)))
     (vector-set! vprecs-max (- n varc) final-precision)
 
-    ; Early stopping based on higher bound
-    (when (and (not (*lower-bound-early-stopping*)) (equal? final-precision (*rival-max-precision*)))
-      (*sampling-iteration* (*rival-max-iterations*)))
+    ; Early stopping
+    (match (*lower-bound-early-stopping*)
+      [#t
+       (when (>= min-prec (*rival-max-precision*))
+         (*sampling-iteration* (*rival-max-iterations*)))]
+      [#f
+       (when (equal? final-precision (*rival-max-precision*))
+         (*sampling-iteration* (*rival-max-iterations*)))])
 
     ; Precision propogation for each tail instruction
     (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
@@ -105,6 +113,6 @@
                    (- x varc)
                    (max (vector-ref vprecs-max (- x varc)) (+ max-prec up-bound)))
 
-      ; Early stopping based on lower bound
-      (when (and (*lower-bound-early-stopping*) (>= lo-bound (*rival-max-precision*)))
-        (*sampling-iteration* (*rival-max-iterations*))))))
+      (vector-set! vprecs-min
+                   (- x varc)
+                   (max (vector-ref vprecs-min (- x varc)) (+ min-prec lo-bound))))))
