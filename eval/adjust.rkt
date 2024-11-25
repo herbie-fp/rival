@@ -22,7 +22,6 @@
   (define vprecs (rival-machine-precisions machine))
   (define vstart-precs (rival-machine-incremental-precisions machine))
   (define current-iter (rival-machine-iteration machine))
-  (define bumps (rival-machine-bumps machine))
 
   (define varc (vector-length args))
   (define vprecs-new (make-vector (vector-length ivec) 0)) ; new vprecs vector
@@ -74,17 +73,10 @@
   ; Step 4. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new)
 
-  ; Step 5. If precisions have not changed but the point didn't converge. A problem exists - add slack to every op
+  ; Step 5. If precisions have not changed but the point didn't converge.
+  ; Likely the max precision has been reached - exit
   (unless any-false?
-    (set-rival-machine-bumps! machine (add1 bumps))
-    (define slack (get-slack))
-    (for ([prec (in-vector vprecs)]
-          [n (in-range (vector-length vprecs))])
-      (define prec* (min (*rival-max-precision*) (+ prec slack)))
-      (when (equal? prec* (*rival-max-precision*))
-        (*last-iteration* #t))
-      (vector-set! vprecs n prec*))
-    (vector-fill! vrepeats #f)))
+    (*last-iteration* #t)))
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking, the upper precision bound is calculated as:

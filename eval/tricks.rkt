@@ -163,16 +163,19 @@
            (get-slack)
            0))
 
+     (define minlog-x (minlog x))
+     (define maxlog-x (maxlog x))
+
      (if (*lower-bound-early-stopping*)
          (list (cons (max (+ (maxlog y) (logspan x) (logspan z) x-slack) x-slack)
                      (minlog y #:no-slack #t)) ; bounds per x
-               (cons (max (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+               (cons (max (+ (maxlog y) (max (abs maxlog-x) (abs minlog-x)) (logspan z) y-slack)
                           y-slack)
-                     (if (> (minlog x) 2)
-                         (minlog y #:no-slack #t)
-                         0))) ; bounds per y
+                     (cond
+                       [(zero? (min (abs maxlog-x) (abs minlog-x))) 0]
+                       [else (minlog y #:no-slack #t)]))) ; bounds per y
          (list (cons (max (+ (maxlog y) (logspan x) (logspan z) x-slack) x-slack) 0) ; bounds per x
-               (cons (max (+ (maxlog y) (max (abs (maxlog x)) (abs (minlog x))) (logspan z) y-slack)
+               (cons (max (+ (maxlog y) (max (abs maxlog-x) (abs minlog-x)) (logspan z) y-slack)
                           y-slack)
                      0)))] ; bounds per y
 

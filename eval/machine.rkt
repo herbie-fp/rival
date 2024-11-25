@@ -29,7 +29,6 @@
                    output-distance
                    initial-precision
                    [iteration #:mutable]
-                   [bumps #:mutable]
                    [profile-ptr #:mutable]
                    profile-instruction
                    profile-number

@@ -43,7 +43,6 @@
   (match param
     ['instructions (vector-length (rival-machine-instructions machine))]
     ['iterations (rival-machine-iteration machine)]
-    ['bumps (rival-machine-bumps machine)]
     ['executions
      (define profile-ptr (rival-machine-profile-ptr machine))
      (define profile-instruction (rival-machine-profile-instruction machine))
@@ -63,7 +62,6 @@
 
 (define (rival-apply machine pt)
   (define discs (rival-machine-discs machine))
-  (set-rival-machine-bumps! machine 0)
   (*last-iteration* #f)
 
   (let loop ([iter 0])
