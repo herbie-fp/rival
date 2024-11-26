@@ -108,11 +108,15 @@
           #:when (>= x varc)) ; when tail register is not a variable
       (match-define (cons up-bound lo-bound) bound)
 
+      ; The minimal required precision can not be negative
+      (set! lo-bound (max 0 lo-bound))
+
       ; Upper precision bound propogation
       (vector-set! vprecs-max
                    (- x varc)
                    (max (vector-ref vprecs-max (- x varc)) (+ max-prec up-bound)))
 
+      ; Lower precision bound propogation
       (vector-set! vprecs-min
                    (- x varc)
                    (max (vector-ref vprecs-min (- x varc)) (+ min-prec lo-bound))))))
