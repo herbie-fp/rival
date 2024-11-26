@@ -50,7 +50,7 @@
          (vector-set! vuseful (- arg varc) #t))]))
 
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful)
 
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -74,10 +74,12 @@
 ; Roughly speaking, the upper precision bound is calculated as:
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
-(define (precision-tuning ivec vregs vprecs-max varc vstart-precs)
+(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful)
   (define vprecs-min (make-vector (vector-length ivec) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
-        [n (in-range (- (vector-length vregs) 1) -1 -1)])
+        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
+        [n (in-range (- (vector-length vregs) 1) -1 -1)]
+        #:when useful?)
     (define op (car instr))
     (define tail-registers (cdr instr))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
