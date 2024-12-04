@@ -55,6 +55,7 @@
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
+  (define any-false? #f)
   (for ([instr (in-vector ivec)]
         [useful? (in-vector vuseful)]
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
@@ -65,10 +66,25 @@
       (or (not useful?)
           (and (<= prec-new prec-old)
                (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) (cdr instr)))))
+    (set! any-false? (or any-false? (not repeat)))
     (vector-set! vrepeats n repeat))
 
   ; Step 4. Copying new precisions into vprecs
-  (vector-copy! vprecs 0 vprecs-new))
+  (vector-copy! vprecs 0 vprecs-new)
+
+  ; Step 5. If precisions have not changed but the point didn't converge.
+  ; A problem exists - add slack to every op
+  ; Exit if precision has exceeded rival-max-precision and lower-bound-early-stopping is turned off
+  (unless any-false?
+    (set-rival-machine-bumps! machine (add1 bumps))
+    (define slack (get-slack))
+    (for ([prec (in-vector vprecs)]
+          [n (in-range (vector-length vprecs))])
+      (define prec* (min (*rival-max-precision*) (+ prec slack)))
+      (when (and (not (*lower-bound-early-stopping*)) (equal? prec* (*rival-max-precision*)))
+        (*sampling-iteration* (*rival-max-iterations*)))
+      (vector-set! vprecs n prec*))
+    (vector-fill! vrepeats #f)))
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking, the upper precision bound is calculated as:
@@ -110,9 +126,6 @@
           #:when (>= x varc)) ; when tail register is not a variable
       (match-define (cons up-bound lo-bound) bound)
 
-      ; The minimal required precision can not be negative
-      (set! lo-bound (max 0 lo-bound))
-
       ; Upper precision bound propogation
       (vector-set! vprecs-max
                    (- x varc)
@@ -121,4 +134,4 @@
       ; Lower precision bound propogation
       (vector-set! vprecs-min
                    (- x varc)
-                   (max (vector-ref vprecs-min (- x varc)) (+ min-prec lo-bound))))))
+                   (max (vector-ref vprecs-min (- x varc)) (+ min-prec (max 0 lo-bound)))))))
