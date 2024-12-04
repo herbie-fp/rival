@@ -287,7 +287,6 @@
                  initial-precision
                  0
                  0
-                 0
                  (make-vector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))
                  (make-flvector (*rival-profile-executions*))

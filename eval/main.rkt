@@ -15,7 +15,6 @@
          (struct-out exn:rival:unsamplable)
          (struct-out discretization)
          *rival-max-precision*
-         *rival-max-iterations*
          *rival-use-shorthands*
          *rival-name-constants*
          rival-profile
@@ -28,7 +27,7 @@
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine)
   (cond
-    [(>= (*sampling-iteration*) (*rival-max-iterations*)) (values #f #f #f #t #f)]
+    [(*last-iteration*) (values #f #f #f #t #f)]
     [else
      (rival-machine-load machine inputs)
      (rival-machine-run machine)
@@ -44,7 +43,6 @@
   (match param
     ['instructions (vector-length (rival-machine-instructions machine))]
     ['iterations (rival-machine-iteration machine)]
-    ['bumps (rival-machine-bumps machine)]
     ['executions
      (define profile-ptr (rival-machine-profile-ptr machine))
      (define profile-instruction (rival-machine-profile-instruction machine))
@@ -64,18 +62,20 @@
 
 (define (rival-apply machine pt)
   (define discs (rival-machine-discs machine))
-  (set-rival-machine-bumps! machine 0)
+  (*last-iteration* #f)
+
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
+        (when (> (*sampling-iteration*) 10)
+          (println pt)
+          (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt)))
         (rival-machine-full machine (vector-map ival-real pt))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
       [stuck? (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [(>= iter (*rival-max-iterations*))
-       (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else (loop (+ 1 iter))])))
 
 (define (rival-analyze machine rect)

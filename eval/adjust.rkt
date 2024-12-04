@@ -4,7 +4,9 @@
          "../ops/all.rkt"
          "machine.rkt"
          racket/list
-         racket/match)
+         racket/match
+         math/flonum
+         math/bigfloat)
 
 (provide backward-pass)
 
@@ -20,7 +22,6 @@
   (define vprecs (rival-machine-precisions machine))
   (define vstart-precs (rival-machine-incremental-precisions machine))
   (define current-iter (rival-machine-iteration machine))
-  (define bumps (rival-machine-bumps machine))
 
   (define varc (vector-length args))
   (define vprecs-new (make-vector (vector-length ivec) 0)) ; new vprecs vector
@@ -55,6 +56,7 @@
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
+  (define any-false? #f)
   (for ([instr (in-vector ivec)]
         [useful? (in-vector vuseful)]
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
@@ -65,14 +67,20 @@
       (or (not useful?)
           (and (<= prec-new prec-old)
                (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) (cdr instr)))))
+    (set! any-false? (or any-false? (not repeat)))
     (vector-set! vrepeats n repeat))
 
   ; Step 4. Copying new precisions into vprecs
-  (vector-copy! vprecs 0 vprecs-new))
+  (vector-copy! vprecs 0 vprecs-new)
+
+  ; Step 5. If precisions have not changed but the point didn't converge.
+  ; Likely the max precision has been reached - exit
+  (unless any-false?
+    (*last-iteration* #t)))
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking, the upper precision bound is calculated as:
-;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
+;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-rival-prec < (+ max-prec vstart-precs[i]) < max-rival-prec
 ;   max-prec = (car (get-bounds parent))
 (define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful)
   (define vprecs-min (make-vector (vector-length ivec) 0))
@@ -90,21 +98,46 @@
 
     ; Final precision assignment based on the upper bound
     (define final-precision
-      (min (max (+ max-prec (vector-ref vstart-precs (- n varc))) (*rival-min-precision*))
-           (*rival-max-precision*)))
+      (max (+ max-prec (vector-ref vstart-precs (- n varc))) (*rival-min-precision*)))
+
+    ; Add slack to overflows/underflows
+    (when (and (bigfloat? (ival-lo output))
+               (or (bfinfinite? (ival-lo output))
+                   (bfzero? (ival-lo output))
+                   (bfinfinite? (ival-hi output))
+                   (bfzero? (ival-hi output))))
+      (set! final-precision (+ final-precision (get-slack))))
+    (set! final-precision (min final-precision (*rival-max-precision*)))
+
     (vector-set! vprecs-max (- n varc) final-precision)
 
     ; Early stopping
     (match (*lower-bound-early-stopping*)
       [#t
        (when (>= min-prec (*rival-max-precision*))
-         (*sampling-iteration* (*rival-max-iterations*)))]
+         (*last-iteration* #t))]
       [#f
        (when (equal? final-precision (*rival-max-precision*))
-         (*sampling-iteration* (*rival-max-iterations*)))])
+         (*last-iteration* #t))])
 
     ; Precision propogation for each tail instruction
     (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
+
+    ; --------------- DEBUGGING
+    #;(define (distance x)
+        (if (boolean? (ival-lo x))
+            (equal? (ival-lo x) (ival-hi x))
+            (parameterize ([bf-precision (bigfloat-precision (ival-lo x))])
+              (bigfloats-between (ival-lo x) (ival-hi x)))))
+    #;(printf "~a) ~a at ~a, ampls=~a, distance=~a\n"
+              n
+              instr
+              final-precision
+              ampl-bounds
+              (distance output))
+    #;(printf "\toutput=~a\n" output)
+    ; ---------------
+
     (for ([x (in-list tail-registers)]
           [bound (in-list ampl-bounds)]
           #:when (>= x varc)) ; when tail register is not a variable

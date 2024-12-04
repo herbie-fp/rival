@@ -99,7 +99,6 @@
          (struct-out exn:rival:invalid)
          (struct-out exn:rival:unsamplable)
          *rival-max-precision*
-         *rival-max-iterations*
          *rival-profile-executions*
          *rival-use-shorthands*
          *rival-name-constants*
