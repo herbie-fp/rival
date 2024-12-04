@@ -159,7 +159,7 @@
 
      ; when output is (ival 0.bf 1.bf) - it means that x was close to 1 or 0 but not narrow enough
      (define x-slack
-       (if (and (bfzero? (ival-lo z)) (bfinteger? (ival-hi z)))
+       (if (bfzero? (ival-lo z))
            (get-slack)
            0))
 
