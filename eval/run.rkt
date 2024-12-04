@@ -3,10 +3,12 @@
 (require racket/match
          racket/function
          racket/flonum)
+
 (require "machine.rkt"
          "adjust.rkt"
          "../mpfr.rkt"
          "../ops/all.rkt")
+
 (provide rival-machine-load
          rival-machine-run
          rival-machine-return
@@ -32,13 +34,9 @@
 (define (rival-machine-run machine)
   (define ivec (rival-machine-instructions machine))
   (define varc (vector-length (rival-machine-arguments machine)))
-  (define precisions
-    (if (zero? (rival-machine-iteration machine))
-        (rival-machine-initial-precisions machine)
-        (rival-machine-precisions machine)))
+  (define precisions (rival-machine-precisions machine))
   (define repeats (rival-machine-repeats machine))
   (define vregs (rival-machine-registers machine))
-
   ; parameter for sampling histogram table
   (define first-iter? (zero? (rival-machine-iteration machine)))
 
@@ -72,7 +70,6 @@
   (define vregs (rival-machine-registers machine))
   (define rootvec (rival-machine-outputs machine))
   (define slackvec (rival-machine-output-distance machine))
-  (define ovec (make-vector (vector-length rootvec)))
   (define good? #t)
   (define done? #t)
   (define bad? #f)
@@ -99,7 +96,8 @@
 
 (define (rival-machine-adjust machine)
   (define iter (rival-machine-iteration machine))
-  (unless (zero? iter)
-    (define start (current-inexact-milliseconds))
-    (backward-pass machine)
+  (let ([start (current-inexact-milliseconds)])
+    (if (zero? iter)
+        (vector-fill! (rival-machine-precisions machine) (rival-machine-initial-precision machine))
+        (backward-pass machine))
     (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))
