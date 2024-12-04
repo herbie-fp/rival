@@ -76,7 +76,7 @@
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
       [stuck? (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [(>= (* 2 prec) (*rival-max-precision*)) ; max precision is taken from eval/machine.rkt
+      [(> (* 2 prec) (*rival-max-precision*)) ; max precision is taken from eval/machine.rkt
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else (loop (* 2 prec))])))
 

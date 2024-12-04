@@ -185,9 +185,7 @@
 
         ; -------------------------------- Combining results ----------------------------------------
         ; When all the machines have compiled and produced results - write the results to outcomes
-        (when (and (> (*sampling-timeout*) sollya-apply-time)
-                   (> (*sampling-timeout*) rival-apply-time)
-                   (> (*sampling-timeout*) baseline-apply-time))
+        (when (> (*sampling-timeout*) sollya-apply-time)
           (point-bucketing timeline
                            rival-status
                            rival-apply-time
@@ -549,7 +547,10 @@
        ; These points will go into speed graph
        [(and (equal? 'valid sollya-status)
              (equal? 'valid baseline-status)
-             (equal? rival-status 'valid))
+             (equal? rival-status 'valid)
+             (> (*sampling-timeout*) sollya-time)
+             (> (*sampling-timeout*) rival-time)
+             (> (*sampling-timeout*) baseline-time))
         (timeline-push! timeline
                         'outcomes
                         (list "valid-sollya" rival-iter baseline-precision sollya-time))
