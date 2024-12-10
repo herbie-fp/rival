@@ -14,13 +14,16 @@
 
 (provide baseline-compile
          baseline-apply
-         baseline-profile)
+         baseline-profile
+         (struct-out baseline-machine))
 
 (struct baseline-machine
         (arguments instructions
                    outputs
                    discs
                    registers
+                   precisions
+                   [precision #:mutable]
                    [profile-ptr #:mutable]
                    profile-instruction
                    profile-number
@@ -46,6 +49,8 @@
                     roots
                     discs
                     registers
+                    precisions
+                    0
                     0
                     (make-vector (*rival-profile-executions*))
                     (make-vector (*rival-profile-executions*))
@@ -56,7 +61,7 @@
 (define (ival-real x)
   (ival x))
 
-(define (baseline-apply machine pt #:timeout [timeout 20.0])
+(define (baseline-apply machine pt)
   (define start-time (current-inexact-milliseconds))
   (define discs (baseline-machine-discs machine))
   (define start-prec
@@ -71,13 +76,16 @@
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
       [stuck? (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [(or (>= (* 2 prec) (*rival-max-precision*)) ; max precision is taken from eval/machine.rkt
-           (> (- (current-inexact-milliseconds) start-time) (+ timeout 5.0)))
+      [(> (* 2 prec) (*rival-max-precision*)) ; max precision is taken from eval/machine.rkt
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else (loop (* 2 prec))])))
 
+(define (baseline-machine-adjust machine)
+  (vector-fill! (baseline-machine-precisions machine) (baseline-machine-precision machine)))
+
 (define (baseline-machine-full machine inputs)
-  ; no adjust here
+  (set-baseline-machine-precision! machine (bf-precision))
+  (baseline-machine-adjust machine)
   (baseline-machine-load machine inputs)
   (baseline-machine-run machine)
   (baseline-machine-return machine))
@@ -89,16 +97,17 @@
   (define ivec (baseline-machine-instructions machine))
   (define varc (vector-length (baseline-machine-arguments machine)))
   (define vregs (baseline-machine-registers machine))
-  (define precision (bf-precision))
+  (define precisions (baseline-machine-precisions machine))
 
-  (parameterize ([bf-precision precision])
-    (for ([instr (in-vector ivec)]
-          [n (in-naturals varc)])
-      (define start (current-inexact-milliseconds))
-      (vector-set! vregs n (apply-instruction instr vregs))
-      (define name (object-name (car instr)))
-      (define time (- (current-inexact-milliseconds) start))
-      (baseline-machine-record machine name n precision time))))
+  (for ([instr (in-vector ivec)]
+        [n (in-naturals varc)]
+        [precision (in-vector precisions)])
+    (define start (current-inexact-milliseconds))
+    (parameterize ([bf-precision precision])
+      (vector-set! vregs n (apply-instruction instr vregs)))
+    (define name (object-name (car instr)))
+    (define time (- (current-inexact-milliseconds) start))
+    (baseline-machine-record machine name n precision time)))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,

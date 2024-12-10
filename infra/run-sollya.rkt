@@ -63,7 +63,7 @@
                                    ;(truc . Truncate)                               ; no truncate
                                    (round . "round(~a)")
                                    (assert . "if (~a) then (~a) else nan")
-                                   (if . "(if (~a) then (~a) else (~a))")
+                                   (if . "if (~a) then (~a) else (~a)")
                                    (TRUE . "true")
                                    (< . "((~a) < (~a))")
                                    (> . "((~a) > (~a))")
@@ -88,8 +88,10 @@
 (define (expr->sollya expr)
   (match expr
     ; Precondition parsing
-    [(list (list 'assert (app expr->sollya assertion) ...) (app expr->sollya args))
-     (format (hash-ref function->sollya-format 'assert) assertion args)]
+    [(list (list 'assert precondition) (app expr->sollya args))
+     (if (equal? precondition '(TRUE))
+         args
+         (format (hash-ref function->sollya-format 'assert) (expr->sollya precondition) args))]
 
     ; Constants
     [(or (list 'PI) '(PI) 'PI) "pi"]

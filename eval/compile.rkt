@@ -8,7 +8,7 @@
 (provide rival-compile
          *rival-use-shorthands*
          *rival-name-constants*
-         fn->ival-fn
+         fn->ival-fn ; for baseline
          exprs->batch) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))
@@ -270,8 +270,10 @@
   (define registers (make-vector register-count))
   (define repeats (make-vector register-count #f)) ; flags whether an op should be evaluated
   (define precisions (make-vector register-count)) ; vector that stores working precisions
-  ;; starting precisions for the first, un-tuned iteration
-  (define initial-precisions (setup-vstart-precs instructions (length vars) roots discs))
+  ;; vector for adjusting precisions
+  (define incremental-precisions (setup-vstart-precs instructions (length vars) roots discs))
+  (define initial-precision
+    (+ (argmax identity (map discretization-target discs)) (*base-tuning-precision*)))
 
   (rival-machine (list->vector vars)
                  instructions
@@ -280,8 +282,9 @@
                  registers
                  repeats
                  precisions
-                 initial-precisions
+                 incremental-precisions
                  (make-vector (vector-length roots))
+                 initial-precision
                  0
                  0
                  0
