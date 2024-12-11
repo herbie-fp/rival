@@ -125,6 +125,10 @@
     [`(pow ,arg 1/3) `(cbrt ,arg)]
     [`(pow ,arg 1/2) `(sqrt ,arg)]
 
+    ; Some simplifications to prevent overflow
+    [`(log (exp ,x)) x]
+    [`(log (pow ,x ,y)) `(* ,y (log ,x))]
+
     ; Special trigonometric functions
     [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
      #:when bfcosu
