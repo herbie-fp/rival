@@ -125,10 +125,6 @@
     [`(pow ,arg 1/3) `(cbrt ,arg)]
     [`(pow ,arg 1/2) `(sqrt ,arg)]
 
-    ; Some simplifications to prevent overflow
-    [`(log (exp ,x)) x]
-    [`(log (pow ,x ,y)) `(* ,y (log ,x))]
-
     ; Special trigonometric functions
     [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
      #:when bfcosu
@@ -193,6 +189,10 @@
        [(and (even? (numerator y)) (odd? (denominator y))) `(pow (fabs ,x) ,y)]
        [(and (odd? (numerator y)) (odd? (denominator y))) `(copysign (pow (fabs ,x) ,y) ,x)]
        [else `(pow ,x ,y)])]
+
+    ; Some simplifications to prevent overflow
+    [`(log (exp ,x)) x]
+    [`(log (pow ,x ,y)) `(* ,y (log ,x))]
     [_ expr]))
 
 (define (exprs->batch exprs vars)
