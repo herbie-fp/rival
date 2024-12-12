@@ -124,6 +124,7 @@
     [`(pow ,arg 2) `(pow2 ,arg)]
     [`(pow ,arg 1/3) `(cbrt ,arg)]
     [`(pow ,arg 1/2) `(sqrt ,arg)]
+    [`(pow 2 ,arg) `(exp2 ,arg)]
 
     ; Special trigonometric functions
     [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
@@ -192,7 +193,6 @@
 
     ; Some simplifications to prevent overflow
     [`(log (exp ,x)) x]
-    [`(log (pow ,x ,y)) `(* ,y (log ,x))]
     [_ expr]))
 
 (define (exprs->batch exprs vars)
