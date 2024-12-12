@@ -193,6 +193,7 @@
 
     ; Some simplifications to prevent overflow
     [`(log (exp ,x)) x]
+    [`(exp (log ,x)) `(then (assert (> ,x 0)) ,x)]
     [_ expr]))
 
 (define (exprs->batch exprs vars)
