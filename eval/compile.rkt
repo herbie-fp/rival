@@ -209,10 +209,9 @@
   ; Translates programs into an instruction sequence of operations
   (define (munge prog)
     (define node ; This compiles to the register machine
-      (let ([prog* (optimize prog)])
-        (match prog*
-          [(list op args ...) (cons op (map munge args))]
-          [_ prog*])))
+      (match (optimize prog)
+        [(list op args ...) (cons op (map munge args))]
+        [prog* prog*]))
     (hash-ref! exprhash
                node
                (lambda ()
