@@ -98,13 +98,13 @@
     [(list 'cast x) (list values x)]
 
     [(list 'assert x) (list ival-assert x)]
+    [(list 'then x y) (list ival-then x y)]
     [(list 'error x) (list ival-error? x)]
 
     [(list op args ...) (error 'compile-specs "Unknown operator ~a" op)]))
 
 (define (optimize expr)
   (match (and (*rival-use-shorthands*) expr)
-
     ; Syntax quirks
     [`PI '(PI)]
     [`E '(E)]
@@ -192,7 +192,7 @@
        [else `(pow ,x ,y)])]
 
     ; Some simplifications to prevent overflow
-    [`(log (exp ,x)) x]
+    [`(log (exp ,arg)) arg]
     [`(exp (log ,x)) `(then (assert (> ,x 0)) ,x)]
     [_ expr]))
 
@@ -209,9 +209,10 @@
   ; Translates programs into an instruction sequence of operations
   (define (munge prog)
     (define node ; This compiles to the register machine
-      (match (optimize prog)
-        [(list op args ...) (cons op (map munge args))]
-        [_ prog]))
+      (let ([prog* (optimize prog)])
+        (match prog*
+          [(list op args ...) (cons op (map munge args))]
+          [_ prog*])))
     (hash-ref! exprhash
                node
                (lambda ()
@@ -265,7 +266,6 @@
 (define (rival-compile exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots) (exprs->batch exprs vars))
-
   (define instructions
     (for/vector #:length (- (vector-length nodes) num-vars)
                 ([node (in-vector nodes num-vars)])
@@ -325,5 +325,42 @@
                    (max ; sometimes an instruction can be in many tail registers
                     idx-prec ; We wanna make sure that we do not tune a precision down
                     (+ current-prec (*ampl-tuning-bits*))))))
-
   vstart-precs)
+
+(module+ test
+  (require rackunit
+           "../utils.rkt")
+  ; This function is needed to unwrap constant procedure which fails tests otherwise
+  ; (const (ival 0.bf 0.bf)) != (const (ival 0.bf 0.bf))
+  (define (drop-ival-const instrs)
+    (for/vector ([instr (in-vector instrs)])
+      (match instr
+        [`(,const) (const)]
+        [_ instr])))
+
+  (define discs (list flonum-discretization))
+  (define vars '(x y z))
+
+  (define (check-rival-optimization expr target-expr)
+    (define optimized-instrs
+      (drop-ival-const (parameterize ([*rival-use-shorthands* #t])
+                         (rival-machine-instructions (rival-compile (list expr) vars discs)))))
+    (define target-instrs
+      (drop-ival-const (parameterize ([*rival-use-shorthands* #f])
+                         (rival-machine-instructions (rival-compile (list target-expr) vars discs)))))
+    (check-equal? optimized-instrs target-instrs))
+
+  (check-rival-optimization `(* (log (exp x)) y) `(* x y))
+  (check-rival-optimization `(* (exp (log x)) y) `(* (then (assert (> x 0)) x) y))
+  (check-rival-optimization `(fma x y z) `(+ (* x y) z))
+  (check-rival-optimization `(- (exp x) 1) `(expm1 x))
+  (check-rival-optimization `(- 1 (exp x)) `(neg (expm1 x)))
+  (check-rival-optimization `(log (+ 1 x)) `(log1p x))
+  (check-rival-optimization `(log (+ x 1)) `(log1p x))
+  (check-rival-optimization `(sqrt (+ (* x x) (* y y))) `(hypot x y))
+  (check-rival-optimization `(sqrt (+ (* x x) 1)) `(hypot x 1))
+  (check-rival-optimization `(sqrt (+ 1 (* x x))) `(hypot 1 x))
+  (check-rival-optimization `(pow x 2) `(pow2 x))
+  (check-rival-optimization `(pow x 1/3) `(cbrt x))
+  (check-rival-optimization `(pow x 1/2) `(sqrt x))
+  (check-rival-optimization `(pow 2 x) `(exp2 x)))
