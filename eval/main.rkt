@@ -83,4 +83,5 @@
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
-  (ival (or bad? stuck?) (not good?)))
+  (define hint (make-hint machine))
+  (values (ival (or bad? stuck?) (not good?)) hint))

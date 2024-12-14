@@ -6,7 +6,77 @@
          racket/list
          racket/match)
 
-(provide backward-pass)
+(provide backward-pass
+         make-hint)
+
+(define (make-hint machine)
+  (define args (rival-machine-arguments machine))
+  (define ivec (rival-machine-instructions machine))
+  (define rootvec (rival-machine-outputs machine))
+  (define vregs (rival-machine-registers machine))
+
+  (define varc (vector-length args))
+  (define vhint (make-vector (vector-length ivec) #f))
+
+  (for ([root-reg (in-vector rootvec)])
+    (vector-set! vhint (- root-reg varc) #t))
+  (for/vector ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
+               [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
+               #:when hint)
+    (case (object-name (car instr))
+      [(ival-if)
+       (match-define (vector _ cond tru fls) instr)
+       (define cond-reg (vector-ref vregs cond))
+       (cond
+         [(and (ival-lo cond-reg) (ival-hi cond-reg))
+          (vector-set! vhint (- cond varc) (or #f (vector-ref vhint (- cond varc))))
+          (vector-set! vhint (- tru varc) #t)
+          (vector-set! vhint (- fls varc) (or #f (vector-ref vhint (- fls varc))))
+          1]
+         [(not (or (ival-lo cond-reg) (ival-hi cond-reg)))
+          (vector-set! vhint (- cond varc) (or #f (vector-ref vhint (- cond varc))))
+          (vector-set! vhint (- tru varc) (or #f (vector-ref vhint (- tru varc))))
+          (vector-set! vhint (- fls varc) #t)
+          2]
+         [else
+          (vector-set! vhint (- cond varc) #t)
+          (vector-set! vhint (- tru varc) #t)
+          (vector-set! vhint (- fls varc) #t)
+          #t])]
+      [(ival-fmax)
+       (match-define (vector _ arg1 arg2) instr)
+       (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+       (cond
+         [(and (ival-lo cmp) (ival-hi cmp))
+          (vector-set! vhint (- arg2 varc) (or #f (vector-ref vhint (- arg2 varc))))
+          (vector-set! vhint (- arg1 varc) #t)
+          0]
+         [(not (or (ival-lo cmp) (ival-hi cmp)))
+          (vector-set! vhint (- arg1 varc) (or #f (vector-ref vhint (- arg1 varc))))
+          (vector-set! vhint (- arg2 varc) #t)
+          1]
+         [else
+          (vector-set! vhint (- arg1 varc) #t)
+          (vector-set! vhint (- arg2 varc) #t)
+          #t])]
+      [(ival-fmin)
+       (match-define (vector _ arg1 arg2) instr)
+       (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+       (cond
+         [(and (ival-lo cmp) (ival-hi cmp))
+          (vector-set! vhint (- arg1 varc) (or #f (vector-ref vhint (- arg1 varc))))
+          (vector-set! vhint (- arg2 varc) #t)
+          1]
+         [(not (or (ival-lo cmp) (ival-hi cmp)))
+          (vector-set! vhint (- arg2 varc) (or #f (vector-ref vhint (- arg2 varc))))
+          (vector-set! vhint (- arg1 varc) #t)
+          0]
+         [else
+          (vector-set! vhint (- arg1 varc) #t)
+          (vector-set! vhint (- arg2 varc) #t)
+          #t])]
+      ;(vector-map (curry vector-ref vregs) (vector-rest instr))
+      [else #t])))
 
 (define (backward-pass machine)
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
