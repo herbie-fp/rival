@@ -31,7 +31,7 @@
     (flvector-set! profile-time profile-ptr time)
     (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
 
-(define (rival-machine-run machine)
+(define (rival-machine-run machine [vhint #f])
   (define ivec (rival-machine-instructions machine))
   (define varc (vector-length (rival-machine-arguments machine)))
   (define precisions (rival-machine-precisions machine))
@@ -40,17 +40,35 @@
   ; parameter for sampling histogram table
   (define first-iter? (zero? (rival-machine-iteration machine)))
 
-  (for ([instr (in-vector ivec)]
-        [n (in-naturals varc)]
-        [precision (in-vector precisions)]
-        [repeat (in-vector repeats)]
-        #:unless (and (not first-iter?) repeat))
-    (define start (current-inexact-milliseconds))
-    (parameterize ([bf-precision precision])
-      (vector-set! vregs n (apply-instruction instr vregs)))
-    (define name (object-name (car instr)))
-    (define time (- (current-inexact-milliseconds) start))
-    (rival-machine-record machine name n precision time)))
+  (if vhint
+      (for ([instr (in-vector ivec)]
+            [n (in-naturals varc)]
+            [precision (in-vector precisions)]
+            [repeat (in-vector repeats)]
+            [hint (in-vector vhint)]
+            #:unless (or (not hint) (and (not first-iter?) repeat)))
+        (define start (current-inexact-milliseconds))
+        (parameterize ([bf-precision precision])
+          (vector-set! vregs
+                       n
+                       (if (integer? hint)
+                           (vector-ref vregs (list-ref instr hint))
+                           (apply-instruction instr vregs))))
+        (define name (object-name (car instr)))
+        (define time (- (current-inexact-milliseconds) start))
+        (rival-machine-record machine name n precision time))
+
+      (for ([instr (in-vector ivec)]
+            [n (in-naturals varc)]
+            [precision (in-vector precisions)]
+            [repeat (in-vector repeats)]
+            #:unless (and (not first-iter?) repeat))
+        (define start (current-inexact-milliseconds))
+        (parameterize ([bf-precision precision])
+          (vector-set! vregs n (apply-instruction instr vregs)))
+        (define name (object-name (car instr)))
+        (define time (- (current-inexact-milliseconds) start))
+        (rival-machine-record machine name n precision time))))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,

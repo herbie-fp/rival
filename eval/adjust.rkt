@@ -18,65 +18,78 @@
   (define varc (vector-length args))
   (define vhint (make-vector (vector-length ivec) #f))
 
+  (define (vhint-set! idx x)
+    (when (>= idx varc)
+      (vector-set! vhint (- idx varc) x)))
+
   (for ([root-reg (in-vector rootvec)])
-    (vector-set! vhint (- root-reg varc) #t))
-  (for/vector ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
-               [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
-               #:when hint)
-    (case (object-name (car instr))
-      [(ival-if)
-       (match-define (vector _ cond tru fls) instr)
-       (define cond-reg (vector-ref vregs cond))
-       (cond
-         [(and (ival-lo cond-reg) (ival-hi cond-reg))
-          (vector-set! vhint (- cond varc) (or #f (vector-ref vhint (- cond varc))))
-          (vector-set! vhint (- tru varc) #t)
-          (vector-set! vhint (- fls varc) (or #f (vector-ref vhint (- fls varc))))
-          1]
-         [(not (or (ival-lo cond-reg) (ival-hi cond-reg)))
-          (vector-set! vhint (- cond varc) (or #f (vector-ref vhint (- cond varc))))
-          (vector-set! vhint (- tru varc) (or #f (vector-ref vhint (- tru varc))))
-          (vector-set! vhint (- fls varc) #t)
-          2]
-         [else
-          (vector-set! vhint (- cond varc) #t)
-          (vector-set! vhint (- tru varc) #t)
-          (vector-set! vhint (- fls varc) #t)
-          #t])]
-      [(ival-fmax)
-       (match-define (vector _ arg1 arg2) instr)
-       (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
-       (cond
-         [(and (ival-lo cmp) (ival-hi cmp))
-          (vector-set! vhint (- arg2 varc) (or #f (vector-ref vhint (- arg2 varc))))
-          (vector-set! vhint (- arg1 varc) #t)
-          0]
-         [(not (or (ival-lo cmp) (ival-hi cmp)))
-          (vector-set! vhint (- arg1 varc) (or #f (vector-ref vhint (- arg1 varc))))
-          (vector-set! vhint (- arg2 varc) #t)
-          1]
-         [else
-          (vector-set! vhint (- arg1 varc) #t)
-          (vector-set! vhint (- arg2 varc) #t)
-          #t])]
-      [(ival-fmin)
-       (match-define (vector _ arg1 arg2) instr)
-       (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
-       (cond
-         [(and (ival-lo cmp) (ival-hi cmp))
-          (vector-set! vhint (- arg1 varc) (or #f (vector-ref vhint (- arg1 varc))))
-          (vector-set! vhint (- arg2 varc) #t)
-          1]
-         [(not (or (ival-lo cmp) (ival-hi cmp)))
-          (vector-set! vhint (- arg2 varc) (or #f (vector-ref vhint (- arg2 varc))))
-          (vector-set! vhint (- arg1 varc) #t)
-          0]
-         [else
-          (vector-set! vhint (- arg1 varc) #t)
-          (vector-set! vhint (- arg2 varc) #t)
-          #t])]
-      ;(vector-map (curry vector-ref vregs) (vector-rest instr))
-      [else #t])))
+    (vhint-set! root-reg #t))
+  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
+        [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
+        [n (in-range (- (vector-length vhint) 1) -1 -1)]
+        #:when hint)
+    (define hint*
+      (case (object-name (car instr))
+        [(ival-if)
+         (match-define (list _ cond tru fls) instr)
+         (define cond-reg (vector-ref vregs cond))
+         (cond
+           [(and (ival-lo cond-reg) (ival-hi cond-reg))
+            (vhint-set! cond (or #f (vector-ref vhint (- cond varc))))
+            (vhint-set! tru #t)
+            (vhint-set! fls (or #f (vector-ref vhint (- fls varc))))
+            2]
+           [(not (or (ival-lo cond-reg) (ival-hi cond-reg)))
+            (vhint-set! cond (or #f (vector-ref vhint (- cond varc))))
+            (vhint-set! tru (or #f (vector-ref vhint (- tru varc))))
+            (vhint-set! fls #t)
+            3]
+           [#t
+            (vhint-set! cond #t)
+            (vhint-set! tru #t)
+            (vhint-set! fls #t)
+            #t])]
+        [(ival-fmax)
+         (match-define (list _ arg1 arg2) instr)
+         (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+         (cond
+           [(and (ival-lo cmp) (ival-hi cmp))
+            (vhint-set! arg2 (or #f (vector-ref vhint (- arg2 varc))))
+            (vhint-set! arg1 #t)
+            1]
+           [(not (or (ival-lo cmp) (ival-hi cmp)))
+            (vhint-set! arg1 (or #f (vector-ref vhint (- arg1 varc))))
+            (vhint-set! arg2 #t)
+            2]
+           [#t
+            (vhint-set! arg1 #t)
+            (vhint-set! arg2 #t)
+            #t])]
+        [(ival-fmin)
+         (match-define (list _ arg1 arg2) instr)
+         (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+         (cond
+           [(and (ival-lo cmp) (ival-hi cmp))
+            (vhint-set! arg1 (or #f (vector-ref vhint (- arg1 varc))))
+            (vhint-set! arg2 #t)
+            2]
+           [(not (or (ival-lo cmp) (ival-hi cmp)))
+            (vhint-set! arg2 (or #f (vector-ref vhint (- arg2 varc))))
+            (vhint-set! arg1 #t)
+            1]
+           [#t
+            (vhint-set! arg1 #t)
+            (vhint-set! arg2 #t)
+            #t])]
+        [else
+         (define srcs (rest instr))
+         (map (λ (x)
+                (vhint-set! x)
+                #t)
+              srcs)
+         #t]))
+    (vector-set! vhint n hint*))
+  vhint)
 
 (define (backward-pass machine)
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
