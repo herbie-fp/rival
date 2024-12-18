@@ -22,3 +22,4 @@ jobs:
       - name: "Make sure files are correctly formatted with raco fmt"
         run: git diff --exit-code
       - run: raco test *.rkt
+      - run: raco test eval/*.rkt
