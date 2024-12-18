@@ -24,14 +24,14 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (rival-machine-full machine inputs)
+(define (rival-machine-full machine inputs [hint #f])
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine)
   (cond
     [(>= (*sampling-iteration*) (*rival-max-iterations*)) (values #f #f #f #t #f)]
     [else
      (rival-machine-load machine inputs)
-     (rival-machine-run machine)
+     (rival-machine-run machine hint)
      (rival-machine-return machine)]))
 
 (struct exn:rival exn:fail ())
@@ -62,14 +62,14 @@
 (define (ival-real x)
   (ival x))
 
-(define (rival-apply machine pt)
+(define (rival-apply machine pt [hint #f])
   (define discs (rival-machine-discs machine))
   (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
-        (rival-machine-full machine (vector-map ival-real pt))))
+        (rival-machine-full machine (vector-map ival-real pt) hint)))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
@@ -83,4 +83,100 @@
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
-  (ival (or bad? stuck?) (not good?)))
+  (define hint (make-hint machine))
+  (values (ival (or bad? stuck?) (not good?)) hint))
+
+(module+ test
+  (require rackunit
+           "compile.rkt"
+           "../utils.rkt"
+           math/bigfloat)
+  (define number-of-random-hyperrects 100)
+  (define number-of-random-pts-per-rect 100)
+  (bf-precision 53)
+
+  ; Check whether outputs are the same for the hint and without hint executions
+  (define (rival-check-hint machine hint pt)
+    (check-equal? (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
+                                  [exn:rival:unsamplable? (λ (e) 'unsamplable)])
+                    (rival-apply machine pt))
+                  (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
+                                  [exn:rival:unsamplable? (λ (e) 'unsamplable)])
+                    (rival-apply machine pt hint))))
+
+  ; Random sampling hyperrects given a general range as [rect-lo, rect-hi]
+  (define (sample-hyperrect-within-bounds rect-lo rect-hi varc)
+    (for/vector ([_ (in-range varc)])
+      (define xlo-range-length (bf- rect-hi rect-lo))
+      (define xlo (bf+ (bf* (bfrandom) xlo-range-length) rect-lo))
+      (define xhi-range-length (bf- rect-hi xlo))
+      (define xhi (bf+ (bf* (bfrandom) xhi-range-length) xlo))
+      (check-true (and (bf> rect-hi xhi) (bf> xlo rect-lo) (bf> xhi xlo))
+                  "Hyperrect is out of bounds")
+      (ival xlo xhi)))
+
+  ; Sample points with respect to the input hyperrect
+  (define (sample-pts hyperrect)
+    (for/vector ([rect (in-vector hyperrect)])
+      (define range-length (bf- (ival-hi rect) (ival-lo rect)))
+      (define pt (bf+ (bf* (bfrandom) range-length) (ival-lo rect)))
+      (check-true (and (bf> pt (ival-lo rect)) (bf< pt (ival-hi rect)))
+                  "Sampled point is out of hyperrect range")
+      pt))
+
+  ; Testing hint on an expression for 'number-of-random-hyperrects' hyperrects by
+  ;     'number-of-random-pts-per-rect' points each
+  (define (hints-random-checks machine rect-lo rect-hi varc)
+    (define evaluated-instructions 0)
+    (define number-of-instructions-total
+      (* number-of-random-hyperrects (vector-length (rival-machine-instructions machine))))
+
+    (for ([n (in-range number-of-random-hyperrects)])
+      (define hyperrect (sample-hyperrect-within-bounds rect-lo rect-hi varc))
+      (define-values (res hint) (rival-analyze machine hyperrect))
+      (set! evaluated-instructions (+ evaluated-instructions (vector-count false? hint)))
+
+      (for ([_ (in-range number-of-random-pts-per-rect)])
+        (define pt (sample-pts hyperrect))
+        (rival-check-hint machine hint pt)))
+
+    (define skipped-instructions-by-hint (- number-of-instructions-total evaluated-instructions))
+    (define skipped-percentage (* (/ skipped-instructions-by-hint number-of-instructions-total) 100))
+    skipped-percentage)
+
+  (define discs (list boolean-discretization flonum-discretization))
+  (define vars '(x y))
+  (define varc (length vars))
+
+  (define expr1
+    (list '(assert (> (+ (log x) (log y)) (- (log x) (log y))))
+          '(+ (if (> (/ (log x) (log y)) (* (log x) (log y)))
+                  (fmax (* (log x) (log y)) (+ (log x) (log y)))
+                  (fmin (* (log x) (log y)) (+ (log x) (log y))))
+              (if (> (+ (log x) (log y)) (* (log x) (log y)))
+                  (fmax (/ (log x) (log y)) (- (log x) (log y)))
+                  (fmin (/ (log x) (log y)) (- (log x) (log y)))))))
+  (define machine1 (rival-compile expr1 vars discs))
+  (define skipped-instr1 (hints-random-checks machine1 (bf -100) (bf 100) varc))
+  (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr1))
+
+  (define expr2
+    (list '(TRUE)
+          '(fmax (fmin (fmax (* x y) (+ x y)) (+ (fmax x (* 2 y)) (fmin y (* x 2))))
+                 (fmax (fmin (* x y) (+ x y)) (+ (fmin x (* 2 y)) (fmax y (* x 2)))))))
+  (define machine2 (rival-compile expr2 vars discs))
+  (define skipped-instr2 (hints-random-checks machine2 (bf -100) (bf 100) varc))
+  (printf "Percentage of skipped instructions by hint in expr2 = ~a\n" (round skipped-instr2))
+
+  (define expr3
+    (list '(TRUE)
+          '(if (> (exp x) (+ 10 (log y)))
+               (if (> (fmax (* x y) (+ x y)) 4)
+                   (cos (fmax x y))
+                   (cos (fmin x y)))
+               (if (< (pow 2 x) (- (exp x) 10))
+                   (* PI x)
+                   (fmax x (- (cos y) (+ 10 (log y))))))))
+  (define machine3 (rival-compile expr3 vars discs))
+  (define skipped-instr3 (hints-random-checks machine3 (bf -100) (bf 100) varc))
+  (printf "Percentage of skipped instructions by hint in expr3 = ~a\n" (round skipped-instr3)))
