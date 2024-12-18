@@ -104,6 +104,7 @@
                                   [exn:rival:unsamplable? (λ (e) 'unsamplable)])
                     (rival-apply machine pt hint))))
 
+  ; Random sampling hyperrects given a general range as [rect-lo, rect-hi]
   (define (sample-hyperrect-within-bounds rect-lo rect-hi varc)
     (for/vector ([_ (in-range varc)])
       (define xlo-range-length (bf- rect-hi rect-lo))
@@ -114,6 +115,7 @@
                   "Hyperrect is out of bounds")
       (ival xlo xhi)))
 
+  ; Sample points with respect to the input hyperrect
   (define (sample-pts hyperrect)
     (for/vector ([rect (in-vector hyperrect)])
       (define range-length (bf- (ival-hi rect) (ival-lo rect)))
@@ -122,6 +124,8 @@
                   "Sampled point is out of hyperrect range")
       pt))
 
+  ; Testing hint on an expression for 'number-of-random-hyperrects' hyperrects by
+  ;     'number-of-random-pts-per-rect' points each
   (define (hints-random-checks machine rect-lo rect-hi varc)
     (define evaluated-instructions 0)
     (define number-of-instructions-total
@@ -144,9 +148,16 @@
   (define vars '(x y))
   (define varc (length vars))
 
-  (define expr1 (list '(TRUE) '(fmax -5 (fmin (log x) (fmax y (cos PI))))))
+  (define expr1
+    (list '(assert (> (+ (log x) (log y)) (- (log x) (log y))))
+          '(+ (if (> (/ (log x) (log y)) (* (log x) (log y)))
+                  (fmax (* (log x) (log y)) (+ (log x) (log y)))
+                  (fmin (* (log x) (log y)) (+ (log x) (log y))))
+              (if (> (+ (log x) (log y)) (* (log x) (log y)))
+                  (fmax (/ (log x) (log y)) (- (log x) (log y)))
+                  (fmin (/ (log x) (log y)) (- (log x) (log y)))))))
   (define machine1 (rival-compile expr1 vars discs))
-  (define skipped-instr1 (hints-random-checks machine1 (bf -10) (bf 10) varc))
+  (define skipped-instr1 (hints-random-checks machine1 (bf -100) (bf 100) varc))
   (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr1))
 
   (define expr2

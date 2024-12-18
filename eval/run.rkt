@@ -40,35 +40,24 @@
   ; parameter for sampling histogram table
   (define first-iter? (zero? (rival-machine-iteration machine)))
 
-  (if vhint
-      (for ([instr (in-vector ivec)]
-            [n (in-naturals varc)]
-            [precision (in-vector precisions)]
-            [repeat (in-vector repeats)]
-            [hint (in-vector vhint)]
-            #:unless (or (not hint) (and (not first-iter?) repeat)))
-        (define start (current-inexact-milliseconds))
-        (parameterize ([bf-precision precision])
-          (vector-set! vregs
-                       n
-                       (if (integer? hint)
-                           (vector-ref vregs (list-ref instr hint))
-                           (apply-instruction instr vregs))))
-        (define name (object-name (car instr)))
-        (define time (- (current-inexact-milliseconds) start))
-        (rival-machine-record machine name n precision time))
-
-      (for ([instr (in-vector ivec)]
-            [n (in-naturals varc)]
-            [precision (in-vector precisions)]
-            [repeat (in-vector repeats)]
-            #:unless (and (not first-iter?) repeat))
-        (define start (current-inexact-milliseconds))
-        (parameterize ([bf-precision precision])
-          (vector-set! vregs n (apply-instruction instr vregs)))
-        (define name (object-name (car instr)))
-        (define time (- (current-inexact-milliseconds) start))
-        (rival-machine-record machine name n precision time))))
+  (for ([instr (in-vector ivec)]
+        [n (in-naturals varc)]
+        [precision (in-vector precisions)]
+        [repeat (in-vector repeats)]
+        [hint (if vhint
+                  (in-vector vhint)
+                  (in-producer (const #t)))]
+        #:unless (or (not hint) (and (not first-iter?) repeat)))
+    (define start (current-inexact-milliseconds))
+    (parameterize ([bf-precision precision])
+      (vector-set! vregs
+                   n
+                   (if (integer? hint)
+                       (vector-ref vregs (list-ref instr hint))
+                       (apply-instruction instr vregs))))
+    (define name (object-name (car instr)))
+    (define time (- (current-inexact-milliseconds) start))
+    (rival-machine-record machine name n precision time)))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,
