@@ -97,7 +97,12 @@
 
   ; Check whether outputs are the same for the hint and without hint executions
   (define (rival-check-hint machine hint pt)
-    (check-equal? (rival-apply machine pt hint) (rival-apply machine pt)))
+    (check-equal? (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
+                                  [exn:rival:unsamplable? (λ (e) 'unsamplable)])
+                    (rival-apply machine pt))
+                  (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
+                                  [exn:rival:unsamplable? (λ (e) 'unsamplable)])
+                    (rival-apply machine pt hint))))
 
   (define (sample-hyperrect-within-bounds rect-lo rect-hi varc)
     (for/vector ([_ (in-range varc)])
@@ -139,18 +144,18 @@
   (define vars '(x y))
   (define varc (length vars))
 
-  (define expr1 (list '(TRUE) '(fmax -5 (fmin x (fmax y (cos PI))))))
+  (define expr1 (list '(TRUE) '(fmax -5 (fmin (log x) (fmax y (cos PI))))))
   (define machine1 (rival-compile expr1 vars discs))
-  #;(define skipped-instr1 (hints-random-checks machine1 (bf -10) (bf 10) varc))
-  #;(printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr1))
+  (define skipped-instr1 (hints-random-checks machine1 (bf -10) (bf 10) varc))
+  (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr1))
 
   (define expr2
     (list '(TRUE)
           '(fmax (fmin (fmax (* x y) (+ x y)) (+ (fmax x (* 2 y)) (fmin y (* x 2))))
                  (fmax (fmin (* x y) (+ x y)) (+ (fmin x (* 2 y)) (fmax y (* x 2)))))))
   (define machine2 (rival-compile expr2 vars discs))
-  #;(define skipped-instr2 (hints-random-checks machine2 (bf -100) (bf 100) varc))
-  #;(printf "Percentage of skipped instructions by hint in expr2 = ~a\n" (round skipped-instr2))
+  (define skipped-instr2 (hints-random-checks machine2 (bf -100) (bf 100) varc))
+  (printf "Percentage of skipped instructions by hint in expr2 = ~a\n" (round skipped-instr2))
 
   (define expr3
     (list '(TRUE)

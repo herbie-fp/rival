@@ -37,18 +37,18 @@
         [(ival-if)
          (match-define (list _ cond tru fls) instr)
          (define cond-reg (vector-ref vregs cond))
-         (cond
-           [(and (ival-lo cond-reg) (ival-hi cond-reg))
+         (match* ((ival-lo cond-reg) (ival-hi cond-reg) (ival-err? cond-reg))
+           [(#t #t #f)
             (vhint-set! cond (or #f (vhint-ref cond)))
             (vhint-set! tru #t)
             (vhint-set! fls (or #f (vhint-ref fls)))
             2]
-           [(not (or (ival-lo cond-reg) (ival-hi cond-reg)))
+           [(#f #f #f)
             (vhint-set! cond (or #f (vhint-ref cond)))
             (vhint-set! tru (or #f (vhint-ref tru)))
             (vhint-set! fls #t)
             3]
-           [else
+           [(_ _ _)
             (vhint-set! cond #t)
             (vhint-set! tru #t)
             (vhint-set! fls #t)
@@ -56,32 +56,32 @@
         [(ival-fmax)
          (match-define (list _ arg1 arg2) instr)
          (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
-         (cond
-           [(and (ival-lo cmp) (ival-hi cmp))
+         (match* ((ival-lo cmp) (ival-hi cmp))
+           [(#t #t)
             (vhint-set! arg2 (or #f (vhint-ref arg2)))
             (vhint-set! arg1 #t)
             1]
-           [(not (or (ival-lo cmp) (ival-hi cmp)))
+           [(#f #f)
             (vhint-set! arg1 (or #f (vhint-ref arg1)))
             (vhint-set! arg2 #t)
             2]
-           [else
+           [(#f #t)
             (vhint-set! arg1 #t)
             (vhint-set! arg2 #t)
             #t])]
         [(ival-fmin)
          (match-define (list _ arg1 arg2) instr)
          (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
-         (cond
-           [(and (ival-lo cmp) (ival-hi cmp))
+         (match* ((ival-lo cmp) (ival-hi cmp))
+           [(#t #t)
             (vhint-set! arg1 (or #f (vhint-ref arg1)))
             (vhint-set! arg2 #t)
             2]
-           [(not (or (ival-lo cmp) (ival-hi cmp)))
+           [(#f #f)
             (vhint-set! arg2 (or #f (vhint-ref arg2)))
             (vhint-set! arg1 #t)
             1]
-           [else
+           [(#f #t)
             (vhint-set! arg1 #t)
             (vhint-set! arg2 #t)
             #t])]
@@ -89,7 +89,6 @@
          (define srcs (rest instr))
          (map (λ (x) (vhint-set! x #t)) srcs)
          #t]))
-    (println "done")
     (vector-set! vhint n hint*))
   vhint)
 
