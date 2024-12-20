@@ -6,7 +6,100 @@
          racket/list
          racket/match)
 
-(provide backward-pass)
+(provide backward-pass
+         make-hint)
+
+; Hint is a vector with len(ivec) elements which
+;   guides Rival on which instructions should not be executed
+;   for points from a particular hyperrect of input parameters.
+; make-hint is called as a last step of rival-analyze and returns hint as a result
+; Values of a hint:
+;   #f - instruction should not be executed
+;   #t - instruction should be executed
+;   integer n - instead of executing, refer to vregs with (list-ref instr n) index
+;               (the result is known and stored in another register)
+(define (make-hint machine)
+  (define args (rival-machine-arguments machine))
+  (define ivec (rival-machine-instructions machine))
+  (define rootvec (rival-machine-outputs machine))
+  (define vregs (rival-machine-registers machine))
+
+  (define varc (vector-length args))
+  (define vhint (make-vector (vector-length ivec) #f))
+
+  (define (vhint-set! idx val)
+    (when (>= idx varc)
+      (vector-set! vhint (- idx varc) val)))
+  (define (vhint-ref idx)
+    (if (>= idx varc)
+        (vector-ref vhint (- idx varc))
+        #f))
+
+  (for ([root-reg (in-vector rootvec)])
+    (vhint-set! root-reg #t))
+  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
+        [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
+        [n (in-range (- (vector-length vhint) 1) -1 -1)]
+        #:when hint)
+    (define hint*
+      (case (object-name (car instr))
+        [(ival-if)
+         (match-define (list _ cond tru fls) instr)
+         (define cond-reg (vector-ref vregs cond))
+         (match* ((ival-lo cond-reg) (ival-hi cond-reg) (ival-err? cond-reg))
+           [(#t #t #f) ; only true path should be executed
+            (vhint-set! cond (or #f (vhint-ref cond)))
+            (vhint-set! tru #t)
+            (vhint-set! fls (or #f (vhint-ref fls)))
+            2]
+           [(#f #f #f) ; only false path should be executed
+            (vhint-set! cond (or #f (vhint-ref cond)))
+            (vhint-set! tru (or #f (vhint-ref tru)))
+            (vhint-set! fls #t)
+            3]
+           [(_ _ _) ; execute both paths and cond as well
+            (vhint-set! cond #t)
+            (vhint-set! tru #t)
+            (vhint-set! fls #t)
+            #t])]
+        [(ival-fmax)
+         (match-define (list _ arg1 arg2) instr)
+         (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+         (match* ((ival-lo cmp) (ival-hi cmp))
+           [(#t #t) ; only arg1 should be executed
+            (vhint-set! arg2 (or #f (vhint-ref arg2)))
+            (vhint-set! arg1 #t)
+            1]
+           [(#f #f) ; only arg2 should be executed
+            (vhint-set! arg1 (or #f (vhint-ref arg1)))
+            (vhint-set! arg2 #t)
+            2]
+           [(#f #t) ; both paths should be executed
+            (vhint-set! arg1 #t)
+            (vhint-set! arg2 #t)
+            #t])]
+        [(ival-fmin)
+         (match-define (list _ arg1 arg2) instr)
+         (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+         (match* ((ival-lo cmp) (ival-hi cmp))
+           [(#t #t) ; only arg2 should be executed
+            (vhint-set! arg1 (or #f (vhint-ref arg1)))
+            (vhint-set! arg2 #t)
+            2]
+           [(#f #f) ; only arg1 should be executed
+            (vhint-set! arg2 (or #f (vhint-ref arg2)))
+            (vhint-set! arg1 #t)
+            1]
+           [(#f #t) ; both paths should be executed
+            (vhint-set! arg1 #t)
+            (vhint-set! arg2 #t)
+            #t])]
+        [else ; at this point we are given that the current instruction should be executed
+         (define srcs (rest instr)) ; then, children instructions should be executed as well
+         (map (λ (x) (vhint-set! x #t)) srcs)
+         #t]))
+    (vector-set! vhint n hint*))
+  vhint)
 
 (define (backward-pass machine)
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3

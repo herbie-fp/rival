@@ -31,7 +31,7 @@
     (flvector-set! profile-time profile-ptr time)
     (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
 
-(define (rival-machine-run machine)
+(define (rival-machine-run machine [vhint #f])
   (define ivec (rival-machine-instructions machine))
   (define varc (vector-length (rival-machine-arguments machine)))
   (define precisions (rival-machine-precisions machine))
@@ -44,10 +44,17 @@
         [n (in-naturals varc)]
         [precision (in-vector precisions)]
         [repeat (in-vector repeats)]
-        #:unless (and (not first-iter?) repeat))
+        [hint (if vhint
+                  (in-vector vhint)
+                  (in-producer (const #t)))]
+        #:unless (or (not hint) (and (not first-iter?) repeat)))
     (define start (current-inexact-milliseconds))
     (parameterize ([bf-precision precision])
-      (vector-set! vregs n (apply-instruction instr vregs)))
+      (vector-set! vregs
+                   n
+                   (if (integer? hint)
+                       (vector-ref vregs (list-ref instr hint))
+                       (apply-instruction instr vregs))))
     (define name (object-name (car instr)))
     (define time (- (current-inexact-milliseconds) start))
     (rival-machine-record machine name n precision time)))
