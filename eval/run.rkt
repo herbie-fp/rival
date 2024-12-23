@@ -101,10 +101,10 @@
       lo))
   (values good? (and good? done?) bad? stuck? fvec))
 
-(define (rival-machine-adjust machine)
+(define (rival-machine-adjust machine [hint #f])
   (define iter (rival-machine-iteration machine))
   (let ([start (current-inexact-milliseconds)])
     (if (zero? iter)
         (vector-fill! (rival-machine-precisions machine) (rival-machine-initial-precision machine))
-        (backward-pass machine))
+        (backward-pass machine hint))
     (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))

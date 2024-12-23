@@ -101,7 +101,7 @@
     (vector-set! vhint n hint*))
   vhint)
 
-(define (backward-pass machine)
+(define (backward-pass machine [vhint #f])
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
   (define args (rival-machine-arguments machine))
   (define ivec (rival-machine-instructions machine))
@@ -143,7 +143,7 @@
          (vector-set! vuseful (- arg varc) #t))]))
 
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful vhint)
 
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -183,12 +183,15 @@
 ; Roughly speaking, the upper precision bound is calculated as:
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
-(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful)
+(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful vhint)
   (define vprecs-min (make-vector (vector-length ivec) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
-        #:when useful?)
+        [hint (if vhint
+                  (in-vector vhint)
+                  (in-producer (const #t)))]
+        #:when (and vhint useful?))
     (define op (car instr))
     (define tail-registers (cdr instr))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))

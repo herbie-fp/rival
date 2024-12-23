@@ -26,7 +26,7 @@
 
 (define (rival-machine-full machine inputs [hint #f])
   (set-rival-machine-iteration! machine (*sampling-iteration*))
-  (rival-machine-adjust machine)
+  (rival-machine-adjust machine hint)
   (cond
     [(>= (*sampling-iteration*) (*rival-max-iterations*)) (values #f #f #f #t #f)]
     [else

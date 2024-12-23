@@ -92,9 +92,11 @@
          (only-in "eval/machine.rkt" rival-machine?))
 (provide (contract-out
           [rival-compile (-> (listof any/c) (listof symbol?) (listof discretization?) rival-machine?)]
-          [rival-apply (-> rival-machine? (vectorof value?) (vectorof any/c))]
-          [rival-analyze
-           (-> rival-machine? (vectorof ival?) (values ival? (vectorof (or/c boolean? number?))))])
+          [rival-apply
+           (->* (rival-machine? (vectorof value?))
+                ((or/c (vectorof any/c) boolean?))
+                (vectorof any/c))]
+          [rival-analyze (-> rival-machine? (vectorof ival?) (values ival? (vectorof any/c)))])
          (struct-out discretization)
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
