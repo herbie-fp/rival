@@ -26,7 +26,7 @@
 
 (define (rival-machine-full machine inputs [hint #f])
   (set-rival-machine-iteration! machine (*sampling-iteration*))
-  (rival-machine-adjust machine hint)
+  (rival-machine-adjust machine)
   (cond
     [(>= (*sampling-iteration*) (*rival-max-iterations*)) (values #f #f #f #t #f)]
     [else
@@ -42,7 +42,7 @@
 
 (define (rival-profile machine param)
   (match param
-    ['instructions (vector-length (rival-machine-instructions machine))]
+    ['instructions (rival-machine-instructions machine)]
     ['iterations (rival-machine-iteration machine)]
     ['bumps (rival-machine-bumps machine)]
     ['executions
@@ -83,8 +83,8 @@
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
-  (define hint (make-hint machine))
-  (values (ival (or bad? stuck?) (not good?)) hint))
+  (define-values (hint hint-converged?) (make-hint machine))
+  (values (ival (or bad? stuck?) (not good?)) hint hint-converged?))
 
 (module+ test
   (require rackunit
@@ -133,7 +133,7 @@
 
     (for ([n (in-range number-of-random-hyperrects)])
       (define hyperrect (sample-hyperrect-within-bounds rect-lo rect-hi varc))
-      (define-values (res hint) (rival-analyze machine hyperrect))
+      (define-values (res hint _) (rival-analyze machine hyperrect))
       (set! evaluated-instructions (+ evaluated-instructions (vector-count false? hint)))
 
       (for ([_ (in-range number-of-random-pts-per-rect)])

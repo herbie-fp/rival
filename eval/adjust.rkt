@@ -26,6 +26,7 @@
 
   (define varc (vector-length args))
   (define vhint (make-vector (vector-length ivec) #f))
+  (define converged? #t)
 
   (define (vhint-set! idx val)
     (when (>= idx varc)
@@ -61,6 +62,7 @@
             (vhint-set! cond #t)
             (vhint-set! tru #t)
             (vhint-set! fls #t)
+            (set! converged? #f)
             #t])]
         [(ival-fmax)
          (match-define (list _ arg1 arg2) instr)
@@ -77,6 +79,7 @@
            [(#f #t) ; both paths should be executed
             (vhint-set! arg1 #t)
             (vhint-set! arg2 #t)
+            (set! converged? #f)
             #t])]
         [(ival-fmin)
          (match-define (list _ arg1 arg2) instr)
@@ -93,15 +96,16 @@
            [(#f #t) ; both paths should be executed
             (vhint-set! arg1 #t)
             (vhint-set! arg2 #t)
+            (set! converged? #f)
             #t])]
         [else ; at this point we are given that the current instruction should be executed
          (define srcs (rest instr)) ; then, children instructions should be executed as well
          (map (λ (x) (vhint-set! x #t)) srcs)
          #t]))
     (vector-set! vhint n hint*))
-  vhint)
+  (values vhint converged?))
 
-(define (backward-pass machine [vhint #f])
+(define (backward-pass machine)
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
   (define args (rival-machine-arguments machine))
   (define ivec (rival-machine-instructions machine))
@@ -143,7 +147,7 @@
          (vector-set! vuseful (- arg varc) #t))]))
 
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful vhint)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful)
 
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -183,15 +187,12 @@
 ; Roughly speaking, the upper precision bound is calculated as:
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
-(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful vhint)
+(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful)
   (define vprecs-min (make-vector (vector-length ivec) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
-        [hint (if vhint
-                  (in-vector vhint)
-                  (in-producer (const #t)))]
-        #:when (and vhint useful?))
+        #:when useful?)
     (define op (car instr))
     (define tail-registers (cdr instr))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
