@@ -24,14 +24,14 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (rival-machine-full machine inputs [hint #f])
+(define (rival-machine-full machine inputs [vhint #f])
   (set-rival-machine-iteration! machine (*sampling-iteration*))
-  (rival-machine-adjust machine)
+  (rival-machine-adjust machine vhint)
   (cond
     [(>= (*sampling-iteration*) (*rival-max-iterations*)) (values #f #f #f #t #f)]
     [else
      (rival-machine-load machine inputs)
-     (rival-machine-run machine hint)
+     (rival-machine-run machine vhint)
      (rival-machine-return machine)]))
 
 (struct exn:rival exn:fail ())
