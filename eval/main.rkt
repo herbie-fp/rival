@@ -42,7 +42,7 @@
 
 (define (rival-profile machine param)
   (match param
-    ['instructions (rival-machine-instructions machine)]
+    ['instructions (vector-length (rival-machine-instructions machine))]
     ['iterations (rival-machine-iteration machine)]
     ['bumps (rival-machine-bumps machine)]
     ['executions
