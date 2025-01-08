@@ -96,7 +96,8 @@
            (->* (rival-machine? (vectorof value?))
                 ((or/c (vectorof any/c) boolean?))
                 (vectorof any/c))]
-          [rival-analyze (-> rival-machine? (vectorof ival?) (values ival? (vectorof any/c)))])
+          [rival-analyze
+           (-> rival-machine? (vectorof ival?) (values ival? (vectorof any/c) boolean?))])
          (struct-out discretization)
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
