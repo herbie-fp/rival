@@ -24,7 +24,7 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (rival-machine-full machine inputs [vhint #f])
+(define (rival-machine-full machine inputs [vhint (rival-machine-hint machine)])
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine vhint)
   (cond
@@ -62,7 +62,7 @@
 (define (ival-real x)
   (ival x))
 
-(define (rival-apply machine pt [hint #f])
+(define (rival-apply machine pt [hint (rival-machine-hint machine)])
   (define discs (rival-machine-discs machine))
   (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
