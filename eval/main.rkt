@@ -169,6 +169,7 @@
   (define machine1 (rival-compile expr1 vars discs))
   (define skipped-instr1 (hints-random-checks machine1 (bf -100) (bf 100) varc))
   (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr1))
+  (check-true (< skipped-instr1 100))
 
   (define expr2
     (list '(TRUE)
@@ -177,6 +178,7 @@
   (define machine2 (rival-compile expr2 vars discs))
   (define skipped-instr2 (hints-random-checks machine2 (bf -100) (bf 100) varc))
   (printf "Percentage of skipped instructions by hint in expr2 = ~a\n" (round skipped-instr2))
+  (check-true (< skipped-instr2 100))
 
   (define expr3
     (list '(TRUE)
@@ -190,9 +192,11 @@
   (define machine3 (rival-compile expr3 vars discs))
   (define skipped-instr3 (hints-random-checks machine3 (bf -100) (bf 100) varc))
   (printf "Percentage of skipped instructions by hint in expr3 = ~a\n" (round skipped-instr3))
+  (check-true (< skipped-instr3 100))
 
   ; Test checks hint on assert where an error can be observed
   (define expr4 (list '(assert (> (+ (log x) (log y)) (- (log x) (log y)))) '(+ (cos x) (cos y))))
   (define machine4 (rival-compile expr4 vars discs))
   (define skipped-instr4 (hints-random-checks machine4 (bf -100) (bf 100) varc))
-  (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr4)))
+  (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr4))
+  (check-true (< skipped-instr4 100)))
