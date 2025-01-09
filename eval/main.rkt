@@ -179,4 +179,10 @@
                    (fmax x (- (cos y) (+ 10 (log y))))))))
   (define machine3 (rival-compile expr3 vars discs))
   (define skipped-instr3 (hints-random-checks machine3 (bf -100) (bf 100) varc))
-  (printf "Percentage of skipped instructions by hint in expr3 = ~a\n" (round skipped-instr3)))
+  (printf "Percentage of skipped instructions by hint in expr3 = ~a\n" (round skipped-instr3))
+
+  ; Test checks hint on assert where an error can be observed
+  (define expr4 (list '(assert (> (+ (log x) (log y)) (- (log x) (log y)))) '(+ (cos x) (cos y))))
+  (define machine4 (rival-compile expr4 vars discs))
+  (define skipped-instr4 (hints-random-checks machine4 (bf -100) (bf 100) varc))
+  (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr4)))

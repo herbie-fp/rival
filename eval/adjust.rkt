@@ -44,6 +44,19 @@
         #:when hint)
     (define hint*
       (case (object-name (car instr))
+        [(ival-assert)
+         (match-define (list _ bool-idx) instr)
+         (define bool-reg (vector-ref vregs bool-idx))
+         (match* ((ival-lo bool-reg) (ival-hi bool-reg) (ival-err? bool-reg))
+           [(#t #t #f) ; assert and its children should not be reexecuted if it is true already
+            (vhint-set! bool-idx (or #f (vhint-ref bool-idx)))
+            (ival-bool #t)]
+           [(#f #f #f) ; assert and its children should not be reexecuted if it is false already
+            (vhint-set! bool-idx (or #f (vhint-ref bool-idx)))
+            (ival-bool #f)]
+           [(_ _ _) ; assert and its children should be reexecuted
+            (vhint-set! bool-idx #t)
+            #t])]
         [(ival-if)
          (match-define (list _ cond tru fls) instr)
          (define cond-reg (vector-ref vregs cond))
@@ -192,9 +205,7 @@
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
-        [hint (if vhint
-                  (in-vector vhint (- (vector-length vhint) 1) -1 -1)
-                  (in-producer (const #t)))]
+        [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
         #:when (and hint useful?))
     (define op (car instr))
     (define tail-registers (cdr instr))

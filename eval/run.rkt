@@ -49,9 +49,10 @@
     (define start (current-inexact-milliseconds))
     (define out
       (parameterize ([bf-precision precision])
-        (if (integer? hint)
-            (vector-ref vregs (list-ref instr hint))
-            (apply-instruction instr vregs))))
+        (match hint
+          [#t (apply-instruction instr vregs)]
+          [(? integer? x) (vector-ref vregs (list-ref instr x))]
+          [(? ival? x) x])))
     (vector-set! vregs n out)
     (define name (object-name (car instr)))
     (define time (- (current-inexact-milliseconds) start))
