@@ -84,7 +84,7 @@
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
   (define-values (hint hint-converged?) (make-hint machine))
-  (values (ival (or bad? stuck?) (not good?)) hint hint-converged?))
+  (list (ival (or bad? stuck?) (not good?)) hint hint-converged?))
 
 (module+ test
   (require rackunit
