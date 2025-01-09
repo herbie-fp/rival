@@ -18,6 +18,7 @@
 ;   #t - instruction should be executed
 ;   integer n - instead of executing, refer to vregs with (list-ref instr n) index
 ;               (the result is known and stored in another register)
+;   ival - instead of executing, just copy ival as a result of the instruction
 (define (make-hint machine)
   (define args (rival-machine-arguments machine))
   (define ivec (rival-machine-instructions machine))

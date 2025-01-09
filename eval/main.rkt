@@ -97,12 +97,19 @@
 
   ; Check whether outputs are the same for the hint and without hint executions
   (define (rival-check-hint machine hint pt)
-    (check-equal? (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
-                                  [exn:rival:unsamplable? (λ (e) 'unsamplable)])
-                    (rival-apply machine pt))
-                  (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
-                                  [exn:rival:unsamplable? (λ (e) 'unsamplable)])
-                    (rival-apply machine pt hint))))
+    (define no-hint-result
+      (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
+                      [exn:rival:unsamplable? (λ (e) 'unsamplable)])
+        (rival-apply machine pt)))
+    (define no-hint-instr-count (vector-length (rival-profile machine 'executions)))
+
+    (define hint-result
+      (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
+                      [exn:rival:unsamplable? (λ (e) 'unsamplable)])
+        (rival-apply machine pt hint)))
+    (define hint-instr-count (vector-length (rival-profile machine 'executions)))
+    (check-equal? hint-result no-hint-result)
+    (values no-hint-instr-count hint-instr-count))
 
   ; Random sampling hyperrects given a general range as [rect-lo, rect-hi]
   (define (sample-hyperrect-within-bounds rect-lo rect-hi varc)
@@ -131,6 +138,8 @@
     (define number-of-instructions-total
       (* number-of-random-hyperrects (vector-length (rival-machine-instructions machine))))
 
+    (define hint-cnt 0)
+    (define no-hint-cnt 0)
     (for ([n (in-range number-of-random-hyperrects)])
       (define hyperrect (sample-hyperrect-within-bounds rect-lo rect-hi varc))
       (match-define (list res hint _) (rival-analyze machine hyperrect))
@@ -138,10 +147,11 @@
 
       (for ([_ (in-range number-of-random-pts-per-rect)])
         (define pt (sample-pts hyperrect))
-        (rival-check-hint machine hint pt)))
+        (define-values (no-hint-cnt* hint-cnt*) (rival-check-hint machine hint pt))
+        (set! hint-cnt (+ hint-cnt hint-cnt*))
+        (set! no-hint-cnt (+ no-hint-cnt no-hint-cnt*))))
 
-    (define skipped-instructions-by-hint (- number-of-instructions-total evaluated-instructions))
-    (define skipped-percentage (* (/ skipped-instructions-by-hint number-of-instructions-total) 100))
+    (define skipped-percentage (* (/ hint-cnt no-hint-cnt) 100))
     skipped-percentage)
 
   (define discs (list boolean-discretization flonum-discretization))
