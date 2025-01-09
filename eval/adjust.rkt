@@ -193,7 +193,7 @@
         [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
         [hint (if vhint
-                  (in-vector vhint)
+                  (in-vector vhint (- (vector-length vhint) 1) -1 -1)
                   (in-producer (const #t)))]
         #:when (and hint useful?))
     (define op (car instr))
