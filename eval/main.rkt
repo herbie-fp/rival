@@ -133,7 +133,7 @@
 
     (for ([n (in-range number-of-random-hyperrects)])
       (define hyperrect (sample-hyperrect-within-bounds rect-lo rect-hi varc))
-      (define-values (res hint _) (rival-analyze machine hyperrect))
+      (match-define (list res hint _) (rival-analyze machine hyperrect))
       (set! evaluated-instructions (+ evaluated-instructions (vector-count false? hint)))
 
       (for ([_ (in-range number-of-random-pts-per-rect)])
