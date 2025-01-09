@@ -51,8 +51,8 @@
       (parameterize ([bf-precision precision])
         (match hint
           [#t (apply-instruction instr vregs)]
-          [(? integer? x) (vector-ref vregs (list-ref instr x))]
-          [(? ival? x) x])))
+          [(? integer? _) (vector-ref vregs (list-ref instr hint))]
+          [(? ival? _) hint])))
     (vector-set! vregs n out)
     (define name (object-name (car instr)))
     (define time (- (current-inexact-milliseconds) start))
