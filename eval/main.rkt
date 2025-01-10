@@ -93,6 +93,7 @@
            math/bigfloat)
   (define number-of-random-hyperrects 100)
   (define number-of-random-pts-per-rect 100)
+  (define threshold 95) ; at least 5% of instructions should be skipped by hint to pass the tests!
   (bf-precision 53)
 
   ; Check whether outputs are the same for the hint and without hint executions
@@ -108,6 +109,7 @@
                       [exn:rival:unsamplable? (λ (e) 'unsamplable)])
         (rival-apply machine pt hint)))
     (define hint-instr-count (vector-length (rival-profile machine 'executions)))
+
     (check-equal? hint-result no-hint-result)
     (values no-hint-instr-count hint-instr-count))
 
@@ -150,7 +152,6 @@
         (define-values (no-hint-cnt* hint-cnt*) (rival-check-hint machine hint pt))
         (set! hint-cnt (+ hint-cnt hint-cnt*))
         (set! no-hint-cnt (+ no-hint-cnt no-hint-cnt*))))
-
     (define skipped-percentage (* (/ hint-cnt no-hint-cnt) 100))
     skipped-percentage)
 
@@ -169,7 +170,7 @@
   (define machine1 (rival-compile expr1 vars discs))
   (define skipped-instr1 (hints-random-checks machine1 (bf -100) (bf 100) varc))
   (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr1))
-  (check-true (< skipped-instr1 100))
+  (check-true (< skipped-instr1 threshold))
 
   (define expr2
     (list '(TRUE)
@@ -178,7 +179,7 @@
   (define machine2 (rival-compile expr2 vars discs))
   (define skipped-instr2 (hints-random-checks machine2 (bf -100) (bf 100) varc))
   (printf "Percentage of skipped instructions by hint in expr2 = ~a\n" (round skipped-instr2))
-  (check-true (< skipped-instr2 100))
+  (check-true (< skipped-instr2 threshold))
 
   (define expr3
     (list '(TRUE)
@@ -192,11 +193,11 @@
   (define machine3 (rival-compile expr3 vars discs))
   (define skipped-instr3 (hints-random-checks machine3 (bf -100) (bf 100) varc))
   (printf "Percentage of skipped instructions by hint in expr3 = ~a\n" (round skipped-instr3))
-  (check-true (< skipped-instr3 100))
+  (check-true (< skipped-instr3 threshold))
 
   ; Test checks hint on assert where an error can be observed
   (define expr4 (list '(assert (> (+ (log x) (log y)) (- (log x) (log y)))) '(+ (cos x) (cos y))))
   (define machine4 (rival-compile expr4 vars discs))
   (define skipped-instr4 (hints-random-checks machine4 (bf -100) (bf 100) varc))
   (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr4))
-  (check-true (< skipped-instr4 100)))
+  (check-true (< skipped-instr4 threshold)))
