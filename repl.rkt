@@ -11,6 +11,27 @@
          "utils.rkt")
 (provide rival-repl)
 
+(define (create-discs bodies repl)
+  (for/list ([body (in-list bodies)])
+    (define body-type
+      (let loop ([body body])
+        (match body
+          [(list (or 'TRUE 'FALSE)) 'bool]
+          [(list (or 'not 'assert) _) 'bool]
+          [(list (or '< '== '!= '<= '>= '< '> 'and 'or) _ _) 'bool]
+          [(list 'if cond tru fls)
+           (define tru-type (loop tru))
+           (define fls-type (loop fls))
+           (when (not (equal? tru-type fls-type))
+             (error "Types of the false and true branches should match"))
+           tru-type]
+          [(list 'then x y)
+           (loop y)]
+          [_ 'bf])))
+    (match body-type
+      ['bool boolean-discretization]
+      ['bf (bf-discretization (repl-precision repl))])))
+
 (define (fix-up-fpcore expr)
   (match expr
     [`PI '(PI)]
@@ -76,7 +97,7 @@
              name
              (rival-compile (map fix-up-fpcore bodies)
                             args
-                            (map (const (bf-discretization (repl-precision repl))) bodies))))
+                            (create-discs bodies repl))))
 
 (define (check-args! name machine vals)
   (unless (= (vector-length (rival-machine-arguments machine)) (length vals))
