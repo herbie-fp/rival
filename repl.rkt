@@ -23,10 +23,9 @@
            (define tru-type (loop tru))
            (define fls-type (loop fls))
            (when (not (equal? tru-type fls-type))
-             (error "Types of the false and true branches should match"))
+             (raise-user-error 'create-discs "Types of the false and true branches should match"))
            tru-type]
-          [(list 'then x y)
-           (loop y)]
+          [(list 'then x y) (loop y)]
           [_ 'bf])))
     (match body-type
       ['bool boolean-discretization]
@@ -95,9 +94,7 @@
 (define (repl-save-machine! repl name args bodies)
   (hash-set! (repl-context repl)
              name
-             (rival-compile (map fix-up-fpcore bodies)
-                            args
-                            (create-discs bodies repl))))
+             (rival-compile (map fix-up-fpcore bodies) args (create-discs bodies repl))))
 
 (define (check-args! name machine vals)
   (unless (= (vector-length (rival-machine-arguments machine)) (length vals))
