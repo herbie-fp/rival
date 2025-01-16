@@ -7,7 +7,7 @@ nightly:
 fmt:
 	@raco fmt -i $(shell find infra/ ops/ eval/ ./ -name '*.rkt')
 
-distribute:
+distribution:
 	mkdir -p rival-compiled/
 	cp README.md rival-compiled/
 	cp LICENSE rival-compiled/
