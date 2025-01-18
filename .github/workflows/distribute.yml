@@ -37,7 +37,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             ${{ env.APPDATA }}/Racket
-      # Build executable and remove Herbie launcher
+      - uses: actions/checkout@master
       - name: "Build standalone executable"
         run: make distribution
       # Test executable
