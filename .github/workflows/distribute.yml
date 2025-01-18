@@ -1,0 +1,49 @@
+name: Distribute
+
+on: [push]
+
+jobs:
+  distribute:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            arch: aarch64
+          - os: macos-13
+            arch: x64
+          - os: ubuntu-latest
+            arch: x64
+          - os: windows-latest
+            arch: x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v1.11
+        with:
+            version: "8.14"
+            architecture: ${{ matrix.arch }}
+      # WARN: need to be careful with cargo paths
+      - name: Cache Racket dependencies
+        uses: actions/cache@v4
+        with:
+          key: ${{ runner.os }}-deps
+          path: |
+            ~/.cache/racket
+            ~/.local/share/racket
+            ~/Library/Racket/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ${{ env.APPDATA }}/Racket
+      # Build executable and remove Herbie launcher
+      - name: "Build standalone executable"
+        run: make distribution
+      # Test executable
+      - name: "Test executable, run repl (Windows)"
+        if: runner.os == 'Windows'
+        run: rival-compiled/rival.exe
+      - name: "Test executable, run repl (Linux / MacOS)"
+        if: runner.os != 'Windows'
+        run: rival-compiled/bin/rival
