@@ -11,6 +11,7 @@ distribution:
 	mkdir -p rival-compiled/
 	cp README.md rival-compiled/
 	cp LICENSE rival-compiled/
+	raco make main.rkt
 	raco exe -o rival --orig-exe --embed-dlls --vv main.rkt
 	[ ! -f rival.exe ] || (raco distribute rival-compiled rival.exe && rm rival.exe)
 	[ ! -f rival.app ] || (raco distribute rival-compiled rival.app && rm rival.app)
