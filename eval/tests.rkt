@@ -115,7 +115,8 @@
     (define varc (length vars))
     (define machine (rival-compile expressions vars discs))
     (define skipped-instr (hints-random-checks machine (first rect) (second rect) varc))
-    (printf "Percentage of skipped instructions by hint in expr = ~a\n" (round skipped-instr)))
+    (check-true (< skipped-instr 99)
+                (format "Almost no instructions got skipped by hint at ~a" expressions)))
 
   (expressions2d-check (list '(assert (> (+ (log x) (log y)) (- (log x) (log y))))
                              '(+ (if (> (/ (log x) (log y)) (* (log x) (log y)))
