@@ -111,6 +111,7 @@
            [(_ _ _) ; all the paths should be executed
             (define srcs (rest instr))
             (for-each (λ (x) (vhint-set! x #t)) srcs)
+            (set! converged? #f)
             #t])]
 
         [else ; at this point we are given that the current instruction should be executed
