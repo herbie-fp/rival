@@ -48,11 +48,12 @@
         #:unless (or (not hint) (and (not first-iter?) repeat)))
     (define start (current-inexact-milliseconds))
     (define out
-      (parameterize ([bf-precision precision])
-        (match hint
-          [#t (apply-instruction instr vregs)]
-          [(? integer? _) (vector-ref vregs (list-ref instr hint))]
-          [(? ival? _) hint])))
+      (match hint
+        [#t
+         (parameterize ([bf-precision precision])
+           (apply-instruction instr vregs))]
+        [(? integer? _) (vector-ref vregs (list-ref instr hint))]
+        [(? ival? _) hint]))
     (vector-set! vregs n out)
     (define name (object-name (car instr)))
     (define time (- (current-inexact-milliseconds) start))

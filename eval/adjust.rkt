@@ -29,14 +29,12 @@
   (define vhint (make-vector (vector-length ivec) #f))
   (define converged? #t)
 
+  ; helper function
   (define (vhint-set! idx val)
     (when (>= idx varc)
       (vector-set! vhint (- idx varc) val)))
-  (define (vhint-ref idx)
-    (if (>= idx varc)
-        (vector-ref vhint (- idx varc))
-        #f))
 
+  ; roots always should be executed
   (for ([root-reg (in-vector rootvec)])
     (vhint-set! root-reg #t))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
@@ -103,6 +101,18 @@
             (vhint-set! arg2 #t)
             (set! converged? #f)
             #t])]
+        [(ival-< ival-<= ival-> ival->= ival-== ival-!= ival-and ival-or ival-not)
+         (define cmp (vector-ref vregs (+ varc n)))
+         (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
+           ; result is known
+           [(#t #t #f) (ival-bool #t)]
+           ; result is known
+           [(#f #f #f) (ival-bool #f)]
+           [(_ _ _) ; all the paths should be executed
+            (define srcs (rest instr))
+            (for-each (λ (x) (vhint-set! x #t)) srcs)
+            #t])]
+
         [else ; at this point we are given that the current instruction should be executed
          (define srcs (rest instr)) ; then, children instructions should be executed as well
          (for-each (λ (x) (vhint-set! x #t)) srcs)

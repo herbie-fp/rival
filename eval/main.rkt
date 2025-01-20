@@ -160,9 +160,7 @@
     (define vars '(x y))
     (define varc (length vars))
     (define machine (rival-compile expressions vars discs))
-    (define skipped-instr
-      (parameterize ([bf-precision 63])
-        (hints-random-checks machine (first rect) (second rect) varc)))
+    (define skipped-instr (hints-random-checks machine (first rect) (second rect) varc))
     (printf "Percentage of skipped instructions by hint in expr = ~a\n" (round skipped-instr)))
 
   (expressions2d-check (list '(assert (> (+ (log x) (log y)) (- (log x) (log y))))
@@ -192,4 +190,12 @@
                              '(+ (cos x) (cos y))))
 
   ; Test checks hint on fmax where an error can be observed
-  (expressions2d-check (list '(TRUE) '(fmax (log x) y))))
+  (expressions2d-check (list '(TRUE) '(fmax (log x) y)))
+
+  ; Test checks hints on comparison operators
+  (expressions2d-check
+   (list '(and (and (> (log x) y) (or (== (exp x) (exp y)) (> (cos x) (cos y)))) (<= (log y) (log x)))
+         '(if (or (or (< (log x) y) (and (!= (exp x) (exp y)) (< (cos x) (cos y))))
+                  (>= (log y) (log x)))
+              x
+              y))))
