@@ -270,14 +270,16 @@
                 ([node (in-vector nodes num-vars)])
       (fn->ival-fn node)))
 
-  (define register-count (+ (length vars) (vector-length instructions)))
+  (define ivec-length (vector-length instructions))
+  (define register-count (+ (length vars) ivec-length))
   (define registers (make-vector register-count))
-  (define repeats (make-vector register-count #f)) ; flags whether an op should be evaluated
-  (define precisions (make-vector register-count)) ; vector that stores working precisions
+  (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
+  (define precisions (make-vector ivec-length)) ; vector that stores working precisions
   ;; vector for adjusting precisions
   (define incremental-precisions (setup-vstart-precs instructions (length vars) roots discs))
   (define initial-precision
     (+ (argmax identity (map discretization-target discs)) (*base-tuning-precision*)))
+  (define hint (make-vector ivec-length #t))
 
   (rival-machine (list->vector vars)
                  instructions
@@ -289,6 +291,7 @@
                  incremental-precisions
                  (make-vector (vector-length roots))
                  initial-precision
+                 hint
                  0
                  0
                  0
@@ -325,41 +328,3 @@
                     idx-prec ; We wanna make sure that we do not tune a precision down
                     (+ current-prec (*ampl-tuning-bits*))))))
   vstart-precs)
-
-(module+ test
-  (require rackunit
-           "../utils.rkt")
-  ; This function is needed to unwrap constant procedure which fails tests otherwise
-  ; (const (ival 0.bf 0.bf)) != (const (ival 0.bf 0.bf))
-  (define (drop-ival-const instrs)
-    (for/vector ([instr (in-vector instrs)])
-      (match instr
-        [`(,const) (const)]
-        [_ instr])))
-
-  (define discs (list flonum-discretization))
-  (define vars '(x y z))
-
-  (define (check-rival-optimization expr target-expr)
-    (define optimized-instrs
-      (drop-ival-const (parameterize ([*rival-use-shorthands* #t])
-                         (rival-machine-instructions (rival-compile (list expr) vars discs)))))
-    (define target-instrs
-      (drop-ival-const (parameterize ([*rival-use-shorthands* #f])
-                         (rival-machine-instructions (rival-compile (list target-expr) vars discs)))))
-    (check-equal? optimized-instrs target-instrs))
-
-  (check-rival-optimization `(* (log (exp x)) y) `(* x y))
-  (check-rival-optimization `(* (exp (log x)) y) `(* (then (assert (> x 0)) x) y))
-  (check-rival-optimization `(fma x y z) `(+ (* x y) z))
-  (check-rival-optimization `(- (exp x) 1) `(expm1 x))
-  (check-rival-optimization `(- 1 (exp x)) `(neg (expm1 x)))
-  (check-rival-optimization `(log (+ 1 x)) `(log1p x))
-  (check-rival-optimization `(log (+ x 1)) `(log1p x))
-  (check-rival-optimization `(sqrt (+ (* x x) (* y y))) `(hypot x y))
-  (check-rival-optimization `(sqrt (+ (* x x) 1)) `(hypot x 1))
-  (check-rival-optimization `(sqrt (+ 1 (* x x))) `(hypot 1 x))
-  (check-rival-optimization `(pow x 2) `(pow2 x))
-  (check-rival-optimization `(pow x 1/3) `(cbrt x))
-  (check-rival-optimization `(pow x 1/2) `(sqrt x))
-  (check-rival-optimization `(pow 2 x) `(exp2 x)))

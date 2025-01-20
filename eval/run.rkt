@@ -31,7 +31,7 @@
     (flvector-set! profile-time profile-ptr time)
     (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
 
-(define (rival-machine-run machine)
+(define (rival-machine-run machine vhint)
   (define ivec (rival-machine-instructions machine))
   (define varc (vector-length (rival-machine-arguments machine)))
   (define precisions (rival-machine-precisions machine))
@@ -44,10 +44,17 @@
         [n (in-naturals varc)]
         [precision (in-vector precisions)]
         [repeat (in-vector repeats)]
-        #:unless (and (not first-iter?) repeat))
+        [hint (in-vector vhint)]
+        #:unless (or (not hint) (and (not first-iter?) repeat)))
     (define start (current-inexact-milliseconds))
-    (parameterize ([bf-precision precision])
-      (vector-set! vregs n (apply-instruction instr vregs)))
+    (define out
+      (match hint
+        [#t
+         (parameterize ([bf-precision precision])
+           (apply-instruction instr vregs))]
+        [(? integer? _) (vector-ref vregs (list-ref instr hint))]
+        [(? ival? _) hint]))
+    (vector-set! vregs n out)
     (define name (object-name (car instr)))
     (define time (- (current-inexact-milliseconds) start))
     (rival-machine-record machine name n precision time)))
@@ -94,10 +101,10 @@
       lo))
   (values good? (and good? done?) bad? stuck? fvec))
 
-(define (rival-machine-adjust machine)
+(define (rival-machine-adjust machine vhint)
   (define iter (rival-machine-iteration machine))
   (let ([start (current-inexact-milliseconds)])
     (if (zero? iter)
         (vector-fill! (rival-machine-precisions machine) (rival-machine-initial-precision machine))
-        (backward-pass machine))
+        (backward-pass machine vhint))
     (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))

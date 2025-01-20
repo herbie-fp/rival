@@ -24,14 +24,14 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (rival-machine-full machine inputs)
+(define (rival-machine-full machine inputs [vhint (rival-machine-hint machine)])
   (set-rival-machine-iteration! machine (*sampling-iteration*))
-  (rival-machine-adjust machine)
+  (rival-machine-adjust machine vhint)
   (cond
     [(>= (*sampling-iteration*) (*rival-max-iterations*)) (values #f #f #f #t #f)]
     [else
      (rival-machine-load machine inputs)
-     (rival-machine-run machine)
+     (rival-machine-run machine vhint)
      (rival-machine-return machine)]))
 
 (struct exn:rival exn:fail ())
@@ -62,14 +62,14 @@
 (define (ival-real x)
   (ival x))
 
-(define (rival-apply machine pt)
+(define (rival-apply machine pt [hint (rival-machine-hint machine)])
   (define discs (rival-machine-discs machine))
   (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
-        (rival-machine-full machine (vector-map ival-real pt))))
+        (rival-machine-full machine (vector-map ival-real pt) hint)))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
@@ -83,4 +83,5 @@
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect)))
-  (ival (or bad? stuck?) (not good?)))
+  (define-values (hint hint-converged?) (make-hint machine))
+  (list (ival (or bad? stuck?) (not good?)) hint hint-converged?))

@@ -29,6 +29,7 @@
                    incremental-precisions
                    output-distance
                    initial-precision
+                   hint
                    [iteration #:mutable]
                    [bumps #:mutable]
                    [profile-ptr #:mutable]

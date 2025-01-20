@@ -6,9 +6,122 @@
          racket/list
          racket/match)
 
-(provide backward-pass)
+(provide backward-pass
+         make-hint)
 
-(define (backward-pass machine)
+; Hint is a vector with len(ivec) elements which
+;   guides Rival on which instructions should not be executed
+;   for points from a particular hyperrect of input parameters.
+; make-hint is called as a last step of rival-analyze and returns hint as a result
+; Values of a hint:
+;   #f - instruction should not be executed
+;   #t - instruction should be executed
+;   integer n - instead of executing, refer to vregs with (list-ref instr n) index
+;               (the result is known and stored in another register)
+;   ival - instead of executing, just copy ival as a result of the instruction
+(define (make-hint machine)
+  (define args (rival-machine-arguments machine))
+  (define ivec (rival-machine-instructions machine))
+  (define rootvec (rival-machine-outputs machine))
+  (define vregs (rival-machine-registers machine))
+
+  (define varc (vector-length args))
+  (define vhint (make-vector (vector-length ivec) #f))
+  (define converged? #t)
+
+  ; helper function
+  (define (vhint-set! idx val)
+    (when (>= idx varc)
+      (vector-set! vhint (- idx varc) val)))
+
+  ; roots always should be executed
+  (for ([root-reg (in-vector rootvec)])
+    (vhint-set! root-reg #t))
+  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
+        [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
+        [n (in-range (- (vector-length vhint) 1) -1 -1)]
+        #:when hint)
+    (define hint*
+      (case (object-name (car instr))
+        [(ival-assert)
+         (match-define (list _ bool-idx) instr)
+         (define bool-reg (vector-ref vregs bool-idx))
+         (match* ((ival-lo bool-reg) (ival-hi bool-reg) (ival-err? bool-reg))
+           ; assert and its children should not be reexecuted if it is true already
+           [(#t #t #f) (ival-bool #t)]
+           ; assert and its children should not be reexecuted if it is false already
+           [(#f #f #f) (ival-bool #f)]
+           [(_ _ _) ; assert and its children should be reexecuted
+            (vhint-set! bool-idx #t)
+            (set! converged? #f)
+            #t])]
+        [(ival-if)
+         (match-define (list _ cond tru fls) instr)
+         (define cond-reg (vector-ref vregs cond))
+         (match* ((ival-lo cond-reg) (ival-hi cond-reg) (ival-err? cond-reg))
+           [(#t #t #f) ; only true path should be executed
+            (vhint-set! tru #t)
+            2]
+           [(#f #f #f) ; only false path should be executed
+            (vhint-set! fls #t)
+            3]
+           [(_ _ _) ; execute both paths and cond as well
+            (vhint-set! cond #t)
+            (vhint-set! tru #t)
+            (vhint-set! fls #t)
+            (set! converged? #f)
+            #t])]
+        [(ival-fmax)
+         (match-define (list _ arg1 arg2) instr)
+         (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+         (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
+           [(#t #t #f) ; only arg1 should be executed
+            (vhint-set! arg1 #t)
+            1]
+           [(#f #f #f) ; only arg2 should be executed
+            (vhint-set! arg2 #t)
+            2]
+           [(_ _ _) ; both paths should be executed
+            (vhint-set! arg1 #t)
+            (vhint-set! arg2 #t)
+            (set! converged? #f)
+            #t])]
+        [(ival-fmin)
+         (match-define (list _ arg1 arg2) instr)
+         (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+         (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
+           [(#t #t #f) ; only arg2 should be executed
+            (vhint-set! arg2 #t)
+            2]
+           [(#f #f #f) ; only arg1 should be executed
+            (vhint-set! arg1 #t)
+            1]
+           [(_ _ _) ; both paths should be executed
+            (vhint-set! arg1 #t)
+            (vhint-set! arg2 #t)
+            (set! converged? #f)
+            #t])]
+        [(ival-< ival-<= ival-> ival->= ival-== ival-!= ival-and ival-or ival-not)
+         (define cmp (vector-ref vregs (+ varc n)))
+         (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
+           ; result is known
+           [(#t #t #f) (ival-bool #t)]
+           ; result is known
+           [(#f #f #f) (ival-bool #f)]
+           [(_ _ _) ; all the paths should be executed
+            (define srcs (rest instr))
+            (for-each (λ (x) (vhint-set! x #t)) srcs)
+            (set! converged? #f)
+            #t])]
+
+        [else ; at this point we are given that the current instruction should be executed
+         (define srcs (rest instr)) ; then, children instructions should be executed as well
+         (for-each (λ (x) (vhint-set! x #t)) srcs)
+         #t]))
+    (vector-set! vhint n hint*))
+  (values vhint converged?))
+
+(define (backward-pass machine vhint)
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
   (define args (rival-machine-arguments machine))
   (define ivec (rival-machine-instructions machine))
@@ -50,7 +163,7 @@
          (vector-set! vuseful (- arg varc) #t))]))
 
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful vhint)
 
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -90,12 +203,13 @@
 ; Roughly speaking, the upper precision bound is calculated as:
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
-(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful)
+(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful vhint)
   (define vprecs-min (make-vector (vector-length ivec) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
-        #:when useful?)
+        [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
+        #:when (and hint useful?))
     (define op (car instr))
     (define tail-registers (cdr instr))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
