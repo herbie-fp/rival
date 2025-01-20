@@ -270,15 +270,16 @@
                 ([node (in-vector nodes num-vars)])
       (fn->ival-fn node)))
 
-  (define register-count (+ (length vars) (vector-length instructions)))
+  (define ivec-length (vector-length instructions))
+  (define register-count (+ (length vars) ivec-length))
   (define registers (make-vector register-count))
-  (define repeats (make-vector register-count #f)) ; flags whether an op should be evaluated
-  (define precisions (make-vector register-count)) ; vector that stores working precisions
+  (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
+  (define precisions (make-vector ivec-length)) ; vector that stores working precisions
   ;; vector for adjusting precisions
   (define incremental-precisions (setup-vstart-precs instructions (length vars) roots discs))
   (define initial-precision
     (+ (argmax identity (map discretization-target discs)) (*base-tuning-precision*)))
-  (define hint (make-vector (vector-length instructions) #t))
+  (define hint (make-vector ivec-length #t))
 
   (rival-machine (list->vector vars)
                  instructions
