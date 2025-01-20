@@ -93,22 +93,22 @@
            math/bigfloat)
   (define number-of-random-hyperrects 100)
   (define number-of-random-pts-per-rect 100)
-  (define threshold 95) ; at least 5% of instructions should be skipped by hint to pass the tests!
+  (define rect (list (bf -100) (bf 100)))
   (bf-precision 53)
 
   ; Check whether outputs are the same for the hint and without hint executions
   (define (rival-check-hint machine hint pt)
-    (define no-hint-result
-      (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
-                      [exn:rival:unsamplable? (λ (e) 'unsamplable)])
-        (rival-apply machine pt)))
-    (define no-hint-instr-count (vector-length (rival-profile machine 'executions)))
-
     (define hint-result
       (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
                       [exn:rival:unsamplable? (λ (e) 'unsamplable)])
         (rival-apply machine pt hint)))
     (define hint-instr-count (vector-length (rival-profile machine 'executions)))
+
+    (define no-hint-result
+      (with-handlers ([exn:rival:invalid? (λ (e) 'invalid)]
+                      [exn:rival:unsamplable? (λ (e) 'unsamplable)])
+        (rival-apply machine pt)))
+    (define no-hint-instr-count (vector-length (rival-profile machine 'executions)))
 
     (check-equal? hint-result no-hint-result)
     (values no-hint-instr-count hint-instr-count))
@@ -155,49 +155,41 @@
     (define skipped-percentage (* (/ hint-cnt no-hint-cnt) 100))
     skipped-percentage)
 
-  (define discs (list boolean-discretization flonum-discretization))
-  (define vars '(x y))
-  (define varc (length vars))
+  (define (expressions2d-check expressions)
+    (define discs (list boolean-discretization flonum-discretization))
+    (define vars '(x y))
+    (define varc (length vars))
+    (define machine (rival-compile expressions vars discs))
+    (define skipped-instr
+      (parameterize ([bf-precision 63])
+        (hints-random-checks machine (first rect) (second rect) varc)))
+    (printf "Percentage of skipped instructions by hint in expr = ~a\n" (round skipped-instr)))
 
-  (define expr1
-    (list '(assert (> (+ (log x) (log y)) (- (log x) (log y))))
-          '(+ (if (> (/ (log x) (log y)) (* (log x) (log y)))
-                  (fmax (* (log x) (log y)) (+ (log x) (log y)))
-                  (fmin (* (log x) (log y)) (+ (log x) (log y))))
-              (if (> (+ (log x) (log y)) (* (log x) (log y)))
-                  (fmax (/ (log x) (log y)) (- (log x) (log y)))
-                  (fmin (/ (log x) (log y)) (- (log x) (log y)))))))
-  (define machine1 (rival-compile expr1 vars discs))
-  (define skipped-instr1 (hints-random-checks machine1 (bf -100) (bf 100) varc))
-  (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr1))
-  (check-true (< skipped-instr1 threshold))
+  (expressions2d-check (list '(assert (> (+ (log x) (log y)) (- (log x) (log y))))
+                             '(+ (if (> (/ (log x) (log y)) (* (log x) (log y)))
+                                     (fmax (* (log x) (log y)) (+ (log x) (log y)))
+                                     (fmin (* (log x) (log y)) (+ (log x) (log y))))
+                                 (if (> (+ (log x) (log y)) (* (log x) (log y)))
+                                     (fmax (/ (log x) (log y)) (- (log x) (log y)))
+                                     (fmin (/ (log x) (log y)) (- (log x) (log y)))))))
 
-  (define expr2
-    (list '(TRUE)
-          '(fmax (fmin (fmax (* x y) (+ x y)) (+ (fmax x (* 2 y)) (fmin y (* x 2))))
-                 (fmax (fmin (* x y) (+ x y)) (+ (fmin x (* 2 y)) (fmax y (* x 2)))))))
-  (define machine2 (rival-compile expr2 vars discs))
-  (define skipped-instr2 (hints-random-checks machine2 (bf -100) (bf 100) varc))
-  (printf "Percentage of skipped instructions by hint in expr2 = ~a\n" (round skipped-instr2))
-  (check-true (< skipped-instr2 threshold))
+  (expressions2d-check
+   (list '(TRUE)
+         '(fmax (fmin (fmax (* x y) (+ x y)) (+ (fmax x (* 2 y)) (fmin y (* x 2))))
+                (fmax (fmin (* x y) (+ x y)) (+ (fmin x (* 2 y)) (fmax y (* x 2)))))))
 
-  (define expr3
-    (list '(TRUE)
-          '(if (> (exp x) (+ 10 (log y)))
-               (if (> (fmax (* x y) (+ x y)) 4)
-                   (cos (fmax x y))
-                   (cos (fmin x y)))
-               (if (< (pow 2 x) (- (exp x) 10))
-                   (* PI x)
-                   (fmax x (- (cos y) (+ 10 (log y))))))))
-  (define machine3 (rival-compile expr3 vars discs))
-  (define skipped-instr3 (hints-random-checks machine3 (bf -100) (bf 100) varc))
-  (printf "Percentage of skipped instructions by hint in expr3 = ~a\n" (round skipped-instr3))
-  (check-true (< skipped-instr3 threshold))
+  (expressions2d-check (list '(TRUE)
+                             '(if (> (exp x) (+ 10 (log y)))
+                                  (if (> (fmax (* x y) (+ x y)) 4)
+                                      (cos (fmax x y))
+                                      (cos (fmin x y)))
+                                  (if (< (pow 2 x) (- (exp x) 10))
+                                      (* PI x)
+                                      (fmax x (- (cos y) (+ 10 (log y))))))))
 
   ; Test checks hint on assert where an error can be observed
-  (define expr4 (list '(assert (> (+ (log x) (log y)) (- (log x) (log y)))) '(+ (cos x) (cos y))))
-  (define machine4 (rival-compile expr4 vars discs))
-  (define skipped-instr4 (hints-random-checks machine4 (bf -100) (bf 100) varc))
-  (printf "Percentage of skipped instructions by hint in expr1 = ~a\n" (round skipped-instr4))
-  (check-true (< skipped-instr4 threshold)))
+  (expressions2d-check (list '(assert (> (+ (log x) (log y)) (- (log x) (log y))))
+                             '(+ (cos x) (cos y))))
+
+  ; Test checks hint on fmax where an error can be observed
+  (expressions2d-check (list '(TRUE) '(fmax (log x) y))))
