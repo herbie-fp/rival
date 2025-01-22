@@ -24,7 +24,7 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (rival-machine-full machine inputs [vhint (rival-machine-hint machine)])
+(define (rival-machine-full machine inputs vhint)
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine vhint)
   (cond
@@ -71,7 +71,7 @@
                      [ground-truth-require-convergence #t])
         (rival-machine-full machine
                             (vector-map ival-real pt)
-                            (or hint (rival-machine-hint machine)))))
+                            (or hint (rival-machine-default-hint machine)))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
@@ -84,6 +84,6 @@
   (define-values (good? done? bad? stuck? fvec)
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
-      (rival-machine-full machine rect (or hint (rival-machine-hint machine)))))
+      (rival-machine-full machine rect (or hint (rival-machine-default-hint machine)))))
   (define-values (hint* hint*-converged?) (make-hint machine))
   (list (ival (or bad? stuck?) (not good?)) hint* hint*-converged?))
