@@ -90,13 +90,14 @@
 
 (require "eval/main.rkt"
          (only-in "eval/machine.rkt" rival-machine?))
-(provide (contract-out [rival-compile
-                        (-> (listof any/c) (listof symbol?) (listof discretization?) rival-machine?)]
-                       [rival-apply
-                        (->* (rival-machine? (vectorof value?))
-                             ((or/c (vectorof any/c) boolean?))
-                             (vectorof any/c))]
-                       [rival-analyze (-> rival-machine? (vectorof ival?) (listof any/c))])
+(provide (contract-out
+          [rival-compile (-> (listof any/c) (listof symbol?) (listof discretization?) rival-machine?)]
+          [rival-apply
+           (->* (rival-machine? (vectorof value?))
+                ((or/c (vectorof any/c) boolean?))
+                (vectorof any/c))]
+          [rival-analyze
+           (->* (rival-machine? (vectorof ival?)) ((or/c (vectorof any/c) boolean?)) (listof any/c))])
          (struct-out discretization)
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)

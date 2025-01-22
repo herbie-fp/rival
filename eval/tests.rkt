@@ -90,7 +90,6 @@
   ; Testing hint on an expression for 'number-of-random-hyperrects' hyperrects by
   ;     'number-of-random-pts-per-rect' points each
   (define (hints-random-checks machine rect-lo rect-hi varc)
-    (define evaluated-instructions 0)
     (define number-of-instructions-total
       (* number-of-random-hyperrects (vector-length (rival-machine-instructions machine))))
 
@@ -98,8 +97,14 @@
     (define no-hint-cnt 0)
     (for ([n (in-range number-of-random-hyperrects)])
       (define hyperrect (sample-hyperrect-within-bounds rect-lo rect-hi varc))
-      (match-define (list res hint _) (rival-analyze machine hyperrect))
-      (set! evaluated-instructions (+ evaluated-instructions (vector-count false? hint)))
+      (match-define (list res hint converged?) (rival-analyze machine hyperrect))
+
+      ; A little hack, the analyze below uses hint from the previous run
+      ; The analyze results must be equal. If not, something wrong has happened
+      (match-define (list res* hint* converged?*) (rival-analyze machine hyperrect hint))
+      (check-equal? hint hint*)
+      (check-equal? res res*)
+      (check equal? converged? converged?*)
 
       (for ([_ (in-range number-of-random-pts-per-rect)])
         (define pt (sample-pts hyperrect))
