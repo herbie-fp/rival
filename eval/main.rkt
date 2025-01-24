@@ -62,6 +62,7 @@
 (define (ival-real x)
   (ival x))
 
+; Assumes that hint (if provided) is correct for the given pt
 (define (rival-apply machine pt [hint #f])
   (define discs (rival-machine-discs machine))
   (set-rival-machine-bumps! machine 0)
@@ -80,10 +81,12 @@
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else (loop (+ 1 iter))])))
 
+; Assumes that hint (if provided) is correct for the given rect
 (define (rival-analyze machine rect [hint #f])
   (define-values (good? done? bad? stuck? fvec)
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
       (rival-machine-full machine rect (or hint (rival-machine-default-hint machine)))))
-  (define-values (hint* hint*-converged?) (make-hint machine))
+  (define-values (hint* hint*-converged?)
+    (make-hint machine (or hint (rival-machine-default-hint machine))))
   (list (ival (or bad? stuck?) (not good?)) hint* hint*-converged?))
