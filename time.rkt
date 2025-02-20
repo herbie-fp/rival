@@ -24,6 +24,7 @@
 (define *baseline-timeout* (make-parameter 0))
 (define *sollya-timeout* (make-parameter 0))
 (define *iter-count* (make-parameter 0))
+(define *point-count* (make-parameter 0))
 
 (define (time-operation ival-fn bf-fn itypes otype)
   (define n
@@ -112,7 +113,8 @@
                           (list (execution-time execution) name precision))))
 
       (when (> rival-iter 0)
-        (*iter-count* (+ rival-iter (*iter-count*))))
+        (*iter-count* (+ rival-iter (*iter-count*)))
+        (*point-count* (add1 (*point-count*))))
 
       ; Store density plot data
       (when (and (equal? rival-status 'valid) (> rival-iter 0))
@@ -219,7 +221,10 @@
 
       (cons rival-status (cons rival-apply-time rival-baseline-difference))))
 
-  (printf "\tSLACK-COUNT = ~a, ITER-COUNT = ~a\n" (*slack-count*) (*iter-count*))
+  (printf "\tSLACK-COUNT = ~a, ITER-COUNT = ~a, POINT-COUNT = ~a\n"
+          (*slack-count*)
+          (*iter-count*)
+          (*point-count*))
 
   ; Zombie process
   (when sollya-machine
@@ -362,7 +367,10 @@
   (printf "\tRIVAL TIMEOUTS = ~a\n" (*rival-timeout*))
   (printf "\tBASELINE TIMEOUTS = ~a\n" (*baseline-timeout*))
   (printf "\tSOLLYA TIMEOUTS = ~a\n" (*sollya-timeout*))
-  (printf "\tSLACK-COUNT = ~a, ITER-COUNT = ~a\n" (*slack-count*) (*iter-count*))
+  (printf "\tSLACK-COUNT = ~a, ITER-COUNT = ~a, POINT-COUNT = ~a\n"
+          (*slack-count*)
+          (*iter-count*)
+          (*point-count*))
 
   (when timeline-port
     (write-json (timeline->jsexpr timeline) timeline-port)
