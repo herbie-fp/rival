@@ -112,7 +112,7 @@
                           (list (execution-time execution) name precision))))
 
       (when (> rival-iter 0)
-        (*iter-count* (add1 (*iter-count*))))
+        (*iter-count* (+ rival-iter (*iter-count*))))
 
       ; Store density plot data
       (when (and (equal? rival-status 'valid) (> rival-iter 0))
