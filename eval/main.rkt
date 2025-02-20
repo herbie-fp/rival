@@ -20,7 +20,8 @@
          *rival-name-constants*
          rival-profile
          (struct-out execution)
-         *rival-profile-executions*)
+         *rival-profile-executions*
+         *slack-count*)
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -61,6 +62,8 @@
 
 (define (ival-real x)
   (ival x))
+
+(define *iter-count* (make-parameter 0))
 
 ; Assumes that hint (if provided) is correct for the given pt
 (define (rival-apply machine pt [hint #f])

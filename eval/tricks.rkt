@@ -9,9 +9,14 @@
          "machine.rkt")
 
 (provide get-bounds
-         get-slack)
+         get-slack
+         *slack-count*)
+
+(define *slack-count* (make-parameter 0))
 
 (define (get-slack [iter (*sampling-iteration*)])
+  (when (equal? iter (*sampling-iteration*))
+    (*slack-count* (add1 (*slack-count*))))
   (match iter
     [0 0]
     [_ (* (expt 2 (- iter 1)) 512)]))

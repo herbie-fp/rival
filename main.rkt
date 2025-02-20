@@ -108,7 +108,8 @@
          *rival-use-shorthands*
          *rival-name-constants*
          (struct-out execution)
-         (contract-out [rival-profile (-> rival-machine? symbol? any/c)]))
+         (contract-out [rival-profile (-> rival-machine? symbol? any/c)])
+         *slack-count*)
 
 (require "utils.rkt")
 (provide flonum-discretization
