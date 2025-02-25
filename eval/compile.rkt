@@ -275,12 +275,13 @@
   (define registers (make-vector register-count))
 
   (define instructions
-    (for/vector #:length ivec-length ([node (in-vector nodes num-vars)] [n (in-naturals)])
+    (for/vector #:length ivec-length
+                ([node (in-vector nodes num-vars)]
+                 [n (in-naturals num-vars)])
       (fn->ival-fn node
                    (lambda ()
-                     (define out (new-ival))
-                     (vector-set! registers (+ num-vars n) out)
-                     (+ num-vars n)))))
+                     (vector-set! registers n (new-ival))
+                     n))))
 
   (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
   (define precisions (make-vector ivec-length)) ; vector that stores working precisions
