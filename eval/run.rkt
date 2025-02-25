@@ -3,10 +3,12 @@
 (require racket/match
          racket/function
          racket/flonum)
+
 (require "machine.rkt"
          "adjust.rkt"
          "../mpfr.rkt"
          "../ops/all.rkt")
+
 (provide rival-machine-load
          rival-machine-run
          rival-machine-return
@@ -29,16 +31,12 @@
     (flvector-set! profile-time profile-ptr time)
     (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
 
-(define (rival-machine-run machine)
+(define (rival-machine-run machine vhint)
   (define ivec (rival-machine-instructions machine))
   (define varc (vector-length (rival-machine-arguments machine)))
-  (define precisions
-    (if (zero? (rival-machine-iteration machine))
-        (rival-machine-initial-precisions machine)
-        (rival-machine-precisions machine)))
+  (define precisions (rival-machine-precisions machine))
   (define repeats (rival-machine-repeats machine))
   (define vregs (rival-machine-registers machine))
-
   ; parameter for sampling histogram table
   (define first-iter? (zero? (rival-machine-iteration machine)))
 
@@ -46,10 +44,17 @@
         [n (in-naturals varc)]
         [precision (in-vector precisions)]
         [repeat (in-vector repeats)]
-        #:unless (and (not first-iter?) repeat))
+        [hint (in-vector vhint)]
+        #:unless (or (not hint) (and (not first-iter?) repeat)))
     (define start (current-inexact-milliseconds))
-    (parameterize ([bf-precision precision])
-      (vector-set! vregs n (apply-instruction instr vregs)))
+    (define out
+      (match hint
+        [#t
+         (parameterize ([bf-precision precision])
+           (apply-instruction instr vregs))]
+        [(? integer? _) (vector-ref vregs (list-ref instr hint))]
+        [(? ival? _) hint]))
+    (vector-set! vregs n out)
     (define name (object-name (car instr)))
     (define time (- (current-inexact-milliseconds) start))
     (rival-machine-record machine name n precision time)))
@@ -72,14 +77,15 @@
   (define vregs (rival-machine-registers machine))
   (define rootvec (rival-machine-outputs machine))
   (define slackvec (rival-machine-output-distance machine))
-  (define ovec (make-vector (vector-length rootvec)))
   (define good? #t)
   (define done? #t)
   (define bad? #f)
   (define stuck? #f)
   (define fvec
     (for/vector #:length (vector-length rootvec)
-                ([root (in-vector rootvec)] [disc (in-vector discs)] [n (in-naturals)])
+                ([root (in-vector rootvec)]
+                 [disc (in-vector discs)]
+                 [n (in-naturals)])
       (define out (vector-ref vregs root))
       (define lo ((discretization-convert disc) (ival-lo out)))
       (define hi ((discretization-convert disc) (ival-hi out)))
@@ -95,9 +101,10 @@
       lo))
   (values good? (and good? done?) bad? stuck? fvec))
 
-(define (rival-machine-adjust machine)
+(define (rival-machine-adjust machine vhint)
   (define iter (rival-machine-iteration machine))
-  (unless (zero? iter)
-    (define start (current-inexact-milliseconds))
-    (backward-pass machine)
+  (let ([start (current-inexact-milliseconds)])
+    (if (zero? iter)
+        (vector-fill! (rival-machine-precisions machine) (rival-machine-initial-precision machine))
+        (backward-pass machine vhint))
     (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))

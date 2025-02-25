@@ -1,0 +1,39 @@
+name: Distribute
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  distribute:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            arch: aarch64
+          - os: macos-13
+            arch: x64
+          - os: ubuntu-latest
+            arch: x64
+          - os: windows-latest
+            arch: x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v1.11
+        with:
+            version: "8.14"
+            architecture: ${{ matrix.arch }}
+      - uses: actions/checkout@master
+      - name: "Build standalone executable"
+        run: make distribution
+      # Test executable
+      - name: "Test executable, run repl (Windows)"
+        if: runner.os == 'Windows'
+        run: rival-compiled/rival.exe
+      - name: "Test executable, run repl (Linux / MacOS)"
+        if: runner.os != 'Windows'
+        run: rival-compiled/bin/rival

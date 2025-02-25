@@ -58,12 +58,33 @@ function all {
 function perf {
     clean
     xz -d -k -f infra/points.json.xz
-    racket -y time.rkt --html "$REPORTDIR"/index.html --profile profile.json infra/points.json
+    racket -y time.rkt --dir "$REPORTDIR" --profile profile.json infra/points.json
+    python3 infra/ratio_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/point_graph.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/histograms.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/cnt_per_iters_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/repeats_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/density_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
     cp profile.json "$REPORTDIR"/profile.json
     cp profile.js "$REPORTDIR"/profile.js
 }
 
-for cmd in $@; do
-    echo "Running $cmd"
-    $cmd
-done
+function bench {
+    racket -y time.rkt --dir "$REPORTDIR" --profile profile.json --id $id
+    python3 infra/ratio_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/point_graph.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/histograms.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/cnt_per_iters_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/repeats_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    python3 infra/density_plot.py -t "$REPORTDIR"/timeline.json -o "$REPORTDIR"
+    cp profile.json "$REPORTDIR"/profile.json
+    cp profile.js "$REPORTDIR"/profile.js
+}
+
+echo "Running $1"
+
+if [ "$2" ]; then
+  id=$2
+fi
+
+$1

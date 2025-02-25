@@ -1,21 +1,115 @@
 #lang racket
 
 (require racket/match
-         "../mpfr.rkt"
+         (only-in "../mpfr.rkt" bfprev bf bfsinu bfcosu bftanu bf-rounding-mode bf=?)
          racket/flonum)
 (require "../ops/all.rkt"
          (only-in "../ops/core.rkt" new-ival)
          "machine.rkt")
 (provide rival-compile
          *rival-use-shorthands*
-         *rival-name-constants*)
+         *rival-name-constants*
+         fn->ival-fn ; for baseline
+         exprs->batch) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))
 (define *rival-name-constants* (make-parameter #f))
 
+(define (fn->ival-fn node alloc-outreg!)
+  (match node
+    [(? number?)
+     (if (ival-point? (real->ival node))
+         (list (ival-const node))
+         (list (ival-rational node)))]
+
+    [(list 'PI) (list ival-pi)]
+    [(list 'E) (list ival-e)]
+    [(list 'INFINITY) (list ival-infinity)]
+    [(list 'NAN) (list ival-nan)]
+    [(list 'TRUE) (list ival-true)]
+    [(list 'FALSE) (list ival-false)]
+
+    [(list 'if c y f) (list ival-if c y f)]
+
+    [(list 'neg x) (list ival-neg x)]
+    [(list 'acos x) (list ival-acos x)]
+    [(list 'acosh x) (list ival-acosh x)]
+    [(list 'asin x) (list ival-asin x)]
+    [(list 'asinh x) (list ival-asinh x)]
+    [(list 'atan x) (list ival-atan x)]
+    [(list 'atanh x) (list ival-atanh x)]
+    [(list 'cbrt x) (list ival-cbrt x)]
+    [(list 'ceil x) (list ival-ceil x)]
+    [(list 'cos x) (list ival-cos x)]
+    [(list 'cosh x) (list ival-cosh x)]
+    [(list 'erf x) (list ival-erf x)]
+    [(list 'erfc x) (list ival-erfc x)]
+    [(list 'exp x) (list ival-exp x)]
+    [(list 'exp2 x) (list ival-exp2 x)]
+    [(list 'expm1 x) (list ival-expm1 x)]
+    [(list 'fabs x) (list ival-fabs x)]
+    [(list 'floor x) (list ival-floor x)]
+    [(list 'lgamma x) (list ival-lgamma x)]
+    [(list 'log x) (list ival-log x)]
+    [(list 'log10 x) (list ival-log10 x)]
+    [(list 'log1p x) (list ival-log1p x)]
+    [(list 'log2 x) (list ival-log2 x)]
+    [(list 'logb x) (list ival-logb x)]
+    [(list 'rint x) (list ival-rint x)]
+    [(list 'round x) (list ival-round x)]
+    [(list 'sin x) (list ival-sin x)]
+    [(list 'sinh x) (list ival-sinh x)]
+    [(list 'sqrt x) (list ival-sqrt x)]
+    [(list 'tan x) (list ival-tan x)]
+    [(list 'tanh x) (list ival-tanh x)]
+    [(list 'tgamma x) (list ival-tgamma x)]
+    [(list 'trunc x) (list ival-trunc x)]
+
+    [(list '+ x y) (list ival-add! (alloc-outreg!) x y)]
+    [(list '- x y) (list ival-sub! (alloc-outreg!) x y)]
+    [(list '* x y) (list ival-mult! (alloc-outreg!) x y)]
+    [(list '/ x y) (list ival-div! (alloc-outreg!) x y)]
+    #;[(list '+ x y) (list ival-add x y)]
+    #;[(list '- x y) (list ival-sub x y)]
+    #;[(list '* x y) (list ival-mult x y)]
+    #;[(list '/ x y) (list ival-div x y)]
+    [(list 'atan2 x y) (list ival-atan2 x y)]
+    [(list 'copysign x y) (list ival-copysign x y)]
+    [(list 'hypot x y) (list ival-hypot x y)]
+    [(list 'fdim x y) (list ival-fdim x y)]
+    [(list 'fmax x y) (list ival-fmax x y)]
+    [(list 'fmin x y) (list ival-fmin x y)]
+    [(list 'fmod x y) (list ival-fmod x y)]
+    [(list 'pow x y) (list ival-pow x y)]
+    [(list 'remainder x y) (list ival-remainder x y)]
+
+    [(list 'pow2 x) (list ival-pow2 x)]
+
+    [(list `(cosu ,n) x) (list (ival-cosu n) x)]
+    [(list `(sinu ,n) x) (list (ival-sinu n) x)]
+    [(list `(tanu ,n) x) (list (ival-tanu n) x)]
+
+    [(list '== x y) (list ival-== x y)]
+    [(list '!= x y) (list ival-!= x y)]
+    [(list '<= x y) (list ival-<= x y)]
+    [(list '>= x y) (list ival->= x y)]
+    [(list '< x y) (list ival-< x y)]
+    [(list '> x y) (list ival-> x y)]
+
+    [(list 'not x) (list ival-not x)]
+    [(list 'and x y) (list ival-and x y)]
+    [(list 'or x y) (list ival-or x y)]
+
+    [(list 'cast x) (list values x)]
+
+    [(list 'assert x) (list ival-assert x)]
+    [(list 'then x y) (list ival-then x y)]
+    [(list 'error x) (list ival-error? x)]
+
+    [(list op args ...) (error 'compile-specs "Unknown operator ~a" op)]))
+
 (define (optimize expr)
   (match (and (*rival-use-shorthands*) expr)
-
     ; Syntax quirks
     [`PI '(PI)]
     [`E '(E)]
@@ -35,6 +129,7 @@
     [`(pow ,arg 2) `(pow2 ,arg)]
     [`(pow ,arg 1/3) `(cbrt ,arg)]
     [`(pow ,arg 1/2) `(sqrt ,arg)]
+    [`(pow 2 ,arg) `(exp2 ,arg)]
 
     ; Special trigonometric functions
     [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
@@ -100,12 +195,17 @@
        [(and (even? (numerator y)) (odd? (denominator y))) `(pow (fabs ,x) ,y)]
        [(and (odd? (numerator y)) (odd? (denominator y))) `(copysign (pow (fabs ,x) ,y) ,x)]
        [else `(pow ,x ,y)])]
+
+    ; Some simplifications to prevent overflow
+    [`(log (exp ,arg)) arg]
+    [`(exp (log ,x)) `(then (assert (> ,x 0)) ,x)]
     [_ expr]))
 
 (define (exprs->batch exprs vars)
   (define icache (reverse vars))
   (define exprhash
-    (make-hash (for/list ([var vars] [i (in-naturals)])
+    (make-hash (for/list ([var vars]
+                          [i (in-naturals)])
                  (cons var i))))
   ; Counts
   (define exprc 0)
@@ -116,7 +216,7 @@
     (define node ; This compiles to the register machine
       (match (optimize prog)
         [(list op args ...) (cons op (map munge args))]
-        [_ prog]))
+        [prog* prog*]))
     (hash-ref! exprhash
                node
                (lambda ()
@@ -157,121 +257,38 @@
 
 (define (ival-const x)
   (procedure-rename (const (real->ival x))
-                    (if (*rival-name-constants*) (string->symbol (number->string x)) 'exact)))
+                    (if (*rival-name-constants*)
+                        (string->symbol (number->string x))
+                        'exact)))
 
 (define (ival-rational x)
   (procedure-rename (lambda () (real->ival x))
-                    (if (*rival-name-constants*) (string->symbol (number->string x)) 'const)))
+                    (if (*rival-name-constants*)
+                        (string->symbol (number->string x))
+                        'const)))
 
 (define (rival-compile exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots) (exprs->batch exprs vars))
-
-  (define pre-alloc '())
+  (define ivec-length (- (vector-length nodes) num-vars))
+  (define register-count (+ (length vars) ivec-length))
+  (define registers (make-vector register-count))
 
   (define instructions
-    (for/vector #:length (- (vector-length nodes) num-vars)
-                ([node (in-vector nodes num-vars)] [reg (in-naturals num-vars)])
-      (define (output-register!)
-        (set! pre-alloc (cons reg pre-alloc))
-        reg)
+    (for/vector #:length ivec-length ([node (in-vector nodes num-vars)] [n (in-naturals)])
+      (fn->ival-fn node
+                   (lambda ()
+                     (define out (new-ival))
+                     (vector-set! registers (+ num-vars n) out)
+                     (+ num-vars n)))))
 
-      (match node
-        [(? number?)
-         (if (ival-point? (real->ival node)) (list (ival-const node)) (list (ival-rational node)))]
-
-        [(list 'PI) (list ival-pi)]
-        [(list 'E) (list ival-e)]
-        [(list 'INFINITY) (list ival-infinity)]
-        [(list 'NAN) (list ival-nan)]
-        [(list 'TRUE) (list ival-true)]
-        [(list 'FALSE) (list ival-false)]
-
-        [(list 'if c y f) (list ival-if c y f)]
-
-        [(list 'neg x) (list ival-neg x)]
-        [(list 'acos x) (list ival-acos x)]
-        [(list 'acosh x) (list ival-acosh x)]
-        [(list 'asin x) (list ival-asin x)]
-        [(list 'asinh x) (list ival-asinh x)]
-        [(list 'atan x) (list ival-atan x)]
-        [(list 'atanh x) (list ival-atanh x)]
-        [(list 'cbrt x) (list ival-cbrt x)]
-        [(list 'ceil x) (list ival-ceil x)]
-        [(list 'cos x) (list ival-cos x)]
-        [(list 'cosh x) (list ival-cosh x)]
-        [(list 'erf x) (list ival-erf x)]
-        [(list 'erfc x) (list ival-erfc x)]
-        [(list 'exp x) (list ival-exp x)]
-        [(list 'exp2 x) (list ival-exp2 x)]
-        [(list 'expm1 x) (list ival-expm1 x)]
-        [(list 'fabs x) (list ival-fabs x)]
-        [(list 'floor x) (list ival-floor x)]
-        [(list 'lgamma x) (list ival-lgamma x)]
-        [(list 'log x) (list ival-log x)]
-        [(list 'log10 x) (list ival-log10 x)]
-        [(list 'log1p x) (list ival-log1p x)]
-        [(list 'log2 x) (list ival-log2 x)]
-        [(list 'logb x) (list ival-logb x)]
-        [(list 'rint x) (list ival-rint x)]
-        [(list 'round x) (list ival-round x)]
-        [(list 'sin x) (list ival-sin x)]
-        [(list 'sinh x) (list ival-sinh x)]
-        [(list 'sqrt x) (list ival-sqrt x)]
-        [(list 'tan x) (list ival-tan x)]
-        [(list 'tanh x) (list ival-tanh x)]
-        [(list 'tgamma x) (list ival-tgamma x)]
-        [(list 'trunc x) (list ival-trunc x)]
-
-        [(list '+ x y) (list ival-add! (output-register!) x y)]
-        [(list '- x y) (list ival-sub! (output-register!) x y)]
-        [(list '* x y) (list ival-mult! (output-register!) x y)]
-        [(list '/ x y) (list ival-div! (output-register!) x y)]
-        [(list 'atan2 x y) (list ival-atan2 x y)]
-        [(list 'copysign x y) (list ival-copysign x y)]
-        [(list 'hypot x y) (list ival-hypot x y)]
-        [(list 'fdim x y) (list ival-fdim x y)]
-        [(list 'fmax x y) (list ival-fmax x y)]
-        [(list 'fmin x y) (list ival-fmin x y)]
-        [(list 'fmod x y) (list ival-fmod x y)]
-        [(list 'pow x y) (list ival-pow x y)]
-        [(list 'remainder x y) (list ival-remainder x y)]
-
-        [(list 'pow2 x) (list ival-pow2 x)]
-
-        [(list `(cosu ,n) x) (list (ival-cosu n) x)]
-        [(list `(sinu ,n) x) (list (ival-sinu n) x)]
-        [(list `(tanu ,n) x) (list (ival-tanu n) x)]
-
-        [(list '== x y) (list ival-== x y)]
-        [(list '!= x y) (list ival-!= x y)]
-        [(list '<= x y) (list ival-<= x y)]
-        [(list '>= x y) (list ival->= x y)]
-        [(list '< x y) (list ival-< x y)]
-        [(list '> x y) (list ival-> x y)]
-
-        [(list 'not x) (list ival-not x)]
-        [(list 'and x y) (list ival-and x y)]
-        [(list 'or x y) (list ival-or x y)]
-
-        [(list 'cast x) (list values x)]
-
-        [(list 'assert x) (list ival-assert x)]
-        [(list 'error x) (list ival-error? x)]
-
-        [(list op args ...) (error 'compile-specs "Unknown operator ~a" op)])))
-
-  (define register-count (+ num-vars (vector-length instructions)))
-  (define registers (make-vector register-count))
-  (define repeats (make-vector register-count #f)) ; flags whether an op should be evaluated
-  (define precisions (make-vector register-count)) ; vector that stores working precisions
-  ;; starting precisions for the first, un-tuned iteration
-  (define initial-precisions (setup-vstart-precs instructions (length vars) roots discs))
-
-  (for ([reg (in-list pre-alloc)])
-    (define prec (vector-ref initial-precisions (- reg num-vars)))
-    (parameterize ([bf-precision prec])
-      (vector-set! registers reg (new-ival))))
+  (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
+  (define precisions (make-vector ivec-length)) ; vector that stores working precisions
+  ;; vector for adjusting precisions
+  (define incremental-precisions (setup-vstart-precs instructions (length vars) roots discs))
+  (define initial-precision
+    (+ (argmax identity (map discretization-target discs)) (*base-tuning-precision*)))
+  (define hint (make-vector ivec-length #t))
 
   (rival-machine (list->vector vars)
                  instructions
@@ -280,8 +297,10 @@
                  registers
                  repeats
                  precisions
-                 initial-precisions
+                 incremental-precisions
                  (make-vector (vector-length roots))
+                 initial-precision
+                 hint
                  0
                  0
                  0
@@ -297,7 +316,9 @@
   (define ivec-len (vector-length ivec))
   (define vstart-precs (make-vector ivec-len 0))
 
-  (for ([root (in-vector roots)] [disc (in-list discs)] #:when (>= root varc))
+  (for ([root (in-vector roots)]
+        [disc (in-list discs)]
+        #:when (>= root varc))
     (vector-set! vstart-precs
                  (- root varc)
                  (+ (discretization-target disc) (*base-tuning-precision*))))
@@ -307,12 +328,12 @@
     (define current-prec (vector-ref vstart-precs n))
 
     (define tail-registers (cdr instr))
-    (for ([idx (in-list tail-registers)] #:when (>= idx varc))
+    (for ([idx (in-list tail-registers)]
+          #:when (>= idx varc))
       (define idx-prec (vector-ref vstart-precs (- idx varc)))
       (vector-set! vstart-precs
                    (- idx varc)
                    (max ; sometimes an instruction can be in many tail registers
                     idx-prec ; We wanna make sure that we do not tune a precision down
                     (+ current-prec (*ampl-tuning-bits*))))))
-
   vstart-precs)

@@ -134,18 +134,30 @@
      (define new-data
        (struct-copy mdata
                     data
-                    [rival-samplable (if is-samplable (+ rival-samplable 1) rival-samplable)]
+                    [rival-samplable
+                     (if is-samplable
+                         (+ rival-samplable 1)
+                         rival-samplable)]
                     [rival-movability
-                     (if (and rival-no-error is-immovable) (+ rival-movability 1) rival-movability)]
+                     (if (and rival-no-error is-immovable)
+                         (+ rival-movability 1)
+                         rival-movability)]
                     [rival-possible
                      (if (and rival-no-error (not is-samplable) (not is-immovable))
                          (+ rival-possible 1)
                          rival-possible)]
                     [mathematica-samplable
-                     (if m-samplable? (+ mathematica-samplable 1) mathematica-samplable)]
+                     (if m-samplable?
+                         (+ mathematica-samplable 1)
+                         mathematica-samplable)]
                     [mathematica-unsamplable
-                     (if (not m-samplable?) (+ mathematica-unsamplable 1) mathematica-unsamplable)]
-                    [mathematica-error (if m-error? (+ mathematica-error 1) mathematica-error)]))
+                     (if (not m-samplable?)
+                         (+ mathematica-unsamplable 1)
+                         mathematica-unsamplable)]
+                    [mathematica-error
+                     (if m-error?
+                         (+ mathematica-error 1)
+                         mathematica-error)]))
      (hash-set! bench-to-mdata suite new-data)
      (collect-mathematica port rival-port bench-to-mdata (+ sofar 1) examples-port)]
     [else bench-to-mdata]))
