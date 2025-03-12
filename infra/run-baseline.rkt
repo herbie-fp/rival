@@ -23,6 +23,9 @@
                    discs
                    registers
                    precisions
+                   repeats
+                   default-hint
+                   [iteration #:mutable]
                    [precision #:mutable]
                    [profile-ptr #:mutable]
                    profile-instruction
@@ -42,7 +45,10 @@
 
   (define register-count (+ (length vars) (vector-length instructions)))
   (define registers (make-vector register-count))
-  (define precisions (make-vector register-count)) ; vector that stores working precisions
+  (define precisions
+    (make-vector (vector-length instructions))) ; vector that stores working precisions
+  (define repeats (make-vector (vector-length instructions)))
+  (define hint (make-vector (vector-length instructions) #t))
 
   (baseline-machine (list->vector vars)
                     instructions
@@ -50,6 +56,9 @@
                     discs
                     registers
                     precisions
+                    repeats
+                    hint
+                    0
                     0
                     0
                     (make-vector (*rival-profile-executions*))
@@ -61,47 +70,80 @@
 (define (ival-real x)
   (ival x))
 
-(define (baseline-apply machine pt)
-  (define start-time (current-inexact-milliseconds))
+(define (baseline-apply machine pt [hint #f])
   (define discs (baseline-machine-discs machine))
   (define start-prec
     (+ (discretization-target (last discs))
        (*base-tuning-precision*))) ; base tuning is taken from eval/machine.rkt
-
-  (let loop ([prec start-prec])
+  ; Load arguments
+  (baseline-machine-load machine (vector-map ival-real pt))
+  (let loop ([prec start-prec]
+             [iter 0])
+    (set-baseline-machine-iteration! machine iter)
     (define-values (good? done? bad? stuck? fvec)
       (parameterize ([bf-precision prec])
-        (baseline-machine-full machine (vector-map ival-real pt))))
+        (baseline-machine-full machine (or hint (baseline-machine-default-hint machine)))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
       [stuck? (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [(> (* 2 prec) (*rival-max-precision*)) ; max precision is taken from eval/machine.rkt
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [else (loop (* 2 prec))])))
+      [else (loop (* 2 prec) (+ iter 1))])))
 
 (define (baseline-machine-adjust machine)
-  (vector-fill! (baseline-machine-precisions machine) (baseline-machine-precision machine)))
-
-(define (baseline-machine-full machine inputs)
   (set-baseline-machine-precision! machine (bf-precision))
+  (vector-fill! (baseline-machine-precisions machine) (bf-precision))
+
+  ; Whether a register is fixed already
+  (define iter (baseline-machine-iteration machine))
+  (unless (zero? iter)
+    (define ivec (baseline-machine-instructions machine))
+    (define vregs (baseline-machine-registers machine))
+    (define rootvec (baseline-machine-outputs machine))
+    (define repeats (baseline-machine-repeats machine))
+    (define args (baseline-machine-arguments machine))
+    (define varc (vector-length args))
+
+    (define vuseful (make-vector (vector-length ivec) #f))
+
+    (for ([root (in-vector rootvec)]
+          #:when (>= root varc))
+      (vector-set! vuseful (- root varc) #t))
+    (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
+          [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
+          [i (in-range (- (vector-length ivec) 1) -1 -1)]
+          [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)])
+      (cond
+        [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vuseful i #f)]
+        [useful?
+         (for ([arg (in-list (cdr instr))]
+               #:when (>= arg varc))
+           (vector-set! vuseful (- arg varc) #t))]))
+    (vector-copy! repeats 0 (vector-map not vuseful))))
+
+(define (baseline-machine-full machine vhint)
   (baseline-machine-adjust machine)
-  (baseline-machine-load machine inputs)
-  (baseline-machine-run machine)
+  (baseline-machine-run machine vhint)
   (baseline-machine-return machine))
 
 (define (baseline-machine-load machine args)
   (vector-copy! (baseline-machine-registers machine) 0 args))
 
-(define (baseline-machine-run machine)
+(define (baseline-machine-run machine vhint)
   (define ivec (baseline-machine-instructions machine))
   (define varc (vector-length (baseline-machine-arguments machine)))
   (define vregs (baseline-machine-registers machine))
   (define precisions (baseline-machine-precisions machine))
+  (define repeats (baseline-machine-repeats machine))
+  (define first-iter? (zero? (baseline-machine-iteration machine)))
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
-        [precision (in-vector precisions)])
+        [precision (in-vector precisions)]
+        [repeat (in-vector repeats)]
+        [hint (in-vector vhint)]
+        #:unless (or (not hint) (and (not first-iter?) repeat)))
     (define start (current-inexact-milliseconds))
     (parameterize ([bf-precision precision])
       (vector-set! vregs n (apply-instruction instr vregs)))

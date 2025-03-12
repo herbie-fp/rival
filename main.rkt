@@ -4,7 +4,8 @@
          racket/contract)
 (define value? (or/c bigfloat? boolean?))
 
-(require "ops/all.rkt")
+(require "ops/all.rkt"
+         "infra/run-baseline.rkt")
 (define ival-list? (listof ival?))
 
 (provide ival?
@@ -97,7 +98,15 @@
                 ((or/c (vectorof any/c) boolean?))
                 (vectorof any/c))]
           [rival-analyze
-           (->* (rival-machine? (vectorof ival?)) ((or/c (vectorof any/c) boolean?)) (listof any/c))])
+           (->* (rival-machine? (vectorof ival?)) ((or/c (vectorof any/c) boolean?)) (listof any/c))]
+          [rival-profile (-> rival-machine? symbol? any/c)]
+          [baseline-compile
+           (-> (listof any/c) (listof symbol?) (listof discretization?) baseline-machine?)]
+          [baseline-apply
+           (->* (baseline-machine? (vectorof value?))
+                ((or/c (vectorof any/c) boolean?))
+                (vectorof any/c))]
+          [baseline-profile (-> baseline-machine? symbol? any/c)])
          (struct-out discretization)
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
@@ -108,7 +117,7 @@
          *rival-use-shorthands*
          *rival-name-constants*
          (struct-out execution)
-         (contract-out [rival-profile (-> rival-machine? symbol? any/c)]))
+         (contract-out))
 
 (require "utils.rkt")
 (provide flonum-discretization

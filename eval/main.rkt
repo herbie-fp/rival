@@ -24,13 +24,12 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (rival-machine-full machine inputs vhint)
+(define (rival-machine-full machine vhint)
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine vhint)
   (cond
     [(>= (*sampling-iteration*) (*rival-max-iterations*)) (values #f #f #f #t #f)]
     [else
-     (rival-machine-load machine inputs)
      (rival-machine-run machine vhint)
      (rival-machine-return machine)]))
 
@@ -66,13 +65,13 @@
 (define (rival-apply machine pt [hint #f])
   (define discs (rival-machine-discs machine))
   (set-rival-machine-bumps! machine 0)
+  ; Load arguments
+  (rival-machine-load machine (vector-map ival-real pt))
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
-        (rival-machine-full machine
-                            (vector-map ival-real pt)
-                            (or hint (rival-machine-default-hint machine)))))
+        (rival-machine-full machine (or hint (rival-machine-default-hint machine)))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
