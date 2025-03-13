@@ -13,6 +13,7 @@
          "../ops/all.rkt")
 
 (provide baseline-compile
+         baseline-analyze
          baseline-apply
          baseline-profile
          (struct-out baseline-machine))
@@ -224,9 +225,7 @@
       (define repeats (baseline-machine-repeats machine))
       (define args (baseline-machine-arguments machine))
       (define varc (vector-length args))
-
       (define vuseful (make-vector (vector-length ivec) #f))
-
       (for ([root (in-vector rootvec)]
             #:when (>= root varc))
         (vector-set! vuseful (- root varc) #t))
@@ -270,8 +269,14 @@
         [hint (in-vector vhint)]
         #:unless (or (not hint) (and (not first-iter?) repeat)))
     (define start (current-inexact-milliseconds))
-    (parameterize ([bf-precision precision])
-      (vector-set! vregs n (apply-instruction instr vregs)))
+    (define out
+      (match hint
+        [#t
+         (parameterize ([bf-precision precision])
+           (apply-instruction instr vregs))]
+        [(? integer? _) (vector-ref vregs (list-ref instr hint))]
+        [(? ival? _) hint]))
+    (vector-set! vregs n out)
     (define name (object-name (car instr)))
     (define time (- (current-inexact-milliseconds) start))
     (baseline-machine-record machine name n precision time)))
@@ -320,6 +325,7 @@
 ; ---------------------------------------- PROFILING -------------------------------------------------
 (define (baseline-profile machine param)
   (match param
+    ['precision (baseline-machine-precision machine)]
     ['instructions (vector-length (baseline-machine-instructions machine))]
     ['executions
      (define profile-ptr (baseline-machine-profile-ptr machine))

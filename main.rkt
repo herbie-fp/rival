@@ -102,6 +102,10 @@
           [rival-profile (-> rival-machine? symbol? any/c)]
           [baseline-compile
            (-> (listof any/c) (listof symbol?) (listof discretization?) baseline-machine?)]
+          [baseline-analyze
+           (->* (baseline-machine? (vectorof ival?))
+                ((or/c (vectorof any/c) boolean?))
+                (listof any/c))]
           [baseline-apply
            (->* (baseline-machine? (vectorof value?))
                 ((or/c (vectorof any/c) boolean?))
