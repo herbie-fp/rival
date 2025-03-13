@@ -61,10 +61,9 @@
 
 ; Assumes that hint (if provided) is correct for the given pt
 (define (rival-apply machine pt [hint #f])
-  (define discs (rival-machine-discs machine))
-  (set-rival-machine-bumps! machine 0)
   ; Load arguments
   (rival-machine-load machine (vector-map ival-real pt))
+  (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
       (parameterize ([*sampling-iteration* iter])
@@ -79,6 +78,7 @@
 
 ; Assumes that hint (if provided) is correct for the given rect
 (define (rival-analyze machine rect [hint #f])
+  ; Load arguments
   (rival-machine-load machine rect)
   (define-values (good? done? bad? stuck? fvec)
     (parameterize ([*sampling-iteration* 0])
