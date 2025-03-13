@@ -107,6 +107,7 @@
                 ((or/c (vectorof any/c) boolean?))
                 (vectorof any/c))]
           [baseline-profile (-> baseline-machine? symbol? any/c)])
+         (struct-out baseline-machine)
          (struct-out discretization)
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
@@ -116,8 +117,7 @@
          *rival-profile-executions*
          *rival-use-shorthands*
          *rival-name-constants*
-         (struct-out execution)
-         (contract-out))
+         (struct-out execution))
 
 (require "utils.rkt")
 (provide flonum-discretization

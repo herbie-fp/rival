@@ -22,8 +22,6 @@
          (struct-out execution)
          *rival-profile-executions*)
 
-(define ground-truth-require-convergence (make-parameter #t))
-
 (define (rival-machine-full machine vhint)
   (set-rival-machine-iteration! machine (*sampling-iteration*))
   (rival-machine-adjust machine vhint)
@@ -69,8 +67,7 @@
   (rival-machine-load machine (vector-map ival-real pt))
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
-      (parameterize ([*sampling-iteration* iter]
-                     [ground-truth-require-convergence #t])
+      (parameterize ([*sampling-iteration* iter])
         (rival-machine-full machine (or hint (rival-machine-default-hint machine)))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
@@ -82,10 +79,10 @@
 
 ; Assumes that hint (if provided) is correct for the given rect
 (define (rival-analyze machine rect [hint #f])
+  (rival-machine-load machine rect)
   (define-values (good? done? bad? stuck? fvec)
-    (parameterize ([*sampling-iteration* 0]
-                   [ground-truth-require-convergence #f])
-      (rival-machine-full machine rect (or hint (rival-machine-default-hint machine)))))
+    (parameterize ([*sampling-iteration* 0])
+      (rival-machine-full machine (or hint (rival-machine-default-hint machine)))))
   (define-values (hint* hint*-converged?)
     (make-hint machine (or hint (rival-machine-default-hint machine))))
   (list (ival (or bad? stuck?) (not good?)) hint* hint*-converged?))

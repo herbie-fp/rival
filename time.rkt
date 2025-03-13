@@ -12,8 +12,7 @@
          "test.rkt"
          "profile.rkt"
          "eval/machine.rkt" ; for accessing iteration number of machine
-         "infra/run-sollya.rkt"
-         "infra/run-baseline.rkt")
+         "infra/run-sollya.rkt")
 
 (define sample-vals (make-parameter 5000))
 (define *sampling-timeout* (make-parameter 20.0)) ; this parameter is used for plots generation
