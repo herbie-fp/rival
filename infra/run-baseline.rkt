@@ -325,6 +325,7 @@
 ; ---------------------------------------- PROFILING -------------------------------------------------
 (define (baseline-profile machine param)
   (match param
+    ['iteration (baseline-machine-iteration machine)]
     ['precision (baseline-machine-precision machine)]
     ['instructions (vector-length (baseline-machine-instructions machine))]
     ['executions
