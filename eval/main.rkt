@@ -83,6 +83,7 @@
 
 ; Assumes that hint (if provided) is correct for the given rect
 (define (rival-analyze machine rect [hint #f])
+  (define dependancy-mask (make-dependancy-mask machine))
   (define-values (good? done? bad? stuck? fvec)
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])

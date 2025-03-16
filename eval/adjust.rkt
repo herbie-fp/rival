@@ -9,6 +9,19 @@
 (provide backward-pass
          make-hint)
 
+(define (make-dependency-mask machine)
+  (define instructions (rival-machine-instructions))
+  (define arguments (rival-machine-arguments))
+  (define varc (vector-length arguments))
+  (define dependency-mask (make-vector (vector-length instructions) #f))
+
+  (for ([instr (in-vector instructions)])
+    (define tail-registers (cdr instr))
+    (for ([reg (in-list tail-registers)])
+      (define reg* (- reg varc))
+      (match
+
+    
 ; Hint is a vector with len(ivec) elements which
 ;   guides Rival on which instructions should not be executed
 ;   for points from a particular hyperrect of input parameters.
