@@ -2,9 +2,12 @@
 
 (require racket/match
          (only-in "../mpfr.rkt" bfprev bf bfsinu bfcosu bftanu bf-rounding-mode bf=?)
-         racket/flonum)
+         racket/flonum
+         (only-in math/bigfloat bf-precision))
 (require "../ops/all.rkt"
-         "machine.rkt")
+         "machine.rkt"
+         (only-in "run.rkt" apply-instruction)
+         (only-in "adjust.rkt" make-dependency-mask))
 (provide rival-compile
          *rival-use-shorthands*
          *rival-name-constants*
@@ -125,7 +128,6 @@
     [`(pow ,arg 1/3) `(cbrt ,arg)]
     [`(pow ,arg 1/2) `(sqrt ,arg)]
     [`(pow 2 ,arg) `(exp2 ,arg)]
-    [`(pow (E) ,arg) `(exp ,arg)]
 
     ; Special trigonometric functions
     [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
@@ -272,15 +274,16 @@
       (fn->ival-fn node)))
 
   (define ivec-length (vector-length instructions))
-  (define register-count (+ (length vars) ivec-length))
+  (define register-count (+ num-vars ivec-length))
   (define registers (make-vector register-count))
   (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
   (define precisions (make-vector ivec-length)) ; vector that stores working precisions
   ;; vector for adjusting precisions
-  (define incremental-precisions (setup-vstart-precs instructions (length vars) roots discs))
+  (define incremental-precisions (setup-vstart-precs instructions num-vars roots discs))
   (define initial-precision
     (+ (argmax identity (map discretization-target discs)) (*base-tuning-precision*)))
-  (define hint (make-vector ivec-length #t))
+  (define dependency-mask (make-dependency-mask instructions num-vars))
+  (define hint (make-initial-hint instructions dependency-mask num-vars))
 
   (rival-machine (list->vector vars)
                  instructions
@@ -300,6 +303,22 @@
                  (make-vector (*rival-profile-executions*))
                  (make-flvector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))))
+
+(define (make-initial-hint instructions dependency-mask varc)
+  ; Creating initial hint, where instruction that do not depend on initial arguments
+  ;   get executed under max precision and written into hint
+  (define initial-hint (make-vector (vector-length instructions) #t))
+  (for ([instr (in-vector instructions)]
+        [dep (in-vector dependency-mask)]
+        [n (in-naturals)]
+        #:unless dep)
+    ; registers proper handling
+    (define instr* (cons (car instr) (map (λ (x) (- x varc)) (rest instr))))
+    (define out
+      (parameterize ([bf-precision (*rival-max-precision*)])
+        (apply-instruction instr* initial-hint)))
+    (vector-set! initial-hint n out))
+  initial-hint)
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),

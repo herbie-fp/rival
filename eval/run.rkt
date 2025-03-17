@@ -12,11 +12,12 @@
 (provide rival-machine-load
          rival-machine-run
          rival-machine-return
-         rival-machine-adjust)
+         rival-machine-adjust
+         apply-instruction)
 
 (define (rival-machine-load machine args)
   (vector-copy! (rival-machine-registers machine) 0 args)
-  (set-rival-machine-bumps! machine 0))
+  #;(set-rival-machine-iteration! machine 0))
 
 (define (rival-machine-record machine name number precision time)
   (define profile-ptr (rival-machine-profile-ptr machine))

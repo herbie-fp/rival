@@ -7,27 +7,11 @@
 
 (provide backward-pass
          make-hint
-         make-initial-hint)
-
-(define (apply-instruction instr regs)
-  ;; By special-casing the 0-3 instruction case,
-  ;; we avoid any allocation in the common case.
-  ;; We could add more cases if we want wider instructions.
-  ;; At some extreme, vector->values plus call-with-values
-  ;; becomes the fastest option.
-  (match instr
-    [(list op) (op)]
-    [(list op a) (op (vector-ref regs a))]
-    [(list op a b) (op (vector-ref regs a) (vector-ref regs b))]
-    [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
-    [(list op args ...) (apply op (map (curryr vector-ref regs) args))]))
-
-(define (make-initial-hint machine)
-  (define instructions (rival-machine-instructions machine))
-  (define arguments (rival-machine-arguments machine))
-  (define precisions (rival-machine-precisions machine))
-  (define varc (vector-length arguments))
-  ; Defining instructions that do not depend on input arguments
+         make-dependency-mask)
+;; Defining instructions that do not depend on input arguments
+;;   #f - instruction does not depend on arguments
+;;   #t - instruction does depend on arguments
+(define (make-dependency-mask instructions varc)
   (define dependency-mask (make-vector (vector-length instructions) #f))
   (for ([instr (in-vector instructions)]
         [n (in-naturals)])
@@ -38,20 +22,7 @@
                         (for/list ([reg (in-list tail-registers)])
                           (define reg* (- reg varc))
                           (or (< reg* 0) (vector-ref dependency-mask reg*))))))
-
-  ; Creating initial hint, where instruction that do not depend on initial arguments
-  ;   get executed under max precision and written into hint
-  (define initial-hint (make-vector (vector-length instructions) #t))
-  (for ([instr (in-vector instructions)]
-        [dep (in-vector dependency-mask)]
-        [n (in-naturals)]
-        #:unless dep)
-    (define instr* (cons (car instr) (map (λ (x) (- x varc)) (rest instr))))
-    (define out
-      (parameterize ([bf-precision (*rival-max-precision*)])
-        (apply-instruction instr* initial-hint)))
-    (vector-set! initial-hint n out))
-  initial-hint)
+  dependency-mask)
 
 ; Hint is a vector with len(ivec) elements which
 ;   guides Rival on which instructions should not be executed
