@@ -90,6 +90,7 @@
 
 (require "eval/main.rkt"
          (only-in "eval/machine.rkt" rival-machine?))
+
 (provide (contract-out
           [rival-compile (-> (listof any/c) (listof symbol?) (listof discretization?) rival-machine?)]
           [rival-apply
