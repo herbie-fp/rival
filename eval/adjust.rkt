@@ -38,6 +38,7 @@
                         (for/list ([reg (in-list tail-registers)])
                           (define reg* (- reg varc))
                           (or (< reg* 0) (vector-ref dependency-mask reg*))))))
+
   ; Creating initial hint, where instruction that do not depend on initial arguments
   ;   get executed under max precision and written into hint
   (define initial-hint (make-vector (vector-length instructions) #t))
@@ -45,8 +46,11 @@
         [dep (in-vector dependency-mask)]
         [n (in-naturals)]
         #:unless dep)
-    (parameterize ([bf-precision (*rival-max-precision*)])
-      (vector-set! initial-hint n (apply-instruction instr initial-hint))))
+    (define instr* (cons (car instr) (map (λ (x) (- x varc)) (rest instr))))
+    (define out
+      (parameterize ([bf-precision (*rival-max-precision*)])
+        (apply-instruction instr* initial-hint)))
+    (vector-set! initial-hint n out))
   initial-hint)
 
 ; Hint is a vector with len(ivec) elements which
