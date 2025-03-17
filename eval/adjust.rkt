@@ -1,28 +1,15 @@
-#lang racket
+#lang racket/base
 
 (require "tricks.rkt"
          "../ops/all.rkt"
          "machine.rkt"
+         racket/list
+         racket/match
+         racket/function
          math/bigfloat)
 
 (provide backward-pass
-         make-hint
-         make-dependency-mask)
-;; Defining instructions that do not depend on input arguments
-;;   #f - instruction does not depend on arguments
-;;   #t - instruction does depend on arguments
-(define (make-dependency-mask instructions varc)
-  (define dependency-mask (make-vector (vector-length instructions) #f))
-  (for ([instr (in-vector instructions)]
-        [n (in-naturals)])
-    (define tail-registers (cdr instr))
-    (vector-set! dependency-mask
-                 n
-                 (ormap identity
-                        (for/list ([reg (in-list tail-registers)])
-                          (define reg* (- reg varc))
-                          (or (< reg* 0) (vector-ref dependency-mask reg*))))))
-  dependency-mask)
+         make-hint)
 
 ; Hint is a vector with len(ivec) elements which
 ;   guides Rival on which instructions should not be executed

@@ -6,8 +6,7 @@
          (only-in math/bigfloat bf-precision))
 (require "../ops/all.rkt"
          "machine.rkt"
-         (only-in "run.rkt" apply-instruction)
-         (only-in "adjust.rkt" make-dependency-mask))
+         (only-in "run.rkt" apply-instruction))
 (provide rival-compile
          *rival-use-shorthands*
          *rival-name-constants*
@@ -319,6 +318,22 @@
         (apply-instruction instr* initial-hint)))
     (vector-set! initial-hint n out))
   initial-hint)
+
+;; Defining instructions that do not depend on input arguments
+;;   #f - instruction does not depend on arguments
+;;   #t - instruction does depend on arguments
+(define (make-dependency-mask instructions varc)
+  (define dependency-mask (make-vector (vector-length instructions) #f))
+  (for ([instr (in-vector instructions)]
+        [n (in-naturals)])
+    (define tail-registers (cdr instr))
+    (vector-set! dependency-mask
+                 n
+                 (ormap identity
+                        (for/list ([reg (in-list tail-registers)])
+                          (define reg* (- reg varc))
+                          (or (< reg* 0) (vector-ref dependency-mask reg*))))))
+  dependency-mask)
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
