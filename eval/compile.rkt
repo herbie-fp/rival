@@ -125,6 +125,7 @@
     [`(pow ,arg 1/3) `(cbrt ,arg)]
     [`(pow ,arg 1/2) `(sqrt ,arg)]
     [`(pow 2 ,arg) `(exp2 ,arg)]
+    [`(pow (E) ,arg) `(exp ,arg)]
 
     ; Special trigonometric functions
     [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
