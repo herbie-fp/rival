@@ -58,6 +58,19 @@
          (define time (- (current-inexact-milliseconds) start))
          (rival-machine-record machine name n precision time)
          res]
+        [(box old-precision)
+         (match (> precision old-precision)
+           [#t
+            (define start (current-inexact-milliseconds))
+            (define res
+              (parameterize ([bf-precision precision])
+                (apply-instruction instr vregs)))
+            (define name (object-name (car instr)))
+            (define time (- (current-inexact-milliseconds) start))
+            (set-box! hint precision)
+            (rival-machine-record machine name n precision time)
+            res]
+           [#f (vector-ref vregs n)])]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))]
         [(? ival? _) hint]))
     (vector-set! vregs n out)))

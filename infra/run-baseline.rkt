@@ -156,10 +156,11 @@
 
   (define register-count (+ (length vars) (vector-length instructions)))
   (define registers (make-vector register-count))
+  (define start-prec (+ (discretization-target (last discs)) (*base-tuning-precision*)))
   (define precisions
-    (make-vector (vector-length instructions))) ; vector that stores working precisions
+    (make-vector (vector-length instructions) start-prec)) ; vector that stores working precisions
   (define repeats (make-vector (vector-length instructions)))
-  (define default-hint (make-default-hint instructions num-vars))
+  (define default-hint (make-default-hint instructions num-vars registers precisions))
 
   (baseline-machine (list->vector vars)
                     instructions
@@ -279,6 +280,19 @@
          (define time (- (current-inexact-milliseconds) start))
          (baseline-machine-record machine name n precision time)
          res]
+        [(box old-precision)
+         (match (> precision old-precision)
+           [#t ; reevaluate instruction at higher precision
+            (define start (current-inexact-milliseconds))
+            (define res
+              (parameterize ([bf-precision precision])
+                (apply-instruction instr vregs)))
+            (define name (object-name (car instr)))
+            (define time (- (current-inexact-milliseconds) start))
+            (set-box! hint precision)
+            (baseline-machine-record machine name n precision time)
+            res]
+           [#f (vector-ref vregs n)])]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))]
         [(? ival? _) hint]))
     (vector-set! vregs n out)))

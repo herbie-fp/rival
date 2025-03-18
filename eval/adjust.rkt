@@ -52,6 +52,7 @@
          (when (>= idx varc)
            (vhint-set! idx #t))
          o-hint]
+        [(? box? _) o-hint]
         [#t
          (case (object-name (car instr))
            [(ival-assert)
