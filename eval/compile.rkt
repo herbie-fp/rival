@@ -4,9 +4,11 @@
          (only-in "../mpfr.rkt" bfprev bf bfsinu bfcosu bftanu bf-rounding-mode bf=?)
          racket/flonum
          (only-in math/bigfloat bf-precision))
+
 (require "../ops/all.rkt"
          "machine.rkt"
          (only-in "run.rkt" apply-instruction))
+
 (provide rival-compile
          *rival-use-shorthands*
          *rival-name-constants*
@@ -304,19 +306,20 @@
                  (make-flvector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))))
 
-;; Defining instructions that do not depend on input arguments
-;;   #f - instruction does not depend on arguments
-;;   #t - instruction does depend on arguments
+;;  Defining instructions that do not depend on input arguments
+;;  Execute these instructions right away with default precision
 (define (make-default-hint instructions varc registers incremental-precisions)
   (define default-hint (make-vector (vector-length instructions) #t))
   (define dependency-mask (make-vector (vector-length instructions) #f))
 
   ; Defining instructions that do not depend on input arguments
-  ; Execute these instructions right away with default precision
+  ;   #f - instruction does not depend on arguments
+  ;   #t - instruction does depend on arguments
   (for ([instr (in-vector instructions)]
         [prec (in-vector incremental-precisions)]
         [n (in-naturals)])
     (define tail-registers (cdr instr))
+    ; an instruction depends on input if it has input or instruction affiliated with input as an arg
     (for ([reg (in-list tail-registers)])
       (define reg* (- reg varc))
       (when (or (< reg* 0) (vector-ref dependency-mask reg*))

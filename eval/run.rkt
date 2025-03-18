@@ -13,7 +13,7 @@
          rival-machine-run
          rival-machine-return
          rival-machine-adjust
-         apply-instruction)
+         apply-instruction) ; for compile.rkt
 
 (define (rival-machine-load machine args)
   (vector-copy! (rival-machine-registers machine) 0 args)

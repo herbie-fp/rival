@@ -4,9 +4,7 @@
          "../ops/all.rkt"
          "machine.rkt"
          racket/list
-         racket/match
-         racket/function
-         math/bigfloat)
+         racket/match)
 
 (provide backward-pass
          make-hint)
@@ -52,7 +50,7 @@
          (when (>= idx varc)
            (vhint-set! idx #t))
          o-hint]
-        [(? box? _) o-hint]
+        [(? box? _) o-hint] ; box means that the result is known at some precision
         [#t
          (case (object-name (car instr))
            [(ival-assert)
