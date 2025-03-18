@@ -4,7 +4,7 @@
          math/bigfloat
          math/flonum)
 
-(require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn)
+(require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn make-default-hint)
          (only-in "../eval/machine.rkt"
                   *base-tuning-precision*
                   *rival-max-precision*
@@ -159,7 +159,7 @@
   (define precisions
     (make-vector (vector-length instructions))) ; vector that stores working precisions
   (define repeats (make-vector (vector-length instructions)))
-  (define hint (make-vector (vector-length instructions) #t))
+  (define default-hint (make-default-hint instructions num-vars))
 
   (baseline-machine (list->vector vars)
                     instructions
@@ -168,7 +168,7 @@
                     registers
                     precisions
                     repeats
-                    hint
+                    default-hint
                     0
                     0
                     0
@@ -268,18 +268,20 @@
         [repeat (in-vector repeats)]
         [hint (in-vector vhint)]
         #:unless (or (not hint) (and (not first-iter?) repeat)))
-    (define start (current-inexact-milliseconds))
     (define out
       (match hint
         [#t
-         (parameterize ([bf-precision precision])
-           (apply-instruction instr vregs))]
+         (define start (current-inexact-milliseconds))
+         (define res
+           (parameterize ([bf-precision precision])
+             (apply-instruction instr vregs)))
+         (define name (object-name (car instr)))
+         (define time (- (current-inexact-milliseconds) start))
+         (baseline-machine-record machine name n precision time)
+         res]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))]
         [(? ival? _) hint]))
-    (vector-set! vregs n out)
-    (define name (object-name (car instr)))
-    (define time (- (current-inexact-milliseconds) start))
-    (baseline-machine-record machine name n precision time)))
+    (vector-set! vregs n out)))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,

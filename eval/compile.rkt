@@ -11,7 +11,8 @@
          *rival-use-shorthands*
          *rival-name-constants*
          fn->ival-fn ; for baseline
-         exprs->batch) ; for baseline
+         exprs->batch ; for baseline
+         make-default-hint) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))
 (define *rival-name-constants* (make-parameter #f))
@@ -281,8 +282,7 @@
   (define incremental-precisions (setup-vstart-precs instructions num-vars roots discs))
   (define initial-precision
     (+ (argmax identity (map discretization-target discs)) (*base-tuning-precision*)))
-  (define dependency-mask (make-dependency-mask instructions num-vars))
-  (define hint (make-initial-hint instructions dependency-mask num-vars))
+  (define default-hint (make-default-hint instructions num-vars))
 
   (rival-machine (list->vector vars)
                  instructions
@@ -294,7 +294,7 @@
                  incremental-precisions
                  (make-vector (vector-length roots))
                  initial-precision
-                 hint
+                 default-hint
                  0
                  0
                  0
@@ -303,26 +303,10 @@
                  (make-flvector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))))
 
-(define (make-initial-hint instructions dependency-mask varc)
-  ; Creating initial hint, where instruction that do not depend on initial arguments
-  ;   get executed under max precision and written into hint
-  (define initial-hint (make-vector (vector-length instructions) #t))
-  (for ([instr (in-vector instructions)]
-        [dep (in-vector dependency-mask)]
-        [n (in-naturals)]
-        #:unless dep)
-    ; registers proper handling
-    (define instr* (cons (car instr) (map (λ (x) (- x varc)) (rest instr))))
-    (define out
-      (parameterize ([bf-precision (*rival-max-precision*)])
-        (apply-instruction instr* initial-hint)))
-    (vector-set! initial-hint n out))
-  initial-hint)
-
-;; Defining instructions that do not depend on input arguments
-;;   #f - instruction does not depend on arguments
-;;   #t - instruction does depend on arguments
-(define (make-dependency-mask instructions varc)
+(define (make-default-hint instructions varc)
+  ; Defining instructions that do not depend on input arguments
+  ;   #f - instruction does not depend on arguments
+  ;   #t - instruction does depend on arguments
   (define dependency-mask (make-vector (vector-length instructions) #f))
   (for ([instr (in-vector instructions)]
         [n (in-naturals)])
@@ -333,7 +317,21 @@
                         (for/list ([reg (in-list tail-registers)])
                           (define reg* (- reg varc))
                           (or (< reg* 0) (vector-ref dependency-mask reg*))))))
-  dependency-mask)
+
+  ; Creating default hint, where instruction that do not depend on initial arguments
+  ;   get executed under max precision and written into hint as "precise enough hint"
+  (define default-hint (make-vector (vector-length instructions) #t))
+  (for ([instr (in-vector instructions)]
+        [dep (in-vector dependency-mask)]
+        [n (in-naturals)]
+        #:unless dep)
+    ; registers proper handling
+    (define instr* (cons (car instr) (map (λ (x) (- x varc)) (rest instr))))
+    (define out
+      (parameterize ([bf-precision (*rival-max-precision*)])
+        (apply-instruction instr* default-hint)))
+    (vector-set! default-hint n out))
+  default-hint)
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
