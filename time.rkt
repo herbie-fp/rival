@@ -12,8 +12,7 @@
          "test.rkt"
          "profile.rkt"
          "eval/machine.rkt" ; for accessing iteration number of machine
-         "infra/run-sollya.rkt"
-         "infra/run-baseline.rkt")
+         "infra/run-sollya.rkt")
 
 (define sample-vals (make-parameter 5000))
 (define *sampling-timeout* (make-parameter 20.0)) ; this parameter is used for plots generation
@@ -144,8 +143,9 @@
             (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt))) 1))
             (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
-      (define baseline-precision (baseline-machine-precision baseline-machine))
+      (define baseline-precision (baseline-profile baseline-machine 'precision))
       (define baseline-executions (baseline-profile baseline-machine 'executions))
+      (define baseline-iteration (baseline-profile baseline-machine 'iteration))
 
       ; Store histograms data
       (when (> rival-iter 0)
@@ -159,6 +159,21 @@
           (timeline-push! timeline
                           'mixsample-baseline-all
                           (list (execution-time execution) name precision))))
+
+      ; Record the percentage of instructions has been executed
+      (when (equal? baseline-status 'valid)
+        (define baseline-no-repeats-instr-cnt
+          (* (+ 1 baseline-iteration)
+             (vector-length (baseline-machine-instructions baseline-machine))))
+        (define baseline-instr-cnt (vector-length baseline-executions))
+        ; Report instruction that has been executed
+        (timeline-push! timeline
+                        'instr-executed-cnt
+                        (list 'baseline baseline-iteration baseline-instr-cnt))
+        ; Report the total number of instruction that could be executed with no repeats
+        (timeline-push! timeline
+                        'instr-executed-cnt
+                        (list 'baseline-no-repeats baseline-iteration baseline-no-repeats-instr-cnt)))
 
       ; --------------------------- Sollya execution ------------------------------------------------
       ; Points for expressions where Sollya has not compiled do not go to the plot/speed graphs!

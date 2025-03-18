@@ -130,6 +130,7 @@
     [`(pow ,arg 1/3) `(cbrt ,arg)]
     [`(pow ,arg 1/2) `(sqrt ,arg)]
     [`(pow 2 ,arg) `(exp2 ,arg)]
+    [`(pow (E) ,arg) `(exp ,arg)]
 
     ; Special trigonometric functions
     [`(cos (* ,(or 'PI '(PI)) (/ ,x ,(? (conjoin fixnum? positive?) n))))
@@ -324,10 +325,9 @@
                  (- root varc)
                  (+ (discretization-target disc) (*base-tuning-precision*))))
 
-  (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)] ; reversed over ivec
-        [n (in-range (- ivec-len 1) -1 -1)]) ; reversed over indices of vstart-precs
+  (for ([n (in-range (- ivec-len 1) -1 -1)]) ; reversed over ivec
+    (define instr (vector-ref ivec n))
     (define current-prec (vector-ref vstart-precs n))
-
     (define tail-registers (cdr instr))
     (for ([idx (in-list tail-registers)]
           #:when (>= idx varc))

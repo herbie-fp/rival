@@ -16,11 +16,14 @@ def plot_histogram_valid(args):
     baseline = load_mixsample(args.timeline, "baseline", True)
     rival = load_mixsample(args.timeline, "rival", True)
 
-    adjust_time = round(rival[rival["op"] == 'adjust']['time'].sum()/1000, 2)
+    adjust_time_baseline = round(baseline[baseline["op"] == 'adjust']['time'].sum()/1000, 2)
+    baseline = baseline[baseline["op"] != 'adjust']
+
+    adjust_time_rival = round(rival[rival["op"] == 'adjust']['time'].sum()/1000, 2)
     rival = rival[rival["op"] != 'adjust']
 
-    print("\\newcommand{\\TuningTime}{" + str(adjust_time) + "\\xspace}")
-    print("\\newcommand{\\TuningTimePercentage}{" + str(round(adjust_time/rival['time'].sum()*1000 * 100, 1)) + "}")
+    print("\\newcommand{\\TuningTime}{" + str(adjust_time_rival) + "\\xspace}")
+    print("\\newcommand{\\TuningTimePercentage}{" + str(round(adjust_time_rival/rival['time'].sum()*1000 * 100, 1)) + "}")
     print("\\newcommand{\\RivalSpeedupHistograms}{" + str(round((baseline['time'].sum()-rival['time'].sum())/baseline['time'].sum() * 100, 2)) + "}")
 
     fig, ax = plt.subplots(figsize=(6.5, 2.75))
@@ -33,9 +36,16 @@ def plot_histogram_valid(args):
     ax.bar(np.arange(len(bins)) + 0.4, buckets_base, color="green", alpha=1, width=0.6, label='baseline', hatch='/')
     ax.bar(np.arange(len(bins)) + 0.6, buckets_rival, color="red", alpha=0.7, width=0.6, label='reval')
 
-    temp = np.zeros_like(buckets_rival)
-    temp[-1] = adjust_time
-    ax.bar(np.arange(len(bins)), temp, color="red", alpha=0.7, width=0.6)
+    # Baseline tuning time
+    tuning_time_baseline = np.zeros_like(buckets_base)
+    tuning_time_baseline[-1] = adjust_time_baseline
+    ax.bar(np.arange(len(bins)) - 0.1, tuning_time_baseline, color="green", alpha=1, width=0.6, hatch='/')
+
+    # Reval tuning time
+    tuning_time_rival = np.zeros_like(buckets_rival)
+    tuning_time_rival[-1] = adjust_time_rival
+    ax.bar(np.arange(len(bins)) + 0.1, tuning_time_rival, color="red", alpha=0.7, width=0.6)
+
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
 
     ax.set_xticks(np.arange(len(bins)), bins)
@@ -57,7 +67,10 @@ def plot_histogram_all(args):
     baseline = load_mixsample(args.timeline, "baseline", False)
     rival = load_mixsample(args.timeline, "rival", False)
 
-    adjust_time = round(rival[rival["op"] == 'adjust']['time'].sum()/1000, 2)
+    adjust_time_baseline = round(baseline[baseline["op"] == 'adjust']['time'].sum()/1000, 2)
+    baseline = baseline[baseline["op"] != 'adjust']
+
+    adjust_time_rival = round(rival[rival["op"] == 'adjust']['time'].sum()/1000, 2)
     rival = rival[rival["op"] != 'adjust']
 
     fig, ax = plt.subplots(figsize=(6.5, 2.0))
@@ -70,9 +83,16 @@ def plot_histogram_all(args):
     ax.bar(np.arange(len(bins)) + 0.4, buckets_base, color="green", alpha=1, width=0.6, label='baseline', hatch='/')
     ax.bar(np.arange(len(bins)) + 0.6, buckets_rival, color="red", alpha=0.7, width=0.6, label='reval')
 
-    temp = np.zeros_like(buckets_rival)
-    temp[-1] = adjust_time
-    ax.bar(np.arange(len(bins)), temp, color="red", alpha=0.7, width=0.6)
+    # Baseline tuning time
+    tuning_time_baseline = np.zeros_like(buckets_base)
+    tuning_time_baseline[-1] = adjust_time_baseline
+    ax.bar(np.arange(len(bins)) - 0.1, tuning_time_baseline, color="green", alpha=1, width=0.6, hatch='/')
+ 
+    # Reval tuning time
+    tuning_time_rival = np.zeros_like(buckets_rival)
+    tuning_time_rival[-1] = adjust_time_rival
+    ax.bar(np.arange(len(bins)) + 0.1, tuning_time_rival, color="red", alpha=0.7, width=0.6)
+
     ax.yaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.3)
 
     ax.set_xticks(np.arange(len(bins)), bins)
