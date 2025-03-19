@@ -2,14 +2,19 @@
 
 (require racket/match
          (only-in "../mpfr.rkt" bfprev bf bfsinu bfcosu bftanu bf-rounding-mode bf=?)
-         racket/flonum)
+         racket/flonum
+         (only-in math/bigfloat bf-precision))
+
 (require "../ops/all.rkt"
-         "machine.rkt")
+         "machine.rkt"
+         (only-in "run.rkt" apply-instruction))
+
 (provide rival-compile
          *rival-use-shorthands*
          *rival-name-constants*
          fn->ival-fn ; for baseline
-         exprs->batch) ; for baseline
+         exprs->batch ; for baseline
+         make-default-hint) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))
 (define *rival-name-constants* (make-parameter #f))
@@ -272,15 +277,15 @@
       (fn->ival-fn node)))
 
   (define ivec-length (vector-length instructions))
-  (define register-count (+ (length vars) ivec-length))
+  (define register-count (+ num-vars ivec-length))
   (define registers (make-vector register-count))
   (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
   (define precisions (make-vector ivec-length)) ; vector that stores working precisions
   ;; vector for adjusting precisions
-  (define incremental-precisions (setup-vstart-precs instructions (length vars) roots discs))
+  (define incremental-precisions (setup-vstart-precs instructions num-vars roots discs))
   (define initial-precision
     (+ (argmax identity (map discretization-target discs)) (*base-tuning-precision*)))
-  (define hint (make-vector ivec-length #t))
+  (define default-hint (make-default-hint instructions num-vars registers incremental-precisions))
 
   (rival-machine (list->vector vars)
                  instructions
@@ -292,7 +297,7 @@
                  incremental-precisions
                  (make-vector (vector-length roots))
                  initial-precision
-                 hint
+                 default-hint
                  0
                  0
                  0
@@ -300,6 +305,33 @@
                  (make-vector (*rival-profile-executions*))
                  (make-flvector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))))
+
+;;  Defining instructions that do not depend on input arguments
+;;  Execute these instructions right away with default precision
+(define (make-default-hint instructions varc registers incremental-precisions)
+  (define default-hint (make-vector (vector-length instructions) #t))
+  (define dependency-mask (make-vector (vector-length instructions) #f))
+
+  ; Defining instructions that do not depend on input arguments
+  ;   #f - instruction does not depend on arguments
+  ;   #t - instruction does depend on arguments
+  (for ([instr (in-vector instructions)]
+        [prec (in-vector incremental-precisions)]
+        [n (in-naturals)])
+    (define tail-registers (cdr instr))
+    ; an instruction depends on input if it has input or instruction affiliated with input as an arg
+    (for ([reg (in-list tail-registers)])
+      (define reg* (- reg varc))
+      (when (or (< reg* 0) (vector-ref dependency-mask reg*))
+        (vector-set! dependency-mask n #t)))
+
+    (unless (vector-ref dependency-mask n) ; instruction is not affiliated with arguments
+      (vector-set! registers
+                   (+ n varc) ; evaluate this instruction and store output in vregs
+                   (parameterize ([bf-precision prec])
+                     (apply-instruction instr registers)))
+      (vector-set! default-hint n (box prec)))) ; keeping track of precision
+  default-hint)
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),

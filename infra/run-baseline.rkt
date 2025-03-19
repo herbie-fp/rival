@@ -4,7 +4,7 @@
          math/bigfloat
          math/flonum)
 
-(require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn)
+(require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn make-default-hint)
          (only-in "../eval/machine.rkt"
                   *base-tuning-precision*
                   *rival-max-precision*
@@ -156,10 +156,11 @@
 
   (define register-count (+ (length vars) (vector-length instructions)))
   (define registers (make-vector register-count))
+  (define start-prec (+ (discretization-target (last discs)) (*base-tuning-precision*)))
   (define precisions
-    (make-vector (vector-length instructions))) ; vector that stores working precisions
+    (make-vector (vector-length instructions) start-prec)) ; vector that stores working precisions
   (define repeats (make-vector (vector-length instructions)))
-  (define hint (make-vector (vector-length instructions) #t))
+  (define default-hint (make-default-hint instructions num-vars registers precisions))
 
   (baseline-machine (list->vector vars)
                     instructions
@@ -168,7 +169,7 @@
                     registers
                     precisions
                     repeats
-                    hint
+                    default-hint
                     0
                     0
                     0
@@ -261,6 +262,7 @@
   (define precisions (baseline-machine-precisions machine))
   (define repeats (baseline-machine-repeats machine))
   (define first-iter? (zero? (baseline-machine-iteration machine)))
+  (define something-got-reexecuted #f)
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
@@ -268,18 +270,34 @@
         [repeat (in-vector repeats)]
         [hint (in-vector vhint)]
         #:unless (or (not hint) (and (not first-iter?) repeat)))
-    (define start (current-inexact-milliseconds))
     (define out
       (match hint
         [#t
-         (parameterize ([bf-precision precision])
-           (apply-instruction instr vregs))]
+         (define start (current-inexact-milliseconds))
+         (define res
+           (parameterize ([bf-precision precision])
+             (apply-instruction instr vregs)))
+         (define name (object-name (car instr)))
+         (define time (- (current-inexact-milliseconds) start))
+         (baseline-machine-record machine name n precision time)
+         res]
+        [(box old-precision)
+         (match (or (> precision old-precision) something-got-reexecuted)
+           [#t ; reevaluate instruction at higher precision
+            (define start (current-inexact-milliseconds))
+            (define res
+              (parameterize ([bf-precision precision])
+                (apply-instruction instr vregs)))
+            (define name (object-name (car instr)))
+            (define time (- (current-inexact-milliseconds) start))
+            (set-box! hint precision)
+            (set! something-got-reexecuted #t)
+            (baseline-machine-record machine name n precision time)
+            res]
+           [#f (vector-ref vregs n)])]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))]
         [(? ival? _) hint]))
-    (vector-set! vregs n out)
-    (define name (object-name (car instr)))
-    (define time (- (current-inexact-milliseconds) start))
-    (baseline-machine-record machine name n precision time)))
+    (vector-set! vregs n out)))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,

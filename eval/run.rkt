@@ -12,7 +12,8 @@
 (provide rival-machine-load
          rival-machine-run
          rival-machine-return
-         rival-machine-adjust)
+         rival-machine-adjust
+         apply-instruction) ; for compile.rkt
 
 (define (rival-machine-load machine args)
   (vector-copy! (rival-machine-registers machine) 0 args)
@@ -39,6 +40,7 @@
   (define vregs (rival-machine-registers machine))
   ; parameter for sampling histogram table
   (define first-iter? (zero? (rival-machine-iteration machine)))
+  (define something-got-reexecuted #f)
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
@@ -46,18 +48,34 @@
         [repeat (in-vector repeats)]
         [hint (in-vector vhint)]
         #:unless (or (not hint) (and (not first-iter?) repeat)))
-    (define start (current-inexact-milliseconds))
     (define out
       (match hint
-        [#t
-         (parameterize ([bf-precision precision])
-           (apply-instruction instr vregs))]
-        [(? integer? _) (vector-ref vregs (list-ref instr hint))]
-        [(? ival? _) hint]))
-    (vector-set! vregs n out)
-    (define name (object-name (car instr)))
-    (define time (- (current-inexact-milliseconds) start))
-    (rival-machine-record machine name n precision time)))
+        [#t ; instruction should be reevaluated
+         (define start (current-inexact-milliseconds))
+         (define res
+           (parameterize ([bf-precision precision])
+             (apply-instruction instr vregs)))
+         (define name (object-name (car instr)))
+         (define time (- (current-inexact-milliseconds) start))
+         (rival-machine-record machine name n precision time)
+         res]
+        [(box old-precision) ; instr does not depend on arguments and result is known in old-precision
+         (match (or (> precision old-precision) something-got-reexecuted)
+           [#t
+            (define start (current-inexact-milliseconds))
+            (define res
+              (parameterize ([bf-precision precision])
+                (apply-instruction instr vregs)))
+            (define name (object-name (car instr)))
+            (define time (- (current-inexact-milliseconds) start))
+            (set-box! hint precision)
+            (set! something-got-reexecuted #t)
+            (rival-machine-record machine name n precision time)
+            res]
+           [#f (vector-ref vregs n)])]
+        [(? integer? _) (vector-ref vregs (list-ref instr hint))] ; result is known
+        [(? ival? _) hint])) ; result is known
+    (vector-set! vregs n out)))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,
