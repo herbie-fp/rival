@@ -262,6 +262,7 @@
   (define precisions (baseline-machine-precisions machine))
   (define repeats (baseline-machine-repeats machine))
   (define first-iter? (zero? (baseline-machine-iteration machine)))
+  (define something-got-reexecuted #f)
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
@@ -281,7 +282,7 @@
          (baseline-machine-record machine name n precision time)
          res]
         [(box old-precision)
-         (match (> precision old-precision)
+         (match (or (> precision old-precision) something-got-reexecuted)
            [#t ; reevaluate instruction at higher precision
             (define start (current-inexact-milliseconds))
             (define res
@@ -290,6 +291,7 @@
             (define name (object-name (car instr)))
             (define time (- (current-inexact-milliseconds) start))
             (set-box! hint precision)
+            (set! something-got-reexecuted #t)
             (baseline-machine-record machine name n precision time)
             res]
            [#f (vector-ref vregs n)])]

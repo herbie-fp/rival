@@ -40,6 +40,7 @@
   (define vregs (rival-machine-registers machine))
   ; parameter for sampling histogram table
   (define first-iter? (zero? (rival-machine-iteration machine)))
+  (define something-got-reexecuted #f)
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
@@ -49,7 +50,7 @@
         #:unless (or (not hint) (and (not first-iter?) repeat)))
     (define out
       (match hint
-        [#t
+        [#t ; instruction should be reevaluated
          (define start (current-inexact-milliseconds))
          (define res
            (parameterize ([bf-precision precision])
@@ -58,8 +59,8 @@
          (define time (- (current-inexact-milliseconds) start))
          (rival-machine-record machine name n precision time)
          res]
-        [(box old-precision)
-         (match (> precision old-precision)
+        [(box old-precision) ; instr does not depend on arguments and result is known in old-precision
+         (match (or (> precision old-precision) something-got-reexecuted)
            [#t
             (define start (current-inexact-milliseconds))
             (define res
@@ -68,11 +69,12 @@
             (define name (object-name (car instr)))
             (define time (- (current-inexact-milliseconds) start))
             (set-box! hint precision)
+            (set! something-got-reexecuted #t)
             (rival-machine-record machine name n precision time)
             res]
            [#f (vector-ref vregs n)])]
-        [(? integer? _) (vector-ref vregs (list-ref instr hint))]
-        [(? ival? _) hint]))
+        [(? integer? _) (vector-ref vregs (list-ref instr hint))] ; result is known
+        [(? ival? _) hint])) ; result is known
     (vector-set! vregs n out)))
 
 (define (apply-instruction instr regs)
