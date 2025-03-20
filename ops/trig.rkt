@@ -1,6 +1,7 @@
 #lang racket
 
-(require "core.rkt"
+(require "arith.rkt"
+         "core.rkt"
          "../mpfr.rkt")
 (provide ival-sin
          ival-cos

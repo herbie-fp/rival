@@ -10,6 +10,7 @@
                   *rival-max-precision*
                   *rival-profile-executions*)
          "../eval/main.rkt"
+         (only-in "../ops/core.rkt" new-ival)
          "../ops/all.rkt")
 
 (provide baseline-compile
@@ -148,18 +149,21 @@
 (define (baseline-compile exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots) (exprs->batch exprs vars)) ; translations are taken from Rival machine
-
-  (define instructions
-    (for/vector #:length (- (vector-length nodes) num-vars)
-                ([node (in-vector nodes num-vars)])
-      (fn->ival-fn node))) ; mappings are taken from Rival machine
-
-  (define register-count (+ (length vars) (vector-length instructions)))
+  (define register-count (vector-length nodes))
   (define registers (make-vector register-count))
   (define precisions
-    (make-vector (vector-length instructions))) ; vector that stores working precisions
-  (define repeats (make-vector (vector-length instructions)))
-  (define hint (make-vector (vector-length instructions) #t))
+    (make-vector (- register-count num-vars))) ; vector that stores working precisions
+  (define repeats (make-vector (- register-count num-vars)))
+  (define hint (make-vector (- register-count num-vars) #t))
+
+  (define instructions
+    (for/vector #:length (- register-count num-vars)
+                ([node (in-vector nodes num-vars)]
+                 [n (in-naturals num-vars)])
+      (fn->ival-fn node ; mappings are taken from Rival machine
+                   (lambda ()
+                     (vector-set! registers n (new-ival))
+                     n))))
 
   (baseline-machine (list->vector vars)
                     instructions
