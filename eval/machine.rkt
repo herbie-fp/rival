@@ -15,7 +15,7 @@
 (define *rival-min-precision* (make-parameter 20))
 (define *rival-max-iterations* (make-parameter 5))
 (define *rival-profile-executions* (make-parameter 1000))
-(define *lower-bound-early-stopping* (make-parameter #t))
+(define *lower-bound-early-stopping* (make-parameter #f))
 
 (struct discretization (target convert distance))
 
