@@ -227,21 +227,6 @@
     (define max-prec (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
     (define min-prec (vector-ref vprecs-min (- n varc))) ; lower precision bound given from parent
 
-    ; Final precision assignment based on the upper bound
-    (define final-precision
-      (min (max (+ max-prec (vector-ref vstart-precs (- n varc))) (*rival-min-precision*))
-           (*rival-max-precision*)))
-    (vector-set! vprecs-max (- n varc) final-precision)
-
-    ; Early stopping
-    (match (*lower-bound-early-stopping*)
-      [#t
-       (when (>= min-prec (*rival-max-precision*))
-         (*sampling-iteration* (*rival-max-iterations*)))]
-      [#f
-       (when (equal? final-precision (*rival-max-precision*))
-         (*sampling-iteration* (*rival-max-iterations*)))])
-
     ; Precision propogation for each tail instruction
     (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
     (for ([x (in-list tail-registers)]
@@ -257,4 +242,19 @@
       ; Lower precision bound propogation
       (vector-set! vprecs-min
                    (- x varc)
-                   (max (vector-ref vprecs-min (- x varc)) (+ min-prec (max 0 lo-bound)))))))
+                   (max (vector-ref vprecs-min (- x varc)) (+ min-prec (max 0 lo-bound)))))
+
+    ; Final precision assignment based on the upper bound
+    (define final-precision
+      (min (max (+ max-prec (vector-ref vstart-precs (- n varc))) (*rival-min-precision*))
+           (*rival-max-precision*)))
+    (vector-set! vprecs-max (- n varc) final-precision)
+
+    ; Early stopping
+    (match (*lower-bound-early-stopping*)
+      [#t
+       (when (>= min-prec (*rival-max-precision*))
+         (*sampling-iteration* (*rival-max-iterations*)))]
+      [#f
+       (when (equal? final-precision (*rival-max-precision*))
+         (*sampling-iteration* (*rival-max-iterations*)))])))

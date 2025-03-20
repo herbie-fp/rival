@@ -41,56 +41,79 @@
   (values out exact?))
 ;; End hairy code
 
-(define mpfr-remainder
+(define mpfr-add!
+  (get-mpfr-fun 'mpfr_add (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-sub!
+  (get-mpfr-fun 'mpfr_sub (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-mul!
+  (get-mpfr-fun 'mpfr_mul (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-div!
+  (get-mpfr-fun 'mpfr_div (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-remainder!
   (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-set-prec! (get-mpfr-fun 'mpfr_set_prec (_fun _mpfr-pointer _prec_t -> _void)))
+
+(define mpfr-init2! (get-mpfr-fun 'mpfr_init2 (_fun _mpfr-pointer _prec_t -> _void)))
+
+(define mpfr-set! (get-mpfr-fun 'mpfr_set (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _void)))
+
+(define (mpfr-new! prec)
+  (define bf (make-mpfr 0 0 0 #f))
+  (mpfr-init2! bf prec)
+  bf)
 
 (define (bfremainder x mod)
   (define out (bf 0))
-  (mpfr-remainder out x mod (bf-rounding-mode))
+  (mpfr-remainder! out x mod (bf-rounding-mode))
   out)
 
-(define mpfr-fmod
+(define mpfr-fmod!
   (get-mpfr-fun 'mpfr_fmod (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
 (define (bffmod x mod)
   (define out (bf 0))
-  (mpfr-fmod out x mod (bf-rounding-mode))
+  (mpfr-fmod! out x mod (bf-rounding-mode))
   out)
 
-(define mpfr-log2p1 (get-mpfr-fun 'mpfr_log2p1 (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+(define mpfr-log2p1! (get-mpfr-fun 'mpfr_log2p1 (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
 (define (bflog2p1 x)
   (define out (bf 0))
-  (mpfr-log2p1 out x (bf-rounding-mode))
+  (mpfr-log2p1! out x (bf-rounding-mode))
   out)
 
-(define mpfr-cosu
+(define mpfr-cosu!
   (get-mpfr-fun 'mpfr_cosu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
-(define mpfr-sinu
+(define mpfr-sinu!
   (get-mpfr-fun 'mpfr_sinu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
-(define mpfr-tanu
+(define mpfr-tanu!
   (get-mpfr-fun 'mpfr_tanu (_fun _mpfr-pointer _mpfr-pointer _ulong _rnd_t -> _int) (lambda () #f)))
 
 (define (bfcosu n x)
   (define out (bf 0))
-  (mpfr-cosu out x n (bf-rounding-mode))
+  (mpfr-cosu! out x n (bf-rounding-mode))
   out)
 
 (define (bfsinu n x)
   (define out (bf 0))
-  (mpfr-sinu out x n (bf-rounding-mode))
+  (mpfr-sinu! out x n (bf-rounding-mode))
   out)
 
 (define (bftanu n x)
   (define out (bf 0))
-  (mpfr-tanu out x n (bf-rounding-mode))
+  (mpfr-tanu! out x n (bf-rounding-mode))
   out)
 
-(unless mpfr-cosu
+(unless mpfr-cosu!
   (set! bfcosu #f))
-(unless mpfr-sinu
+(unless mpfr-sinu!
   (set! bfsinu #f))
-(unless mpfr-tanu
+(unless mpfr-tanu!
   (set! bftanu #f))
 
 (define (bflogb x)
@@ -201,4 +224,11 @@
          and-fn
          or-fn
          if-fn
-         bffma)
+         bffma
+         mpfr-add!
+         mpfr-sub!
+         mpfr-mul!
+         mpfr-div!
+         mpfr-set-prec!
+         mpfr-new!
+         mpfr-set!)

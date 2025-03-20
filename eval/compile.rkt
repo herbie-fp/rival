@@ -7,8 +7,8 @@
 
 (require "../ops/all.rkt"
          "machine.rkt"
-         (only-in "run.rkt" apply-instruction))
-
+         (only-in "run.rkt" apply-instruction)
+         (only-in "../ops/core.rkt" new-ival))
 (provide rival-compile
          *rival-use-shorthands*
          *rival-name-constants*
@@ -19,7 +19,7 @@
 (define *rival-use-shorthands* (make-parameter #t))
 (define *rival-name-constants* (make-parameter #f))
 
-(define (fn->ival-fn node)
+(define (fn->ival-fn node alloc-outreg!)
   (match node
     [(? number?)
      (if (ival-point? (real->ival node))
@@ -69,10 +69,14 @@
     [(list 'tgamma x) (list ival-tgamma x)]
     [(list 'trunc x) (list ival-trunc x)]
 
-    [(list '+ x y) (list ival-add x y)]
-    [(list '- x y) (list ival-sub x y)]
-    [(list '* x y) (list ival-mult x y)]
-    [(list '/ x y) (list ival-div x y)]
+    [(list '+ x y) (list ival-add! (alloc-outreg!) x y)]
+    [(list '- x y) (list ival-sub! (alloc-outreg!) x y)]
+    [(list '* x y) (list ival-mult! (alloc-outreg!) x y)]
+    [(list '/ x y) (list ival-div! (alloc-outreg!) x y)]
+    #;[(list '+ x y) (list ival-add x y)]
+    #;[(list '- x y) (list ival-sub x y)]
+    #;[(list '* x y) (list ival-mult x y)]
+    #;[(list '/ x y) (list ival-div x y)]
     [(list 'atan2 x y) (list ival-atan2 x y)]
     [(list 'copysign x y) (list ival-copysign x y)]
     [(list 'hypot x y) (list ival-hypot x y)]
@@ -271,14 +275,19 @@
 (define (rival-compile exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots) (exprs->batch exprs vars))
-  (define instructions
-    (for/vector #:length (- (vector-length nodes) num-vars)
-                ([node (in-vector nodes num-vars)])
-      (fn->ival-fn node)))
-
-  (define ivec-length (vector-length instructions))
-  (define register-count (+ num-vars ivec-length))
+  (define ivec-length (- (vector-length nodes) num-vars))
+  (define register-count (+ (length vars) ivec-length))
   (define registers (make-vector register-count))
+
+  (define instructions
+    (for/vector #:length ivec-length
+                ([node (in-vector nodes num-vars)]
+                 [n (in-naturals num-vars)])
+      (fn->ival-fn node
+                   (lambda ()
+                     (vector-set! registers n (new-ival))
+                     n))))
+
   (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
   (define precisions (make-vector ivec-length)) ; vector that stores working precisions
   ;; vector for adjusting precisions
@@ -322,8 +331,9 @@
     ; an instruction depends on input if it has input or instruction affiliated with input as an arg
     (for ([reg (in-list tail-registers)])
       (define reg* (- reg varc))
-      (when (or (< reg* 0) (vector-ref dependency-mask reg*))
-        (vector-set! dependency-mask n #t)))
+      (unless (equal? n reg*) ; unless instruction is pointing to itself (add-bang optimizations)
+        (when (or (< reg* 0) (vector-ref dependency-mask reg*))
+          (vector-set! dependency-mask n #t))))
 
     (unless (vector-ref dependency-mask n) ; instruction is not affiliated with arguments
       (vector-set! registers
