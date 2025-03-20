@@ -152,9 +152,9 @@
   (define register-count (vector-length nodes))
   (define registers (make-vector register-count))
   (define precisions
-    (make-vector (vector-length instructions))) ; vector that stores working precisions
-  (define repeats (make-vector (vector-length instructions)))
-  (define hint (make-vector (vector-length instructions) #t))
+    (make-vector (- register-count num-vars))) ; vector that stores working precisions
+  (define repeats (make-vector (- register-count num-vars)))
+  (define hint (make-vector (- register-count num-vars) #t))
 
   (define instructions
     (for/vector #:length (- register-count num-vars)
