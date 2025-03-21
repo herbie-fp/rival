@@ -194,6 +194,8 @@
     any-false?)
 
   ; Step 4. If precisions have not changed but the point didn't converge.
+  ; Assign precisions again now on with logspan
+  ; and do repeats optimization again on new precisions
   (unless (repeats)
     (set-rival-machine-bumps! machine (add1 bumps))
     (*bumps-activated* #t)
