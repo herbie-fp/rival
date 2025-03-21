@@ -69,12 +69,14 @@
        [else (min (mpfr-exp lo) (mpfr-exp hi))])]))
 
 (define (logspan x)
-  #;(define lo (ival-lo x))
-  #;(define hi (ival-hi x))
-  #;(if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
-        (get-slack)
-        (+ (abs (- (mpfr-exp lo) (mpfr-exp hi))) 1))
-  0)
+  (match (*bumps-activated*)
+    [#t
+     (define lo (ival-lo x))
+     (define hi (ival-hi x))
+     (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
+         (get-slack)
+         (+ (abs (- (mpfr-exp lo) (mpfr-exp hi))) 1))]
+    [#f 0]))
 
 ; Function calculates an ampl factor per input for a certain output and inputs using condition formulas,
 ;   where an ampl is an additional precision that needs to be added to srcs evaluation so,

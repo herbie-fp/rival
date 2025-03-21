@@ -17,7 +17,8 @@
 
 (define (rival-machine-load machine args)
   (vector-copy! (rival-machine-registers machine) 0 args)
-  (set-rival-machine-bumps! machine 0))
+  (set-rival-machine-bumps! machine 0)
+  (*bumps-activated* #f))
 
 (define (rival-machine-record machine name number precision time)
   (define profile-ptr (rival-machine-profile-ptr machine))
