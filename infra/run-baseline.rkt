@@ -5,10 +5,7 @@
          math/flonum)
 
 (require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn make-default-hint)
-         (only-in "../eval/machine.rkt"
-                  *base-tuning-precision*
-                  *rival-max-precision*
-                  *rival-profile-executions*)
+         (only-in "../eval/machine.rkt" *rival-max-precision* *rival-profile-executions*)
          "../eval/main.rkt"
          (only-in "../ops/core.rkt" new-ival)
          "../ops/all.rkt")
@@ -151,7 +148,7 @@
   (define-values (nodes roots) (exprs->batch exprs vars)) ; translations are taken from Rival machine
   (define register-count (vector-length nodes))
   (define registers (make-vector register-count))
-  (define start-prec (+ (discretization-target (last discs)) (*base-tuning-precision*)))
+  (define start-prec (+ (discretization-target (last discs)) 10))
   (define precisions
     (make-vector (- register-count num-vars) start-prec)) ; vector that stores working precisions
   (define repeats (make-vector (- register-count num-vars)))
@@ -189,9 +186,7 @@
 
 (define (baseline-apply machine pt [hint #f])
   (define discs (baseline-machine-discs machine))
-  (define start-prec
-    (+ (discretization-target (last discs))
-       (*base-tuning-precision*))) ; base tuning is taken from eval/machine.rkt
+  (define start-prec (+ (discretization-target (last discs)) 10))
   ; Load arguments
   (baseline-machine-load machine (vector-map ival-real pt))
   (let loop ([prec start-prec]

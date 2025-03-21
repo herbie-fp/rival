@@ -42,4 +42,4 @@
 
 (define *ampl-tuning-bits* (make-parameter 2))
 (define *sampling-iteration* (make-parameter 0))
-(define *base-tuning-precision* (make-parameter 10))
+(define *base-tuning-precision* (make-parameter 5))
