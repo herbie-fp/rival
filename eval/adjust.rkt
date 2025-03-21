@@ -192,16 +192,17 @@
       (set! any-false? (or any-false? (not repeat)))
       (vector-set! vrepeats n repeat))
     any-false?)
+  (define any-false? (repeats))
 
   ; Step 4. If precisions have not changed but the point didn't converge.
   ; Assign precisions again now on with logspan
   ; and do repeats optimization again on new precisions
-  (unless (repeats)
+  (unless any-false?
     (set-rival-machine-bumps! machine (add1 bumps))
     (*bumps-activated* #t)
-    (vector-fill! vprecs-new 0)
+    (vector-fill! vprecs-new 0) ; new fresh precisions
     (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful vhint)
-    (repeats))
+    (repeats)) ; do repeats again
 
   ; Step 5. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new))
