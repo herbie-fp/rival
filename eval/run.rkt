@@ -37,6 +37,7 @@
   (define ivec (rival-machine-instructions machine))
   (define varc (vector-length (rival-machine-arguments machine)))
   (define precisions (rival-machine-precisions machine))
+  (define incremental-precisions (rival-machine-incremental-precisions machine))
   (define repeats (rival-machine-repeats machine))
   (define vregs (rival-machine-registers machine))
   ; parameter for sampling histogram table
@@ -45,7 +46,7 @@
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
-        [precision (in-vector precisions)]
+        [precision (in-vector (if first-iter? incremental-precisions precisions))]
         [repeat (in-vector repeats)]
         [hint (in-vector vhint)]
         #:unless (or (not hint) (and (not first-iter?) repeat)))
@@ -123,7 +124,6 @@
 (define (rival-machine-adjust machine vhint)
   (define iter (rival-machine-iteration machine))
   (let ([start (current-inexact-milliseconds)])
-    (if (zero? iter)
-        (vector-fill! (rival-machine-precisions machine) (rival-machine-initial-precision machine))
-        (backward-pass machine vhint))
+    (unless (zero? iter)
+      (backward-pass machine vhint))
     (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))

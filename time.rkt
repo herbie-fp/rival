@@ -80,60 +80,6 @@
   (define tuned-bench #f)
   (define times
     (for/list ([pt (in-list (hash-ref rec 'points))])
-      ; --------------------------- Rival execution -------------------------------------------------
-      (define rival-start-apply (current-inexact-milliseconds))
-      (match-define (list rival-status rival-exs)
-        (parameterize ([*rival-max-precision* 32256])
-          (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
-                          [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
-            (define exs (vector-ref (rival-apply rival-machine (list->vector (map bf pt))) 1))
-            (list 'valid exs))))
-      (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
-      (define rival-iter (rival-machine-iteration rival-machine))
-      (define rival-executions (rival-profile rival-machine 'executions))
-
-      (when (and (> rival-iter 0) (not tuned-bench))
-        (set! tuned-bench #t)
-        (*num-tuned-benchmarks* (add1 (*num-tuned-benchmarks*))))
-
-      ; Store histograms data
-      (when (> rival-iter 0)
-        (for ([execution (in-vector rival-executions)])
-          (define name (symbol->string (execution-name execution)))
-          (define precision (execution-precision execution))
-          (when (equal? rival-status 'valid)
-            (timeline-push! timeline
-                            'mixsample-rival-valid
-                            (list (execution-time execution) name precision)))
-          (timeline-push! timeline
-                          'mixsample-rival-all
-                          (list (execution-time execution) name precision))))
-
-      ; Store density plot data
-      (when (and (equal? rival-status 'valid) (> rival-iter 0))
-        (define h (make-hash))
-        (define max-prec 0)
-        (for ([exec (in-vector rival-executions)])
-          (match-define (execution name number precision time) exec)
-          (unless (equal? name 'adjust)
-            (define precision* (hash-ref h (list name number) (λ () 0)))
-            (hash-set! h (list name number) (max precision precision*))
-            (set! max-prec (max precision precision* max-prec))))
-        (for ([(_ precision) (in-hash h)])
-          (timeline-push! timeline 'density (~a (exact->inexact (/ precision max-prec)) #:width 5))))
-
-      ; Record the percentage of instructions has been executed
-      (when (equal? rival-status 'valid)
-        (define rival-no-repeats-instr-cnt
-          (* (+ 1 rival-iter) (vector-length (rival-machine-instructions rival-machine))))
-        (define rival-instr-cnt (vector-length rival-executions))
-        ; Report instruction that has been executed
-        (timeline-push! timeline 'instr-executed-cnt (list 'rival rival-iter rival-instr-cnt))
-        ; Report the total number of instruction that could be executed with no repeats
-        (timeline-push! timeline
-                        'instr-executed-cnt
-                        (list 'rival-no-repeats rival-iter rival-no-repeats-instr-cnt)))
-
       ; --------------------------- Baseline execution ----------------------------------------------
       (define baseline-start-apply (current-inexact-milliseconds))
       (match-define (list baseline-status baseline-exs)
@@ -148,7 +94,7 @@
       (define baseline-iteration (baseline-profile baseline-machine 'iteration))
 
       ; Store histograms data
-      (when (> rival-iter 0)
+      (when (> baseline-iteration 0)
         (for ([execution (in-vector baseline-executions)])
           (define name (symbol->string (execution-name execution)))
           (define precision (execution-precision execution))
@@ -174,6 +120,60 @@
         (timeline-push! timeline
                         'instr-executed-cnt
                         (list 'baseline-no-repeats baseline-iteration baseline-no-repeats-instr-cnt)))
+
+      ; --------------------------- Rival execution -------------------------------------------------
+      (define rival-start-apply (current-inexact-milliseconds))
+      (match-define (list rival-status rival-exs)
+        (parameterize ([*rival-max-precision* 32256])
+          (with-handlers ([exn:rival:invalid? (λ (e) (list 'invalid #f))]
+                          [exn:rival:unsamplable? (λ (e) (list 'unsamplable #f))])
+            (define exs (vector-ref (rival-apply rival-machine (list->vector (map bf pt))) 1))
+            (list 'valid exs))))
+      (define rival-apply-time (- (current-inexact-milliseconds) rival-start-apply))
+      (define rival-iter (rival-machine-iteration rival-machine))
+      (define rival-executions (rival-profile rival-machine 'executions))
+
+      (when (and (> baseline-iteration 0) (not tuned-bench))
+        (set! tuned-bench #t)
+        (*num-tuned-benchmarks* (add1 (*num-tuned-benchmarks*))))
+
+      ; Store histograms data
+      (when (> baseline-iteration 0)
+        (for ([execution (in-vector rival-executions)])
+          (define name (symbol->string (execution-name execution)))
+          (define precision (execution-precision execution))
+          (when (equal? rival-status 'valid)
+            (timeline-push! timeline
+                            'mixsample-rival-valid
+                            (list (execution-time execution) name precision)))
+          (timeline-push! timeline
+                          'mixsample-rival-all
+                          (list (execution-time execution) name precision))))
+
+      ; Store density plot data
+      (when (and (equal? rival-status 'valid) (> baseline-iteration 0))
+        (define h (make-hash))
+        (define max-prec 0)
+        (for ([exec (in-vector rival-executions)])
+          (match-define (execution name number precision time) exec)
+          (unless (equal? name 'adjust)
+            (define precision* (hash-ref h (list name number) (λ () 0)))
+            (hash-set! h (list name number) (max precision precision*))
+            (set! max-prec (max precision precision* max-prec))))
+        (for ([(_ precision) (in-hash h)])
+          (timeline-push! timeline 'density (~a (exact->inexact (/ precision max-prec)) #:width 5))))
+
+      ; Record the percentage of instructions has been executed
+      (when (equal? rival-status 'valid)
+        (define rival-no-repeats-instr-cnt
+          (* (+ 1 rival-iter) (vector-length (rival-machine-instructions rival-machine))))
+        (define rival-instr-cnt (vector-length rival-executions))
+        ; Report instruction that has been executed
+        (timeline-push! timeline 'instr-executed-cnt (list 'rival rival-iter rival-instr-cnt))
+        ; Report the total number of instruction that could be executed with no repeats
+        (timeline-push! timeline
+                        'instr-executed-cnt
+                        (list 'rival-no-repeats rival-iter rival-no-repeats-instr-cnt)))
 
       ; --------------------------- Sollya execution ------------------------------------------------
       ; Points for expressions where Sollya has not compiled do not go to the plot/speed graphs!
