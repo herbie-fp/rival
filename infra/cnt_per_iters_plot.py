@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
+import requests
 
 def plot_cnt_per_iters(outcomes, args):
     # Create figure
@@ -26,15 +27,15 @@ def plot_cnt_per_iters(outcomes, args):
     ax.bar(np.arange(len(baseline)) + 0.925, baseline['number_of_points'], color="green", alpha=1, width=0.5, label='baseline', hatch='/')
     ax.bar(np.arange(len(rival)) + 1.075, rival['number_of_points'], color="red", alpha=0.7, width=0.5, label='reval')
 
-    rival_first_covergence = round(float(rival['number_of_points'][0]) / rival['number_of_points'].sum(), 2)
-    print("\\newcommand{\\RivalFirstIterConvergence}{" + str(rival_first_covergence) + "\\xspace}")
-    baseline_first_convergence = round(float(baseline['number_of_points'][0]) / baseline['number_of_points'].sum(), 2)
-    print("\\newcommand{\\BaselineFirstIterConvergence}{" + str(baseline_first_convergence) + "\\xspace}")
+    rival_first_covergence = round(float(rival['number_of_points'][0]) / rival['number_of_points'].sum() * 100, 2)
+    print("\\newcommand{\\RivalFirstIterConvergence}{" + str(rival_first_covergence) + "}")
+    baseline_first_convergence = round(float(baseline['number_of_points'][0]) / baseline['number_of_points'].sum() * 100, 2)
+    print("\\newcommand{\\BaselineFirstIterConvergence}{" + str(baseline_first_convergence) + "}")
 
-    rival_second_covergence = round(float(rival['number_of_points'][1]) / rival['number_of_points'].sum(), 2)
-    print("\\newcommand{\\RivalSecondIterConvergence}{" + str(rival_second_covergence) + "\\xspace}")
-    baseline_second_convergence = round(float(baseline['number_of_points'][1]) / baseline['number_of_points'].sum(), 2)
-    print("\\newcommand{\\BaselineSecondIterConvergence}{" + str(baseline_second_convergence) + "\\xspace}")
+    rival_second_covergence = round(float(rival['number_of_points'][1]) / rival['number_of_points'].sum() * 100  + rival_first_covergence, 2)
+    print("\\newcommand{\\RivalSecondIterConvergence}{" + str(rival_second_covergence) + "}")
+    baseline_second_convergence = round(float(baseline['number_of_points'][1]) / baseline['number_of_points'].sum() * 100 + baseline_first_convergence, 2)
+    print("\\newcommand{\\BaselineSecondIterConvergence}{" + str(baseline_second_convergence) + "}")
     
     ax.legend()
     ax.set_xlabel("Iteration")

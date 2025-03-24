@@ -362,7 +362,8 @@
     (define current-prec (vector-ref vstart-precs n))
     (define tail-registers (cdr instr))
     (for ([idx (in-list tail-registers)]
-          #:when (>= idx varc))
+          #:when (and (>= idx varc)
+                      (not (equal? n (- idx varc))))) ; if it is not a idx pointing to itself
       (define idx-prec (vector-ref vstart-precs (- idx varc)))
       (vector-set! vstart-precs
                    (- idx varc)
