@@ -20,16 +20,18 @@
   (set-rival-machine-bumps! machine 0)
   (*bumps-activated* #f))
 
-(define (rival-machine-record machine name number precision time)
+(define (rival-machine-record machine name number precision time iter)
   (define profile-ptr (rival-machine-profile-ptr machine))
   (define profile-instruction (rival-machine-profile-instruction machine))
   (when (< profile-ptr (vector-length profile-instruction))
     (define profile-number (rival-machine-profile-number machine))
     (define profile-time (rival-machine-profile-time machine))
     (define profile-precision (rival-machine-profile-precision machine))
+    (define profile-iteration (rival-machine-profile-iteration machine))
     (vector-set! profile-instruction profile-ptr name)
     (vector-set! profile-number profile-ptr number)
     (vector-set! profile-precision profile-ptr precision)
+    (vector-set! profile-iteration profile-ptr iter)
     (flvector-set! profile-time profile-ptr time)
     (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
 
@@ -40,6 +42,7 @@
   (define incremental-precisions (rival-machine-incremental-precisions machine))
   (define repeats (rival-machine-repeats machine))
   (define vregs (rival-machine-registers machine))
+  (define iter (rival-machine-iteration machine))
   ; parameter for sampling histogram table
   (define first-iter? (zero? (rival-machine-iteration machine)))
   (define something-got-reexecuted #f)
@@ -59,7 +62,7 @@
              (apply-instruction instr vregs)))
          (define name (object-name (car instr)))
          (define time (- (current-inexact-milliseconds) start))
-         (rival-machine-record machine name n precision time)
+         (rival-machine-record machine name n precision time iter)
          res]
         [(box old-precision) ; instr does not depend on arguments and result is known in old-precision
          (match (or (> precision old-precision) something-got-reexecuted)
@@ -72,7 +75,7 @@
             (define time (- (current-inexact-milliseconds) start))
             (set-box! hint precision)
             (set! something-got-reexecuted #t)
-            (rival-machine-record machine name n precision time)
+            (rival-machine-record machine name n precision time iter)
             res]
            [#f (vector-ref vregs n)])]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))] ; result is known
@@ -126,4 +129,9 @@
   (let ([start (current-inexact-milliseconds)])
     (unless (zero? iter)
       (backward-pass machine vhint))
-    (rival-machine-record machine 'adjust -1 (* iter 1000) (- (current-inexact-milliseconds) start))))
+    (rival-machine-record machine
+                          'adjust
+                          -1
+                          (* iter 1000)
+                          (- (current-inexact-milliseconds) start)
+                          iter)))

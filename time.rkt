@@ -108,18 +108,13 @@
 
       ; Record the percentage of instructions has been executed
       (when (equal? baseline-status 'valid)
-        (define baseline-no-repeats-instr-cnt
-          (* (+ 1 baseline-iteration)
-             (vector-length (baseline-machine-instructions baseline-machine))))
-        (define baseline-instr-cnt (vector-length baseline-executions))
-        ; Report instruction that has been executed
-        (timeline-push! timeline
-                        'instr-executed-cnt
-                        (list 'baseline baseline-iteration baseline-instr-cnt))
-        ; Report the total number of instruction that could be executed with no repeats
-        (timeline-push! timeline
-                        'instr-executed-cnt
-                        (list 'baseline-no-repeats baseline-iteration baseline-no-repeats-instr-cnt)))
+        (for ([execution (in-vector baseline-executions)])
+          (timeline-push! timeline
+                          'instr-executed-cnt
+                          (list 'baseline (execution-iteration execution) 1)))
+        (define ivec-len (vector-length (baseline-machine-instructions baseline-machine)))
+        (for ([n (in-range (add1 baseline-iteration))])
+          (timeline-push! timeline 'instr-executed-cnt (list 'baseline-no-repeats n ivec-len))))
 
       ; --------------------------- Rival execution -------------------------------------------------
       (define rival-start-apply (current-inexact-milliseconds))
@@ -155,7 +150,7 @@
         (define h (make-hash))
         (define max-prec 0)
         (for ([exec (in-vector rival-executions)])
-          (match-define (execution name number precision time) exec)
+          (match-define (execution name number precision time _) exec)
           (unless (equal? name 'adjust)
             (define precision* (hash-ref h (list name number) (λ () 0)))
             (hash-set! h (list name number) (max precision precision*))
@@ -165,15 +160,13 @@
 
       ; Record the percentage of instructions has been executed
       (when (equal? rival-status 'valid)
-        (define rival-no-repeats-instr-cnt
-          (* (+ 1 rival-iter) (vector-length (rival-machine-instructions rival-machine))))
-        (define rival-instr-cnt (vector-length rival-executions))
-        ; Report instruction that has been executed
-        (timeline-push! timeline 'instr-executed-cnt (list 'rival rival-iter rival-instr-cnt))
-        ; Report the total number of instruction that could be executed with no repeats
-        (timeline-push! timeline
-                        'instr-executed-cnt
-                        (list 'rival-no-repeats rival-iter rival-no-repeats-instr-cnt)))
+        (for ([execution (in-vector rival-executions)])
+          (timeline-push! timeline
+                          'instr-executed-cnt
+                          (list 'rival (execution-iteration execution) 1)))
+        (define ivec-len (vector-length (rival-machine-instructions rival-machine)))
+        (for ([n (in-range (add1 rival-iter))])
+          (timeline-push! timeline 'instr-executed-cnt (list 'rival-no-repeats n ivec-len))))
 
       ; --------------------------- Sollya execution ------------------------------------------------
       ; Points for expressions where Sollya has not compiled do not go to the plot/speed graphs!

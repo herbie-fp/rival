@@ -30,7 +30,8 @@
                    profile-instruction
                    profile-number
                    profile-time
-                   profile-precision))
+                   profile-precision
+                   profile-iteration))
 
 (define (make-hint machine old-hint)
   (define args (baseline-machine-arguments machine))
@@ -179,6 +180,7 @@
                     (make-vector (*rival-profile-executions*))
                     (make-vector (*rival-profile-executions*))
                     (make-flvector (*rival-profile-executions*))
+                    (make-vector (*rival-profile-executions*))
                     (make-vector (*rival-profile-executions*))))
 
 ; ------------------------------------------- APPLY --------------------------------------------------
@@ -246,7 +248,8 @@
                              'adjust
                              -1
                              (* iter 1000)
-                             (- (current-inexact-milliseconds) start))))
+                             (- (current-inexact-milliseconds) start)
+                             iter)))
 
 (define (baseline-machine-full machine vhint)
   (baseline-machine-adjust machine)
@@ -262,6 +265,7 @@
   (define vregs (baseline-machine-registers machine))
   (define precisions (baseline-machine-precisions machine))
   (define repeats (baseline-machine-repeats machine))
+  (define iter (baseline-machine-iteration machine))
   (define first-iter? (zero? (baseline-machine-iteration machine)))
   (define something-got-reexecuted #f)
 
@@ -280,7 +284,7 @@
              (apply-instruction instr vregs)))
          (define name (object-name (car instr)))
          (define time (- (current-inexact-milliseconds) start))
-         (baseline-machine-record machine name n precision time)
+         (baseline-machine-record machine name n precision time iter)
          res]
         [(box old-precision)
          (match (or (> precision old-precision) something-got-reexecuted)
@@ -293,7 +297,7 @@
             (define time (- (current-inexact-milliseconds) start))
             (set-box! hint precision)
             (set! something-got-reexecuted #t)
-            (baseline-machine-record machine name n precision time)
+            (baseline-machine-record machine name n precision time iter)
             res]
            [#f (vector-ref vregs n)])]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))]
@@ -353,23 +357,27 @@
      (define profile-number (baseline-machine-profile-number machine))
      (define profile-time (baseline-machine-profile-time machine))
      (define profile-precision (baseline-machine-profile-precision machine))
+     (define profile-iteration (baseline-machine-profile-iteration machine))
      (begin0 (for/vector #:length profile-ptr
                          ([instruction (in-vector profile-instruction 0 profile-ptr)]
                           [number (in-vector profile-number 0 profile-ptr)]
                           [precision (in-vector profile-precision 0 profile-ptr)]
-                          [time (in-flvector profile-time 0 profile-ptr)])
-               (execution instruction number precision time))
+                          [time (in-flvector profile-time 0 profile-ptr)]
+                          [iter (in-vector profile-iteration 0 profile-ptr)])
+               (execution instruction number precision time iter))
        (set-baseline-machine-profile-ptr! machine 0))]))
 
-(define (baseline-machine-record machine name number precision time)
+(define (baseline-machine-record machine name number precision time iter)
   (define profile-ptr (baseline-machine-profile-ptr machine))
   (define profile-instruction (baseline-machine-profile-instruction machine))
   (when (< profile-ptr (vector-length profile-instruction))
     (define profile-number (baseline-machine-profile-number machine))
     (define profile-time (baseline-machine-profile-time machine))
     (define profile-precision (baseline-machine-profile-precision machine))
+    (define profile-iteration (baseline-machine-profile-iteration machine))
     (vector-set! profile-instruction profile-ptr name)
     (vector-set! profile-number profile-ptr number)
     (vector-set! profile-precision profile-ptr precision)
+    (vector-set! profile-iteration profile-ptr iter)
     (flvector-set! profile-time profile-ptr time)
     (set-baseline-machine-profile-ptr! machine (add1 profile-ptr))))

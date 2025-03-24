@@ -38,7 +38,8 @@
                    profile-instruction
                    profile-number
                    profile-time
-                   profile-precision))
+                   profile-precision
+                   profile-iteration))
 
 (define *ampl-tuning-bits* (make-parameter 2))
 (define *sampling-iteration* (make-parameter 0))
