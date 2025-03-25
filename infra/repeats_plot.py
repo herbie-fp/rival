@@ -28,6 +28,10 @@ def plot_repeats_plot(outcomes, args):
     average_baseline = round((1.0 - (baseline['number_of_instr_executions'].sum() / baseline_no_repeats['number_of_instr_executions'].sum())) * 100, 2)
     print("\\newcommand{\\AveragePercentageOfSkippedInstrBaseline}{" + str(average_baseline) + "}")
 
+    print(rival['number_of_instr_executions'].sum(), baseline['number_of_instr_executions'].sum())
+    rival_evaluates_less_instructions = round((baseline['number_of_instr_executions'].sum() - rival['number_of_instr_executions'].sum()) / baseline['number_of_instr_executions'].sum() * 100, 2)
+    print("\\newcommand{\\RivalInstrCountLessThanBaseline}{" + str(rival_evaluates_less_instructions) + "}")
+
     percentages = np.array(rival['number_of_instr_executions']) / np.array(rival_no_repeats['number_of_instr_executions']) * 100
     ax.bar(np.arange(len(rival))+1.1, percentages, color="red", alpha=0.7, width=0.5, label='reval')
     
