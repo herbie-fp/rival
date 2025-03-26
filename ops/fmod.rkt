@@ -80,7 +80,7 @@
      (define d (rnd 'up bfround (bfdiv (ival-hi-val x) (ival-lo-val y))))
      (cond
        [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
-        (define y* (bfdiv (ival-hi-val y) 2.bf))
+        (define y* (rnd 'up bfdiv (ival-hi-val y) 2.bf))
         (ival
          (endpoint
           (rnd 'down bfmax2 (bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y))) (bfneg y*))
@@ -90,7 +90,7 @@
          err)]
        [else
         ;; NOPE! need to subtract half.bf one way, add it another!
-        (define y*-hi (rnd 'up bfdiv (bfdiv (ival-hi-val x) (bfadd c half.bf)) 2.bf))
+        (define y*-hi (rnd 'up bfdiv (bfdiv (ival-hi-val x) (rnd 'down bfadd c half.bf)) 2.bf))
         (define y*-lo
           (rnd 'down
                bfmax2
