@@ -52,7 +52,8 @@
          o-hint]
         [(? box? _)
          (define srcs (rest instr)) ; then, children instructions should be known as well
-         (for-each (λ (x) (vhint-set! x (vector-ref old-hint (- n varc)))) srcs)
+         (for-each (λ (x)
+                     (vhint-set! x (vector-ref old-hint (- x varc)))) srcs)
          o-hint] ; box means that the result is known at some precision
         [#t
          (case (object-name (car instr))
