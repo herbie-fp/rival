@@ -69,12 +69,14 @@
        [else (min (mpfr-exp lo) (mpfr-exp hi))])]))
 
 (define (logspan x)
-  #;(define lo (ival-lo x))
-  #;(define hi (ival-hi x))
-  #;(if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
-        (get-slack)
-        (+ (abs (- (mpfr-exp lo) (mpfr-exp hi))) 1))
-  0)
+  (match (*bumps-activated*)
+    [#t
+     (define lo (ival-lo x))
+     (define hi (ival-hi x))
+     (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
+         (get-slack)
+         (+ (abs (- (mpfr-exp lo) (mpfr-exp hi))) 1))]
+    [#f 0]))
 
 ; Function calculates an ampl factor per input for a certain output and inputs using condition formulas,
 ;   where an ampl is an additional precision that needs to be added to srcs evaluation so,
@@ -96,6 +98,13 @@
      (list (cons (logspan y) 0) ; bounds per x
            (cons (logspan x) 0))] ; bounds per y
 
+    [(ival-mult!)
+     ; Same as above, ignoring output register
+     (match-define (list _ x y) srcs)
+     (list (cons 0 0) ; Ignore output register
+           (cons (logspan y) 0) ; bounds per x
+           (cons (logspan x) 0))] ; bounds per y
+
     [(ival-div)
      ; Γ[/]'x     = 1
      ; ↑ampl[/]'x = logspan(y)
@@ -107,6 +116,12 @@
      (define x (first srcs))
      (define y (second srcs))
      (list (cons (logspan y) 0) ; bounds per x
+           (cons (+ (logspan x) (* 2 (logspan y))) 0))] ; bounds per y
+
+    [(ival-div!)
+     (match-define (list _ x y) srcs)
+     (list (cons 0 0)
+           (cons (logspan y) 0) ; bounds per x
            (cons (+ (logspan x) (* 2 (logspan y))) 0))] ; bounds per y
 
     [(ival-sqrt ival-cbrt)
@@ -137,6 +152,19 @@
                (cons (- (maxlog y) (minlog z))
                      (- (minlog y #:less-slack #t) (maxlog z #:less-slack #t)))) ; bounds per y
          (list (cons (- (maxlog x) (minlog z)) 0) ; bounds per x
+               (cons (- (maxlog y) (minlog z)) 0)))] ; bounds per y
+
+    [(ival-add! ival-sub!)
+     (match-define (list _ x y) srcs)
+
+     (if (*lower-bound-early-stopping*)
+         (list (cons 0 0)
+               (cons (- (maxlog x) (minlog z))
+                     (- (minlog x #:less-slack #t) (maxlog z #:less-slack #t))) ; bounds per x
+               (cons (- (maxlog y) (minlog z))
+                     (- (minlog y #:less-slack #t) (maxlog z #:less-slack #t)))) ; bounds per y
+         (list (cons 0 0)
+               (cons (- (maxlog x) (minlog z)) 0) ; bounds per x
                (cons (- (maxlog y) (minlog z)) 0)))] ; bounds per y
 
     [(ival-pow)

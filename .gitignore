@@ -6,4 +6,5 @@ profile.json
 *.*~
 report/*
 rival-compiled
-Makefile~
+*~
+test.rival

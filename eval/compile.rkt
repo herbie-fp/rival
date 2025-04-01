@@ -2,19 +2,24 @@
 
 (require racket/match
          (only-in "../mpfr.rkt" bfprev bf bfsinu bfcosu bftanu bf-rounding-mode bf=?)
-         racket/flonum)
+         racket/flonum
+         (only-in math/bigfloat bf-precision))
+
 (require "../ops/all.rkt"
-         "machine.rkt")
+         "machine.rkt"
+         (only-in "run.rkt" apply-instruction)
+         (only-in "../ops/core.rkt" new-ival))
 (provide rival-compile
          *rival-use-shorthands*
          *rival-name-constants*
          fn->ival-fn ; for baseline
-         exprs->batch) ; for baseline
+         exprs->batch ; for baseline
+         make-default-hint) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))
 (define *rival-name-constants* (make-parameter #f))
 
-(define (fn->ival-fn node)
+(define (fn->ival-fn node alloc-outreg!)
   (match node
     [(? number?)
      (if (ival-point? (real->ival node))
@@ -64,10 +69,14 @@
     [(list 'tgamma x) (list ival-tgamma x)]
     [(list 'trunc x) (list ival-trunc x)]
 
-    [(list '+ x y) (list ival-add x y)]
-    [(list '- x y) (list ival-sub x y)]
-    [(list '* x y) (list ival-mult x y)]
-    [(list '/ x y) (list ival-div x y)]
+    [(list '+ x y) (list ival-add! (alloc-outreg!) x y)]
+    [(list '- x y) (list ival-sub! (alloc-outreg!) x y)]
+    [(list '* x y) (list ival-mult! (alloc-outreg!) x y)]
+    [(list '/ x y) (list ival-div! (alloc-outreg!) x y)]
+    #;[(list '+ x y) (list ival-add x y)]
+    #;[(list '- x y) (list ival-sub x y)]
+    #;[(list '* x y) (list ival-mult x y)]
+    #;[(list '/ x y) (list ival-div x y)]
     [(list 'atan2 x y) (list ival-atan2 x y)]
     [(list 'copysign x y) (list ival-copysign x y)]
     [(list 'hypot x y) (list ival-hypot x y)]
@@ -266,21 +275,26 @@
 (define (rival-compile exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots) (exprs->batch exprs vars))
-  (define instructions
-    (for/vector #:length (- (vector-length nodes) num-vars)
-                ([node (in-vector nodes num-vars)])
-      (fn->ival-fn node)))
-
-  (define ivec-length (vector-length instructions))
+  (define ivec-length (- (vector-length nodes) num-vars))
   (define register-count (+ (length vars) ivec-length))
   (define registers (make-vector register-count))
+
+  (define instructions
+    (for/vector #:length ivec-length
+                ([node (in-vector nodes num-vars)]
+                 [n (in-naturals num-vars)])
+      (fn->ival-fn node
+                   (lambda ()
+                     (vector-set! registers n (new-ival))
+                     n))))
+
   (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
   (define precisions (make-vector ivec-length)) ; vector that stores working precisions
   ;; vector for adjusting precisions
-  (define incremental-precisions (setup-vstart-precs instructions (length vars) roots discs))
+  (define incremental-precisions (setup-vstart-precs instructions num-vars roots discs))
   (define initial-precision
     (+ (argmax identity (map discretization-target discs)) (*base-tuning-precision*)))
-  (define hint (make-vector ivec-length #t))
+  (define default-hint (make-default-hint instructions num-vars registers incremental-precisions))
 
   (rival-machine (list->vector vars)
                  instructions
@@ -292,14 +306,43 @@
                  incremental-precisions
                  (make-vector (vector-length roots))
                  initial-precision
-                 hint
+                 default-hint
                  0
                  0
                  0
                  (make-vector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))
                  (make-flvector (*rival-profile-executions*))
+                 (make-vector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))))
+
+;;  Defining instructions that do not depend on input arguments
+;;  Execute these instructions right away with default precision
+(define (make-default-hint instructions varc registers incremental-precisions)
+  (define default-hint (make-vector (vector-length instructions) #t))
+  (define dependency-mask (make-vector (vector-length instructions) #f))
+
+  ; Defining instructions that do not depend on input arguments
+  ;   #f - instruction does not depend on arguments
+  ;   #t - instruction does depend on arguments
+  (for ([instr (in-vector instructions)]
+        [prec (in-vector incremental-precisions)]
+        [n (in-naturals)])
+    (define tail-registers (cdr instr))
+    ; an instruction depends on input if it has input or instruction affiliated with input as an arg
+    (for ([reg (in-list tail-registers)])
+      (define reg* (- reg varc))
+      (unless (equal? n reg*) ; unless instruction is pointing to itself (add-bang optimizations)
+        (when (or (< reg* 0) (vector-ref dependency-mask reg*))
+          (vector-set! dependency-mask n #t))))
+
+    (unless (vector-ref dependency-mask n) ; instruction is not affiliated with arguments
+      (vector-set! registers
+                   (+ n varc) ; evaluate this instruction and store output in vregs
+                   (parameterize ([bf-precision prec])
+                     (apply-instruction instr registers)))
+      (vector-set! default-hint n (box prec)))) ; keeping track of precision
+  default-hint)
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
@@ -320,7 +363,8 @@
     (define current-prec (vector-ref vstart-precs n))
     (define tail-registers (cdr instr))
     (for ([idx (in-list tail-registers)]
-          #:when (>= idx varc))
+          #:when (and (>= idx varc)
+                      (not (equal? n (- idx varc))))) ; if it is not a idx pointing to itself
       (define idx-prec (vector-ref vstart-precs (- idx varc)))
       (vector-set! vstart-precs
                    (- idx varc)

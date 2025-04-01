@@ -35,7 +35,7 @@
 (struct exn:rival:invalid exn:rival (pt))
 (struct exn:rival:unsamplable exn:rival (pt))
 
-(struct execution (name number precision time) #:prefab)
+(struct execution (name number precision time iteration) #:prefab)
 
 (define (rival-profile machine param)
   (match param
@@ -48,12 +48,14 @@
      (define profile-number (rival-machine-profile-number machine))
      (define profile-time (rival-machine-profile-time machine))
      (define profile-precision (rival-machine-profile-precision machine))
+     (define profile-iteration (rival-machine-profile-iteration machine))
      (begin0 (for/vector #:length profile-ptr
                          ([instruction (in-vector profile-instruction 0 profile-ptr)]
                           [number (in-vector profile-number 0 profile-ptr)]
                           [precision (in-vector profile-precision 0 profile-ptr)]
-                          [time (in-flvector profile-time 0 profile-ptr)])
-               (execution instruction number precision time))
+                          [time (in-flvector profile-time 0 profile-ptr)]
+                          [iter (in-vector profile-iteration 0 profile-ptr)])
+               (execution instruction number precision time iter))
        (set-rival-machine-profile-ptr! machine 0))]))
 
 (define (ival-real x)

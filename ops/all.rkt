@@ -1,6 +1,7 @@
 #lang racket
 
 (require "core.rkt"
+         "arith.rkt"
          "pow.rkt"
          "trig.rkt"
          "fmod.rkt"
@@ -17,10 +18,14 @@
          ival-e
          ival-bool
          ival-add
+         ival-add!
          ival-sub
+         ival-sub!
          ival-neg
          ival-mult
+         ival-mult!
          ival-div
+         ival-div!
          ival-fma
          ival-fabs
          ival-sqrt

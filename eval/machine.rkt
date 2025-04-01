@@ -9,13 +9,15 @@
          *ampl-tuning-bits*
          *sampling-iteration*
          *lower-bound-early-stopping*
-         *base-tuning-precision*)
+         *base-tuning-precision*
+         *bumps-activated*)
 
 (define *rival-max-precision* (make-parameter 10000))
 (define *rival-min-precision* (make-parameter 20))
 (define *rival-max-iterations* (make-parameter 5))
 (define *rival-profile-executions* (make-parameter 1000))
-(define *lower-bound-early-stopping* (make-parameter #t))
+(define *lower-bound-early-stopping* (make-parameter #f))
+(define *bumps-activated* (make-parameter #f))
 
 (struct discretization (target convert distance))
 
@@ -36,8 +38,9 @@
                    profile-instruction
                    profile-number
                    profile-time
-                   profile-precision))
+                   profile-precision
+                   profile-iteration))
 
-(define *ampl-tuning-bits* (make-parameter 5))
+(define *ampl-tuning-bits* (make-parameter 2))
 (define *sampling-iteration* (make-parameter 0))
-(define *base-tuning-precision* (make-parameter 10))
+(define *base-tuning-precision* (make-parameter 5))

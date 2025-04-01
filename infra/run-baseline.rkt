@@ -4,12 +4,10 @@
          math/bigfloat
          math/flonum)
 
-(require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn)
-         (only-in "../eval/machine.rkt"
-                  *base-tuning-precision*
-                  *rival-max-precision*
-                  *rival-profile-executions*)
+(require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn make-default-hint)
+         (only-in "../eval/machine.rkt" *rival-max-precision* *rival-profile-executions*)
          "../eval/main.rkt"
+         (only-in "../ops/core.rkt" new-ival)
          "../ops/all.rkt")
 
 (provide baseline-compile
@@ -32,7 +30,8 @@
                    profile-instruction
                    profile-number
                    profile-time
-                   profile-precision))
+                   profile-precision
+                   profile-iteration))
 
 (define (make-hint machine old-hint)
   (define args (baseline-machine-arguments machine))
@@ -65,6 +64,10 @@
          (when (>= idx varc)
            (vhint-set! idx #t))
          o-hint]
+        [(? box? _)
+         (define srcs (rest instr)) ; then, children instructions should be known as well
+         (for-each (λ (x) (vhint-set! x (vector-ref old-hint (- x varc)))) srcs)
+         o-hint] ; box means that the result is known at some precision
         [#t
          (case (object-name (car instr))
            [(ival-assert)
@@ -148,18 +151,23 @@
 (define (baseline-compile exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots) (exprs->batch exprs vars)) ; translations are taken from Rival machine
+  (define register-count (vector-length nodes))
+  (define registers (make-vector register-count))
+  (define start-prec (+ (discretization-target (last discs)) 10))
+  (define precisions
+    (make-vector (- register-count num-vars) start-prec)) ; vector that stores working precisions
+  (define repeats (make-vector (- register-count num-vars)))
 
   (define instructions
-    (for/vector #:length (- (vector-length nodes) num-vars)
-                ([node (in-vector nodes num-vars)])
-      (fn->ival-fn node))) ; mappings are taken from Rival machine
+    (for/vector #:length (- register-count num-vars)
+                ([node (in-vector nodes num-vars)]
+                 [n (in-naturals num-vars)])
+      (fn->ival-fn node ; mappings are taken from Rival machine
+                   (lambda ()
+                     (vector-set! registers n (new-ival))
+                     n))))
 
-  (define register-count (+ (length vars) (vector-length instructions)))
-  (define registers (make-vector register-count))
-  (define precisions
-    (make-vector (vector-length instructions))) ; vector that stores working precisions
-  (define repeats (make-vector (vector-length instructions)))
-  (define hint (make-vector (vector-length instructions) #t))
+  (define default-hint (make-default-hint instructions num-vars registers precisions))
 
   (baseline-machine (list->vector vars)
                     instructions
@@ -168,13 +176,14 @@
                     registers
                     precisions
                     repeats
-                    hint
+                    default-hint
                     0
                     0
                     0
                     (make-vector (*rival-profile-executions*))
                     (make-vector (*rival-profile-executions*))
                     (make-flvector (*rival-profile-executions*))
+                    (make-vector (*rival-profile-executions*))
                     (make-vector (*rival-profile-executions*))))
 
 ; ------------------------------------------- APPLY --------------------------------------------------
@@ -183,9 +192,7 @@
 
 (define (baseline-apply machine pt [hint #f])
   (define discs (baseline-machine-discs machine))
-  (define start-prec
-    (+ (discretization-target (last discs))
-       (*base-tuning-precision*))) ; base tuning is taken from eval/machine.rkt
+  (define start-prec (+ (discretization-target (last discs)) 10))
   ; Load arguments
   (baseline-machine-load machine (vector-map ival-real pt))
   (let loop ([prec start-prec]
@@ -244,7 +251,8 @@
                              'adjust
                              -1
                              (* iter 1000)
-                             (- (current-inexact-milliseconds) start))))
+                             (- (current-inexact-milliseconds) start)
+                             iter)))
 
 (define (baseline-machine-full machine vhint)
   (baseline-machine-adjust machine)
@@ -260,7 +268,9 @@
   (define vregs (baseline-machine-registers machine))
   (define precisions (baseline-machine-precisions machine))
   (define repeats (baseline-machine-repeats machine))
+  (define iter (baseline-machine-iteration machine))
   (define first-iter? (zero? (baseline-machine-iteration machine)))
+  (define something-got-reexecuted #f)
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
@@ -268,18 +278,34 @@
         [repeat (in-vector repeats)]
         [hint (in-vector vhint)]
         #:unless (or (not hint) (and (not first-iter?) repeat)))
-    (define start (current-inexact-milliseconds))
     (define out
       (match hint
         [#t
-         (parameterize ([bf-precision precision])
-           (apply-instruction instr vregs))]
+         (define start (current-inexact-milliseconds))
+         (define res
+           (parameterize ([bf-precision precision])
+             (apply-instruction instr vregs)))
+         (define name (object-name (car instr)))
+         (define time (- (current-inexact-milliseconds) start))
+         (baseline-machine-record machine name n precision time iter)
+         res]
+        [(box old-precision)
+         (match (or (> precision old-precision) something-got-reexecuted)
+           [#t ; reevaluate instruction at higher precision
+            (define start (current-inexact-milliseconds))
+            (define res
+              (parameterize ([bf-precision precision])
+                (apply-instruction instr vregs)))
+            (define name (object-name (car instr)))
+            (define time (- (current-inexact-milliseconds) start))
+            (set-box! hint precision)
+            (set! something-got-reexecuted #t)
+            (baseline-machine-record machine name n precision time iter)
+            res]
+           [#f (vector-ref vregs n)])]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))]
         [(? ival? _) hint]))
-    (vector-set! vregs n out)
-    (define name (object-name (car instr)))
-    (define time (- (current-inexact-milliseconds) start))
-    (baseline-machine-record machine name n precision time)))
+    (vector-set! vregs n out)))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,
@@ -334,23 +360,27 @@
      (define profile-number (baseline-machine-profile-number machine))
      (define profile-time (baseline-machine-profile-time machine))
      (define profile-precision (baseline-machine-profile-precision machine))
+     (define profile-iteration (baseline-machine-profile-iteration machine))
      (begin0 (for/vector #:length profile-ptr
                          ([instruction (in-vector profile-instruction 0 profile-ptr)]
                           [number (in-vector profile-number 0 profile-ptr)]
                           [precision (in-vector profile-precision 0 profile-ptr)]
-                          [time (in-flvector profile-time 0 profile-ptr)])
-               (execution instruction number precision time))
+                          [time (in-flvector profile-time 0 profile-ptr)]
+                          [iter (in-vector profile-iteration 0 profile-ptr)])
+               (execution instruction number precision time iter))
        (set-baseline-machine-profile-ptr! machine 0))]))
 
-(define (baseline-machine-record machine name number precision time)
+(define (baseline-machine-record machine name number precision time iter)
   (define profile-ptr (baseline-machine-profile-ptr machine))
   (define profile-instruction (baseline-machine-profile-instruction machine))
   (when (< profile-ptr (vector-length profile-instruction))
     (define profile-number (baseline-machine-profile-number machine))
     (define profile-time (baseline-machine-profile-time machine))
     (define profile-precision (baseline-machine-profile-precision machine))
+    (define profile-iteration (baseline-machine-profile-iteration machine))
     (vector-set! profile-instruction profile-ptr name)
     (vector-set! profile-number profile-ptr number)
     (vector-set! profile-precision profile-ptr precision)
+    (vector-set! profile-iteration profile-ptr iter)
     (flvector-set! profile-time profile-ptr time)
     (set-baseline-machine-profile-ptr! machine (add1 profile-ptr))))
