@@ -5,9 +5,13 @@
          "machine.rkt"
          "compile.rkt"
          "run.rkt"
+         "types.rkt"
          "adjust.rkt")
 
-(provide rival-compile
+(provide rival-type
+         rival-functions
+         rival-types
+         rival-compile
          rival-apply
          rival-analyze
          (struct-out exn:rival)
