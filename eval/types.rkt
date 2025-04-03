@@ -1,6 +1,8 @@
 #lang racket
 
-(provide rival-types rival-functions rival-type)
+(provide rival-types
+         rival-functions
+         rival-type)
 
 (define rival-types '(bool real))
 
@@ -11,7 +13,6 @@
         (NAN . (real))
         (TRUE . (bool))
         (FALSE . (bool))
-
         (neg . (real real))
         (acos . (real real))
         (acosh . (real real))
@@ -45,7 +46,6 @@
         (tanh . (real real))
         (tgamma . (real real))
         (trunc . (real real))
-
         (+ . (real real real))
         (- . (real real real))
         (* . (real real real))
@@ -59,25 +59,20 @@
         (fmod . (real real real))
         (pow . (real real real))
         (remainder . (real real real))
-
         (== . (bool real real))
         (!= . (bool real real))
         (<= . (bool real real))
         (>= . (bool real real))
         (< . (bool real real))
         (> . (bool real real))
-
         (and . (bool bool bool))
         (or . (bool bool bool))
         (not . (bool bool))
-
         (assert . (bool bool))
-
         ;; These are "shorthands" which Rival allows but are just aliases
         (neg . (real real))
         (fma . (real real real real))
         (pow2 . (real real))
-
         ;; These are actually polymorphic but given here with specific types in case it's useful
         (if . (real bool real real))
         (cast . (real real))
@@ -96,8 +91,7 @@
      (define tt (rival-type t ctx))
      (define ft (rival-type f ctx))
      (and (equal? ct 'bool) (equal? tt ft) tt)]
-    [(list 'cast c)
-     (rival-type c ctx)]
+    [(list 'cast c) (rival-type c ctx)]
     [(list 'then a b)
      (define at (rival-type a ctx))
      (define bt (rival-type b ctx))

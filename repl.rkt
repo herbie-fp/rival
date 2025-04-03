@@ -149,8 +149,7 @@
       (when (terminal-port? p)
         (display "> "))
       (for ([cmd (in-port read p)])
-        (with-handlers
-          ([exn:fail:user? (lambda (e) (eprintf "ERROR ~a\n" (exn-message e)))])
+        (with-handlers ([exn:fail:user? (lambda (e) (eprintf "ERROR ~a\n" (exn-message e)))])
           (match cmd
             [`(set precision ,(? integer? n))
              (when (< n 4)
@@ -170,19 +169,19 @@
             [`(explain ,name ,(? (disjoin real? boolean?) vals) ...)
              (define machine (repl-get-machine repl name))
              (check-args! name machine vals)
-             
+
              ;; Make sure the cache is warm
              (repl-apply repl machine vals)
              ;; Make sure the profile is clear
              (rival-profile machine 'executions)
-             
+
              ;; Time the actual execution
              (define start (current-inexact-milliseconds))
              (repl-apply repl machine vals)
              (define end (current-inexact-milliseconds))
-             
+
              (write-explain machine)
-             
+
              (printf "\nTotal: ~aµs\n" (~r (* (- end start) 1000) #:precision '(= 1)))]
             [(or '(help) 'help)
              (displayln "This is the Rival REPL, a demo of the Rival real evaluator.")
