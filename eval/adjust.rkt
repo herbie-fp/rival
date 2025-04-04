@@ -144,7 +144,7 @@
   (define vinitial-repeats (rival-machine-initial-repeats machine))
   (define vprecs (rival-machine-precisions machine))
   (define vstart-precs (rival-machine-initial-precisions machine))
-  (define vbest-precs (rival-machine-best-precision-known machine))
+  (define vbest-precs (rival-machine-best-known-precisions machine))
   (define current-iter (rival-machine-iteration machine))
   (define bumps (rival-machine-bumps machine))
 

@@ -290,11 +290,11 @@
 
   (define precisions (make-vector ivec-length)) ; vector that stores working precisions
   (define initial-precisions (setup-vstart-precs instructions num-vars roots discs))
+  (define best-known-precisions (make-vector ivec-length 0)) ; vector stores precisions of constants
 
   (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
-  (define best-precision-known (make-vector ivec-length 0))
   (define initial-repeats
-    (make-initial-repeats instructions num-vars registers initial-precisions best-precision-known))
+    (make-initial-repeats instructions num-vars registers initial-precisions best-known-precisions))
 
   ; default hint (everything should be reexecuted)
   (define default-hint (make-vector (vector-length instructions) #t))
@@ -308,7 +308,7 @@
                  initial-repeats
                  precisions
                  initial-precisions
-                 best-precision-known
+                 best-known-precisions
                  (make-vector (vector-length roots))
                  default-hint
                  0

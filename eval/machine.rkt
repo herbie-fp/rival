@@ -30,7 +30,7 @@
                    initial-repeats
                    precisions
                    initial-precisions
-                   best-precision-known
+                   best-known-precisions
                    output-distance
                    default-hint
                    [iteration #:mutable]

@@ -22,7 +22,7 @@
                    discs
                    registers
                    precisions
-                   best-precision-known
+                   best-known-precisions
                    repeats
                    initial-repeats
                    default-hint
@@ -163,10 +163,12 @@
   (define start-prec (+ (discretization-target (last discs)) 10))
   (define precisions
     (make-vector (- register-count num-vars) start-prec)) ; vector that stores working precisions
+  (define best-known-precisions (make-vector (- register-count num-vars) 0)) ; for constant ops
+
   (define repeats (make-vector (- register-count num-vars)))
-  (define best-precision-known (make-vector (- register-count num-vars) 0))
   (define initial-repeats
-    (make-initial-repeats instructions num-vars registers precisions best-precision-known))
+    (make-initial-repeats instructions num-vars registers precisions best-known-precisions))
+
   (define default-hint (make-vector (- register-count num-vars) #t))
 
   (baseline-machine (list->vector vars)
@@ -175,7 +177,7 @@
                     discs
                     registers
                     precisions
-                    best-precision-known
+                    best-known-precisions
                     repeats
                     initial-repeats
                     default-hint
@@ -233,7 +235,7 @@
       (define rootvec (baseline-machine-outputs machine))
       (define vrepeats (baseline-machine-repeats machine))
       (define args (baseline-machine-arguments machine))
-      (define vbest-precs (baseline-machine-best-precision-known machine))
+      (define vbest-precs (baseline-machine-best-known-precisions machine))
       (define vinitial-repeats (baseline-machine-initial-repeats machine))
       (define varc (vector-length args))
       (define vuseful (make-vector (vector-length ivec) #f))
