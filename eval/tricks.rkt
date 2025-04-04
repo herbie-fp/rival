@@ -85,7 +85,7 @@
 ; Output: '( '(upper-ampl-bound lower-ampl-bound) ...) with len(srcs) number of elements
 (define (get-bounds op z srcs)
   (case (object-name op)
-    [(ival-mult)
+    [(ival-mult ival-mult!)
      ; Γ[*]'x     = 1
      ; ↑ampl[*]'x = logspan(y)
      ; ↓ampl[*]'x = 0
@@ -98,14 +98,7 @@
      (list (cons (logspan y) 0) ; bounds per x
            (cons (logspan x) 0))] ; bounds per y
 
-    [(ival-mult!)
-     ; Same as above, ignoring output register
-     (match-define (list _ x y) srcs)
-     (list (cons 0 0) ; Ignore output register
-           (cons (logspan y) 0) ; bounds per x
-           (cons (logspan x) 0))] ; bounds per y
-
-    [(ival-div)
+    [(ival-div ival-div!)
      ; Γ[/]'x     = 1
      ; ↑ampl[/]'x = logspan(y)
      ; ↓ampl[/]'x = 0
@@ -116,12 +109,6 @@
      (define x (first srcs))
      (define y (second srcs))
      (list (cons (logspan y) 0) ; bounds per x
-           (cons (+ (logspan x) (* 2 (logspan y))) 0))] ; bounds per y
-
-    [(ival-div!)
-     (match-define (list _ x y) srcs)
-     (list (cons 0 0)
-           (cons (logspan y) 0) ; bounds per x
            (cons (+ (logspan x) (* 2 (logspan y))) 0))] ; bounds per y
 
     [(ival-sqrt ival-cbrt)
@@ -135,7 +122,7 @@
      (define x (first srcs))
      (list (cons (quotient (logspan x) 2) 0))]
 
-    [(ival-add ival-sub)
+    [(ival-add ival-sub ival-add! ival-sub!)
      ; Γ[+ & -]'x     = |x/(x+y)| & |x/(x-y)|
      ; ↑ampl[+ & -]'x = maxlog(x) - minlog(z)
      ; ↓ampl[+ & -]'x = minlog(x) - maxlog(z)
@@ -152,19 +139,6 @@
                (cons (- (maxlog y) (minlog z))
                      (- (minlog y #:less-slack #t) (maxlog z #:less-slack #t)))) ; bounds per y
          (list (cons (- (maxlog x) (minlog z)) 0) ; bounds per x
-               (cons (- (maxlog y) (minlog z)) 0)))] ; bounds per y
-
-    [(ival-add! ival-sub!)
-     (match-define (list _ x y) srcs)
-
-     (if (*lower-bound-early-stopping*)
-         (list (cons 0 0)
-               (cons (- (maxlog x) (minlog z))
-                     (- (minlog x #:less-slack #t) (maxlog z #:less-slack #t))) ; bounds per x
-               (cons (- (maxlog y) (minlog z))
-                     (- (minlog y #:less-slack #t) (maxlog z #:less-slack #t)))) ; bounds per y
-         (list (cons 0 0)
-               (cons (- (maxlog x) (minlog z)) 0) ; bounds per x
                (cons (- (maxlog y) (minlog z)) 0)))] ; bounds per y
 
     [(ival-pow)
