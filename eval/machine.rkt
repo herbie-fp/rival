@@ -27,10 +27,11 @@
                    discs
                    registers
                    repeats
+                   initial-repeats
                    precisions
-                   incremental-precisions
+                   initial-precisions
+                   best-precision-known
                    output-distance
-                   initial-precision
                    default-hint
                    [iteration #:mutable]
                    [bumps #:mutable]

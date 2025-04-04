@@ -14,7 +14,7 @@
          *rival-name-constants*
          fn->ival-fn ; for baseline
          exprs->batch ; for baseline
-         make-default-hint) ; for baseline
+         make-initial-repeats) ; for baseline
 
 (define *rival-use-shorthands* (make-parameter #t))
 (define *rival-name-constants* (make-parameter #f))
@@ -288,13 +288,16 @@
                      (vector-set! registers n (new-ival))
                      n))))
 
-  (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
   (define precisions (make-vector ivec-length)) ; vector that stores working precisions
-  ;; vector for adjusting precisions
-  (define incremental-precisions (setup-vstart-precs instructions num-vars roots discs))
-  (define initial-precision
-    (+ (argmax identity (map discretization-target discs)) (*base-tuning-precision*)))
-  (define default-hint (make-default-hint instructions num-vars registers incremental-precisions))
+  (define initial-precisions (setup-vstart-precs instructions num-vars roots discs))
+
+  (define repeats (make-vector ivec-length #f)) ; flags whether an op should be evaluated
+  (define best-precision-known (make-vector ivec-length 0))
+  (define initial-repeats
+    (make-initial-repeats instructions num-vars registers initial-precisions best-precision-known))
+
+  ; default hint (everything should be reexecuted)
+  (define default-hint (make-vector (vector-length instructions) #t))
 
   (rival-machine (list->vector vars)
                  instructions
@@ -302,10 +305,11 @@
                  (list->vector discs)
                  registers
                  repeats
+                 initial-repeats
                  precisions
-                 incremental-precisions
+                 initial-precisions
+                 best-precision-known
                  (make-vector (vector-length roots))
-                 initial-precision
                  default-hint
                  0
                  0
@@ -318,31 +322,29 @@
 
 ;;  Defining instructions that do not depend on input arguments
 ;;  Execute these instructions right away with default precision
-(define (make-default-hint instructions varc registers incremental-precisions)
-  (define default-hint (make-vector (vector-length instructions) #t))
-  (define dependency-mask (make-vector (vector-length instructions) #f))
-
+(define (make-initial-repeats instructions varc registers initial-precisions best-precision-known)
+  (define initial-repeats (make-vector (vector-length instructions) #t))
   ; Defining instructions that do not depend on input arguments
   ;   #f - instruction does not depend on arguments
   ;   #t - instruction does depend on arguments
   (for ([instr (in-vector instructions)]
-        [prec (in-vector incremental-precisions)]
+        [prec (in-vector initial-precisions)]
         [n (in-naturals)])
     (define tail-registers (cdr instr))
-    ; an instruction depends on input if it has input or instruction affiliated with input as an arg
+    ; an instruction depends on input if its args are affiliated with input
     (for ([reg (in-list tail-registers)])
       (define reg* (- reg varc))
       (unless (equal? n reg*) ; unless instruction is pointing to itself (add-bang optimizations)
-        (when (or (< reg* 0) (vector-ref dependency-mask reg*))
-          (vector-set! dependency-mask n #t))))
+        (when (or (< reg* 0) (not (vector-ref initial-repeats reg*)))
+          (vector-set! initial-repeats n #f))))
 
-    (unless (vector-ref dependency-mask n) ; instruction is not affiliated with arguments
+    (when (vector-ref initial-repeats n) ; instruction is not affiliated with input
       (vector-set! registers
                    (+ n varc) ; evaluate this instruction and store output in vregs
                    (parameterize ([bf-precision prec])
                      (apply-instruction instr registers)))
-      (vector-set! default-hint n (box prec)))) ; keeping track of precision
-  default-hint)
+      (vector-set! best-precision-known n prec)))
+  initial-repeats)
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),

@@ -50,13 +50,6 @@
          (when (>= idx varc)
            (vhint-set! idx #t))
          o-hint]
-        [(? box? _)
-         ; to be replaced from box to repeats mask
-         (define srcs
-           (drop-self-pointers (rest instr)
-                               (+ n varc))) ; then, children instructions should be known as well
-         (for-each (λ (x) (vhint-set! x (vector-ref old-hint (- x varc)))) srcs)
-         o-hint] ; box means that the result is known at some precision
         [#t
          (case (object-name (car instr))
            [(ival-assert)
@@ -148,8 +141,10 @@
   (define discs (rival-machine-discs machine))
   (define vregs (rival-machine-registers machine))
   (define vrepeats (rival-machine-repeats machine))
+  (define vinitial-repeats (rival-machine-initial-repeats machine))
   (define vprecs (rival-machine-precisions machine))
-  (define vstart-precs (rival-machine-incremental-precisions machine))
+  (define vstart-precs (rival-machine-initial-precisions machine))
+  (define vbest-precs (rival-machine-best-precision-known machine))
   (define current-iter (rival-machine-iteration machine))
   (define bumps (rival-machine-bumps machine))
 
@@ -192,13 +187,21 @@
           [useful? (in-vector vuseful)]
           [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
           [prec-new (in-vector vprecs-new)]
-          [result-old (in-vector vregs varc)]
+          [best-known-precision (in-vector vbest-precs)]
+          [constant? (in-vector vinitial-repeats)]
           [n (in-naturals)])
-      (define repeat
-        (or (not useful?)
-            (and (<= prec-new prec-old)
-                 (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
-                         (drop-self-pointers (cdr instr) (+ n varc))))))
+      (define tail-registers (drop-self-pointers (cdr instr) (+ n varc)))
+      ; When instr is a constant instruction - keep tracks of old precision with vbest-precs vector
+      (define precision-has-not-increased
+        (and (<= prec-new (if constant? best-known-precision prec-old))
+             (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) tail-registers)))
+      (define result-is-exact-already (not useful?))
+      (define repeat (or result-is-exact-already precision-has-not-increased))
+
+      ; Precision of const instruction has increased + it will be reexecuted under that precision
+      (when (and constant? (not repeat) (not precision-has-not-increased))
+        (vector-set! vbest-precs n prec-new)) ; record new best precision for the constant instruction
+
       (set! any-false? (or any-false? (not repeat)))
       (vector-set! vrepeats n repeat))
     any-false?)
