@@ -160,61 +160,62 @@
     (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
   ; Step 1b. Checking if a operation should be computed again at all
-  (define vuseful (make-vector (vector-length ivec) #f))
+  (vector-fill! vrepeats #t) ; #t - means it WON'T be REEXECUTED
   (for ([root (in-vector rootvec)]
         #:when (>= root varc))
-    (vector-set! vuseful (- root varc) #t))
+    (vector-set! vrepeats (- root varc) #f)) ; #f - means it WILL be REEXECUTED
   (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
         [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [i (in-range (- (vector-length ivec) 1) -1 -1)]
-        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)])
+        [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)])
     (cond
-      [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vuseful i #f)]
-      [useful?
+      [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vrepeats i #t)]
+      [(not repeat?)
        (for ([arg (in-list (drop-self-pointers (cdr instr) (+ i varc)))]
              #:when (>= arg varc))
-         (vector-set! vuseful (- arg varc) #t))]))
+         (vector-set! vrepeats (- arg varc) #f))]))
 
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful vhint)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
 
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
   (define (repeats)
-    (define any-false? #f)
+    (define any-reevaluation? #f)
     (for ([instr (in-vector ivec)]
-          [useful? (in-vector vuseful)]
+          [result-is-exact-already (in-vector vrepeats)]
           [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
           [prec-new (in-vector vprecs-new)]
           [best-known-precision (in-vector vbest-precs)]
           [constant? (in-vector vinitial-repeats)]
-          [n (in-naturals)])
+          [n (in-naturals)]
+          #:unless result-is-exact-already)
+      ; check whether precision has increased
       (define tail-registers (drop-self-pointers (cdr instr) (+ n varc)))
-      ; When instr is a constant instruction - keep tracks of old precision with vbest-precs vector
       (define precision-has-not-increased
         (and (<= prec-new (if constant? best-known-precision prec-old))
              (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) tail-registers)))
-      (define result-is-exact-already (not useful?))
-      (define repeat (or result-is-exact-already precision-has-not-increased))
+      ; update constant precision
+      (define precision-has-increased (not precision-has-not-increased))
+      (when (and constant? precision-has-increased)
+        (vector-set! vbest-precs n prec-new))
 
-      ; Precision of const instruction has increased + it will be reexecuted under that precision
-      (when (and constant? (not repeat) (not precision-has-not-increased))
-        (vector-set! vbest-precs n prec-new)) ; record new best precision for the constant instruction
-
-      (set! any-false? (or any-false? (not repeat)))
-      (vector-set! vrepeats n repeat))
-    any-false?)
-  (define any-false? (repeats))
+      (set! any-reevaluation? (or any-reevaluation? precision-has-increased))
+      (vector-set! vrepeats n precision-has-not-increased))
+    any-reevaluation?)
+  (define any-reevaluation? (repeats))
 
   ; Step 4. If precisions have not changed but the point didn't converge.
   ; Assign precisions again now on with logspan
   ; and do repeats optimization again on new precisions
-  (unless any-false?
+  (unless any-reevaluation?
     (set-rival-machine-bumps! machine (add1 bumps))
     (*bumps-activated* #t)
-    (vector-fill! vprecs-new 0) ; new fresh precisions
-    (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful vhint)
+    ; clean progress of the current tuning pass and start over
+    (vector-fill! vprecs-new 0)
+    (vector-fill! vrepeats #f)
+    (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
     (repeats)) ; do repeats again
 
   ; Step 5. Copying new precisions into vprecs
@@ -227,13 +228,13 @@
 ; Roughly speaking, the upper precision bound is calculated as:
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
-(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful vhint)
+(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vrepeats vhint)
   (define vprecs-min (make-vector (vector-length ivec) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
-        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
+        [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
         [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
-        #:when (and hint useful?))
+        #:when (and hint (not repeat?)))
     (define op (car instr))
     (define tail-registers (drop-self-pointers (cdr instr) n))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
