@@ -125,8 +125,7 @@
            [else ; at this point we are given that the current instruction should be executed
             (define srcs
               (drop-self-pointer (rest instr)
-                                  (+ n
-                                     varc))) ; then, children instructions should be executed as well
+                                 (+ n varc))) ; then, children instructions should be executed as well
             (for-each (λ (x) (vhint-set! x #t)) srcs)
             #t])]))
     (vector-set! vhint n hint*))
