@@ -124,7 +124,7 @@
                #t])]
            [else ; at this point we are given that the current instruction should be executed
             (define srcs
-              (drop-self-pointers (rest instr)
+              (drop-self-pointer (rest instr)
                                   (+ n
                                      varc))) ; then, children instructions should be executed as well
             (for-each (λ (x) (vhint-set! x #t)) srcs)
@@ -172,7 +172,7 @@
     (cond
       [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vrepeats i #t)]
       [else
-       (for ([arg (in-list (drop-self-pointers (cdr instr) (+ i varc)))]
+       (for ([arg (in-list (drop-self-pointer (cdr instr) (+ i varc)))]
              #:when (>= arg varc))
          (vector-set! vrepeats (- arg varc) #f))]))
 
@@ -193,7 +193,7 @@
           [n (in-naturals)]
           #:unless result-is-exact-already)
       ; check whether precision has increased
-      (define tail-registers (drop-self-pointers (cdr instr) (+ n varc)))
+      (define tail-registers (drop-self-pointer (cdr instr) (+ n varc)))
       (define precision-has-not-increased
         (and (<= prec-new (if constant? best-known-precision prec-old))
              (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) tail-registers)))
@@ -223,7 +223,7 @@
   (vector-copy! vprecs 0 vprecs-new))
 
 ; Usually, add-bang instructions have a pointer to itself that is needed to be dropped
-(define (drop-self-pointers tail-regs n)
+(define (drop-self-pointer tail-regs n)
   (if (empty? tail-regs)
       tail-regs
       (if (equal? (car tail-regs) n)
@@ -243,7 +243,7 @@
         [output (in-vector vregs (- (vector-length vregs) 1) -1 -1)]
         #:when (and hint (not repeat?)))
     (define op (car instr))
-    (define tail-registers (drop-self-pointers (cdr instr) n))
+    (define tail-registers (drop-self-pointer (cdr instr) n))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
 
     (define max-prec (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
