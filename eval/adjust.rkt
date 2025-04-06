@@ -222,8 +222,13 @@
   ; Step 5. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new))
 
+; Usually, add-bang instructions have a pointer to itself that is needed to be dropped
 (define (drop-self-pointers tail-regs n)
-  (filter (λ (x) (not (equal? x n))) tail-regs))
+  (if (empty? tail-regs)
+      tail-regs
+      (if (equal? (car tail-regs) n)
+          (cdr tail-regs)
+          tail-regs)))
 
 ; This function goes through ivec and vregs and calculates (+ ampls base-precisions) for each operator in ivec
 ; Roughly speaking, the upper precision bound is calculated as:
@@ -235,11 +240,11 @@
         [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
         [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
+        [output (in-vector vregs (- (vector-length vregs) 1) -1 -1)]
         #:when (and hint (not repeat?)))
     (define op (car instr))
     (define tail-registers (drop-self-pointers (cdr instr) n))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
-    (define output (vector-ref vregs n))
 
     (define max-prec (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
     (define min-prec (vector-ref vprecs-min (- n varc))) ; lower precision bound given from parent
