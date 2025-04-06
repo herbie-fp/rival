@@ -31,7 +31,7 @@
 
   ; roots always should be executed
   (for ([root-reg (in-vector rootvec)])
-    (vhint-set! vhint varc root-reg #t))
+    (vector-shift-set! vhint varc root-reg #t))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
         [o-hint (in-vector old-hint (- (vector-length old-hint) 1) -1 -1)]
@@ -43,21 +43,21 @@
         [(? integer? ref) ; instr is already "hinted" by old hint,
          (define idx (list-ref instr ref)) ; however, one child needs to be recomputed
          (when (>= idx varc)
-           (vhint-set! vhint varc idx #t))
+           (vector-shift-set! vhint varc idx #t))
          o-hint]
         [#t
-         (define-values (hint* converged?*) (result-is-known? vhint vregs varc instr n))
+         (define-values (hint* converged?*) (path-reduction vhint vregs varc instr n))
          (set! converged? (and converged?* converged?))
          hint*]))
     (vector-set! vhint n hint*))
   (values vhint converged?))
 
 ; helper function
-(define (vhint-set! vhint varc idx val)
+(define (vector-shift-set! vec varc idx val)
   (when (>= idx varc)
-    (vector-set! vhint (- idx varc) val)))
+    (vector-set! vec (- idx varc) val)))
 
-(define (result-is-known? vhint vregs varc instr n)
+(define (path-reduction vhint vregs varc instr n #:exec-val [exec-val #t])
   (define converged? #t)
   (define hint
     (case (object-name (car instr))
@@ -70,7 +70,7 @@
          ; assert and its children should not be reexecuted if it is false already
          [(#f #f #f) (ival-bool #f)]
          [(_ _ _) ; assert and its children should be reexecuted
-          (vhint-set! vhint varc bool-idx #t)
+          (vector-shift-set! vhint varc bool-idx exec-val)
           (set! converged? #f)
           #t])]
       [(ival-if)
@@ -78,15 +78,15 @@
        (define cond-reg (vector-ref vregs cond))
        (match* ((ival-lo cond-reg) (ival-hi cond-reg) (ival-err? cond-reg))
          [(#t #t #f) ; only true path should be executed
-          (vhint-set! vhint varc tru #t)
+          (vector-shift-set! vhint varc tru exec-val)
           2]
          [(#f #f #f) ; only false path should be executed
-          (vhint-set! vhint varc fls #t)
+          (vector-shift-set! vhint varc fls exec-val)
           3]
          [(_ _ _) ; execute both paths and cond as well
-          (vhint-set! vhint varc cond #t)
-          (vhint-set! vhint varc tru #t)
-          (vhint-set! vhint varc fls #t)
+          (vector-shift-set! vhint varc cond exec-val)
+          (vector-shift-set! vhint varc tru exec-val)
+          (vector-shift-set! vhint varc fls exec-val)
           (set! converged? #f)
           #t])]
       [(ival-fmax)
@@ -94,14 +94,14 @@
        (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
        (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
          [(#t #t #f) ; only arg1 should be executed
-          (vhint-set! vhint varc arg1 #t)
+          (vector-shift-set! vhint varc arg1 exec-val)
           1]
          [(#f #f #f) ; only arg2 should be executed
-          (vhint-set! vhint varc arg2 #t)
+          (vector-shift-set! vhint varc arg2 exec-val)
           2]
          [(_ _ _) ; both paths should be executed
-          (vhint-set! vhint varc arg1 #t)
-          (vhint-set! vhint varc arg2 #t)
+          (vector-shift-set! vhint varc arg1 exec-val)
+          (vector-shift-set! vhint varc arg2 exec-val)
           (set! converged? #f)
           #t])]
       [(ival-fmin)
@@ -109,14 +109,14 @@
        (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
        (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
          [(#t #t #f) ; only arg2 should be executed
-          (vhint-set! vhint varc arg2 #t)
+          (vector-shift-set! vhint varc arg2 exec-val)
           2]
          [(#f #f #f) ; only arg1 should be executed
-          (vhint-set! vhint varc arg1 #t)
+          (vector-shift-set! vhint varc arg1 exec-val)
           1]
          [(_ _ _) ; both paths should be executed
-          (vhint-set! vhint varc arg1 #t)
-          (vhint-set! vhint varc arg2 #t)
+          (vector-shift-set! vhint varc arg1 exec-val)
+          (vector-shift-set! vhint varc arg2 exec-val)
           (set! converged? #f)
           #t])]
       [(ival-< ival-<= ival-> ival->= ival-== ival-!= ival-and ival-or ival-not)
@@ -128,14 +128,14 @@
          [(#f #f #f) (ival-bool #f)]
          [(_ _ _) ; all the paths should be executed
           (define srcs (rest instr))
-          (for-each (λ (x) (vhint-set! vhint varc x #t)) srcs)
+          (for-each (λ (x) (vector-shift-set! vhint varc x exec-val)) srcs)
           (set! converged? #f)
           #t])]
       [else ; at this point we are given that the current instruction should be executed
        (define srcs
          (drop-self-pointers (rest instr)
                              (+ n varc))) ; then, children instructions should be executed as well
-       (for-each (λ (x) (vhint-set! vhint varc x #t)) srcs)
+       (for-each (λ (x) (vector-shift-set! vhint varc x exec-val)) srcs)
        #t]))
   (values hint converged?))
 
@@ -168,7 +168,6 @@
 
   ; Step 1b. Checking if a operation should be computed again at all
   (define vuseful (make-vector (vector-length ivec) #f))
-  (define local-min-max-converged? (*local-min-max-converged?*))
   (for ([root (in-vector rootvec)]
         #:when (>= root varc))
     (vector-set! vuseful (- root varc) #t))
@@ -178,11 +177,7 @@
         [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)])
     (cond
       [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vuseful i #f)]
-      [useful?
-       (unless local-min-max-converged?
-         (define-values (_ converged?*) (result-is-known? vuseful vregs varc instr i))
-         (set! local-min-max-converged? (and converged?* local-min-max-converged?)))]))
-  (*local-min-max-converged?* local-min-max-converged?)
+      [useful? (path-reduction vuseful vregs varc instr i)]))
 
   ; Step 2. Precision tuning
   (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful vhint)

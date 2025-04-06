@@ -18,8 +18,7 @@
 (define (rival-machine-load machine args)
   (vector-copy! (rival-machine-registers machine) 0 args)
   (set-rival-machine-bumps! machine 0)
-  (*bumps-activated* #f)
-  (*local-min-max-converged?* #f))
+  (*bumps-activated* #f))
 
 (define (rival-machine-record machine name number precision time iter)
   (define profile-ptr (rival-machine-profile-ptr machine))
