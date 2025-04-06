@@ -167,10 +167,11 @@
   (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
         [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [i (in-range (- (vector-length ivec) 1) -1 -1)]
-        [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)])
+        [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
+        #:unless vrepeats)
     (cond
       [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vrepeats i #t)]
-      [(not repeat?)
+      [else
        (for ([arg (in-list (drop-self-pointers (cdr instr) (+ i varc)))]
              #:when (>= arg varc))
          (vector-set! vrepeats (- arg varc) #f))]))
@@ -200,8 +201,8 @@
       (define precision-has-increased (not precision-has-not-increased))
       (when (and constant? precision-has-increased)
         (vector-set! vbest-precs n prec-new))
-
       (set! any-reevaluation? (or any-reevaluation? precision-has-increased))
+
       (vector-set! vrepeats n precision-has-not-increased))
     any-reevaluation?)
   (define any-reevaluation? (repeats))
