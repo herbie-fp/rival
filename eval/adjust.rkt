@@ -57,7 +57,7 @@
   (when (>= idx varc)
     (vector-set! vec (- idx varc) val)))
 
-(define (path-reduction vhint vregs varc instr n #:exec-val [exec-val #t])
+(define (path-reduction vhint vregs varc instr n #:reexec-val [reexec-val #t])
   (define converged? #t)
   (define hint
     (case (object-name (car instr))
@@ -70,7 +70,7 @@
          ; assert and its children should not be reexecuted if it is false already
          [(#f #f #f) (ival-bool #f)]
          [(_ _ _) ; assert and its children should be reexecuted
-          (vector-shift-set! vhint varc bool-idx exec-val)
+          (vector-shift-set! vhint varc bool-idx reexec-val)
           (set! converged? #f)
           #t])]
       [(ival-if)
@@ -78,15 +78,15 @@
        (define cond-reg (vector-ref vregs cond))
        (match* ((ival-lo cond-reg) (ival-hi cond-reg) (ival-err? cond-reg))
          [(#t #t #f) ; only true path should be executed
-          (vector-shift-set! vhint varc tru exec-val)
+          (vector-shift-set! vhint varc tru reexec-val)
           2]
          [(#f #f #f) ; only false path should be executed
-          (vector-shift-set! vhint varc fls exec-val)
+          (vector-shift-set! vhint varc fls reexec-val)
           3]
          [(_ _ _) ; execute both paths and cond as well
-          (vector-shift-set! vhint varc cond exec-val)
-          (vector-shift-set! vhint varc tru exec-val)
-          (vector-shift-set! vhint varc fls exec-val)
+          (vector-shift-set! vhint varc cond reexec-val)
+          (vector-shift-set! vhint varc tru reexec-val)
+          (vector-shift-set! vhint varc fls reexec-val)
           (set! converged? #f)
           #t])]
       [(ival-fmax)
@@ -94,14 +94,14 @@
        (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
        (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
          [(#t #t #f) ; only arg1 should be executed
-          (vector-shift-set! vhint varc arg1 exec-val)
+          (vector-shift-set! vhint varc arg1 reexec-val)
           1]
          [(#f #f #f) ; only arg2 should be executed
-          (vector-shift-set! vhint varc arg2 exec-val)
+          (vector-shift-set! vhint varc arg2 reexec-val)
           2]
          [(_ _ _) ; both paths should be executed
-          (vector-shift-set! vhint varc arg1 exec-val)
-          (vector-shift-set! vhint varc arg2 exec-val)
+          (vector-shift-set! vhint varc arg1 reexec-val)
+          (vector-shift-set! vhint varc arg2 reexec-val)
           (set! converged? #f)
           #t])]
       [(ival-fmin)
@@ -109,14 +109,14 @@
        (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
        (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
          [(#t #t #f) ; only arg2 should be executed
-          (vector-shift-set! vhint varc arg2 exec-val)
+          (vector-shift-set! vhint varc arg2 reexec-val)
           2]
          [(#f #f #f) ; only arg1 should be executed
-          (vector-shift-set! vhint varc arg1 exec-val)
+          (vector-shift-set! vhint varc arg1 reexec-val)
           1]
          [(_ _ _) ; both paths should be executed
-          (vector-shift-set! vhint varc arg1 exec-val)
-          (vector-shift-set! vhint varc arg2 exec-val)
+          (vector-shift-set! vhint varc arg1 reexec-val)
+          (vector-shift-set! vhint varc arg2 reexec-val)
           (set! converged? #f)
           #t])]
       [(ival-< ival-<= ival-> ival->= ival-== ival-!= ival-and ival-or ival-not)
@@ -128,14 +128,14 @@
          [(#f #f #f) (ival-bool #f)]
          [(_ _ _) ; all the paths should be executed
           (define srcs (rest instr))
-          (for-each (λ (x) (vector-shift-set! vhint varc x exec-val)) srcs)
+          (for-each (λ (x) (vector-shift-set! vhint varc x reexec-val)) srcs)
           (set! converged? #f)
           #t])]
       [else ; at this point we are given that the current instruction should be executed
        (define srcs
          (drop-self-pointers (rest instr)
                              (+ n varc))) ; then, children instructions should be executed as well
-       (for-each (λ (x) (vector-shift-set! vhint varc x exec-val)) srcs)
+       (for-each (λ (x) (vector-shift-set! vhint varc x reexec-val)) srcs)
        #t]))
   (values hint converged?))
 
@@ -167,58 +167,60 @@
     (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
   ; Step 1b. Checking if a operation should be computed again at all
-  (define vuseful (make-vector (vector-length ivec) #f))
+  (vector-fill! vrepeats #t) ; #t - means it WON'T be REEXECUTED
   (for ([root (in-vector rootvec)]
         #:when (>= root varc))
-    (vector-set! vuseful (- root varc) #t))
+    (vector-set! vrepeats (- root varc) #f)) ; #f - means it WILL be REEXECUTED
   (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
         [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [i (in-range (- (vector-length ivec) 1) -1 -1)]
-        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)])
+        [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
+        #:unless repeat?)
     (cond
-      [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vuseful i #f)]
-      [useful? (path-reduction vuseful vregs varc instr i)]))
+      [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vrepeats i #t)]
+      [else (path-reduction vrepeats vregs varc instr i #:reexec-val #f)]))
 
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful vhint)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
 
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
   (define (repeats)
-    (define any-false? #f)
+    (define any-reevaluation? #f)
     (for ([instr (in-vector ivec)]
-          [useful? (in-vector vuseful)]
+          [result-is-exact-already (in-vector vrepeats)]
           [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
           [prec-new (in-vector vprecs-new)]
           [best-known-precision (in-vector vbest-precs)]
           [constant? (in-vector vinitial-repeats)]
-          [n (in-naturals)])
+          [n (in-naturals)]
+          #:unless result-is-exact-already)
+      ; check whether precision has increased
       (define tail-registers (drop-self-pointers (cdr instr) (+ n varc)))
-      ; When instr is a constant instruction - keep tracks of old precision with vbest-precs vector
       (define precision-has-not-increased
         (and (<= prec-new (if constant? best-known-precision prec-old))
              (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) tail-registers)))
-      (define result-is-exact-already (not useful?))
-      (define repeat (or result-is-exact-already precision-has-not-increased))
+      ; update constant precision
+      (define precision-has-increased (not precision-has-not-increased))
+      (when (and constant? precision-has-increased)
+        (vector-set! vbest-precs n prec-new))
+      (set! any-reevaluation? (or any-reevaluation? precision-has-increased))
 
-      ; Precision of const instruction has increased + it will be reexecuted under that precision
-      (when (and constant? (not repeat) (not precision-has-not-increased))
-        (vector-set! vbest-precs n prec-new)) ; record new best precision for the constant instruction
-
-      (set! any-false? (or any-false? (not repeat)))
-      (vector-set! vrepeats n repeat))
-    any-false?)
-  (define any-false? (repeats))
+      (vector-set! vrepeats n precision-has-not-increased))
+    any-reevaluation?)
+  (define any-reevaluation? (repeats))
 
   ; Step 4. If precisions have not changed but the point didn't converge.
   ; Assign precisions again now on with logspan
   ; and do repeats optimization again on new precisions
-  (unless any-false?
+  (unless any-reevaluation?
     (set-rival-machine-bumps! machine (add1 bumps))
     (*bumps-activated* #t)
-    (vector-fill! vprecs-new 0) ; new fresh precisions
-    (precision-tuning ivec vregs vprecs-new varc vstart-precs vuseful vhint)
+    ; clean progress of the current tuning pass and start over
+    (vector-fill! vprecs-new 0)
+    (vector-fill! vrepeats #f)
+    (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
     (repeats)) ; do repeats again
 
   ; Step 5. Copying new precisions into vprecs
@@ -231,13 +233,13 @@
 ; Roughly speaking, the upper precision bound is calculated as:
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
-(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vuseful vhint)
+(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vrepeats vhint)
   (define vprecs-min (make-vector (vector-length ivec) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
-        [useful? (in-vector vuseful (- (vector-length vuseful) 1) -1 -1)]
+        [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
         [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
-        #:when (and hint useful?))
+        #:when (and hint (not repeat?)))
     (define op (car instr))
     (define tail-registers (drop-self-pointers (cdr instr) n))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))

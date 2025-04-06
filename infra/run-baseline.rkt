@@ -139,7 +139,10 @@
                (set! converged? #f)
                #t])]
            [else ; at this point we are given that the current instruction should be executed
-            (define srcs (rest instr)) ; then, children instructions should be executed as well
+            (define srcs
+              (drop-self-pointers (rest instr)
+                                  (+ n
+                                     varc))) ; then, children instructions should be executed as well
             (for-each (λ (x) (vhint-set! x #t)) srcs)
             #t])]))
     (vector-set! vhint n hint*))
@@ -224,8 +227,9 @@
 
 (define (baseline-machine-adjust machine)
   (let ([start (current-inexact-milliseconds)])
-    (set-baseline-machine-precision! machine (bf-precision))
-    (vector-fill! (baseline-machine-precisions machine) (bf-precision))
+    (define new-prec (bf-precision))
+    (set-baseline-machine-precision! machine new-prec)
+    (vector-fill! (baseline-machine-precisions machine) new-prec)
 
     ; Whether a register is fixed already
     (define iter (baseline-machine-iteration machine))
@@ -251,7 +255,7 @@
         (cond
           [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vuseful i #f)]
           [useful?
-           (for ([arg (in-list (cdr instr))]
+           (for ([arg (in-list (drop-self-pointers (cdr instr) (+ i varc)))]
                  #:when (>= arg varc))
              (vector-set! vuseful (- arg varc) #t))]))
 
@@ -265,16 +269,16 @@
         ; When instr is a constant instruction - keep tracks of old precision with vbest-precs vector
         (define no-need-to-reevaluate
           (and constant?
-               (> (bf-precision) best-known-precision)
+               (<= new-prec best-known-precision)
                (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) tail-registers)))
         (define result-is-exact-already (not useful?))
         (define repeat (or result-is-exact-already no-need-to-reevaluate))
 
         ; Precision of const instruction has increased + it will be reexecuted under that precision
-        (when (and (not repeat) (not no-need-to-reevaluate))
+        (when (and constant? (not repeat) (not no-need-to-reevaluate))
           (vector-set! vbest-precs
                        n
-                       (bf-precision))) ; record new best precision for the constant instruction
+                       new-prec)) ; record new best precision for the constant instruction
         (vector-set! vrepeats n repeat)))
 
     (baseline-machine-record machine
