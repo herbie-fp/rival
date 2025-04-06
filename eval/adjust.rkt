@@ -168,7 +168,7 @@
         [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [i (in-range (- (vector-length ivec) 1) -1 -1)]
         [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
-        #:unless vrepeats)
+        #:unless repeat?)
     (cond
       [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vrepeats i #t)]
       [else
