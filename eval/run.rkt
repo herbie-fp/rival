@@ -39,20 +39,20 @@
   (define ivec (rival-machine-instructions machine))
   (define varc (vector-length (rival-machine-arguments machine)))
   (define precisions (rival-machine-precisions machine))
-  (define incremental-precisions (rival-machine-incremental-precisions machine))
+  (define initial-precisions (rival-machine-initial-precisions machine))
   (define repeats (rival-machine-repeats machine))
+  (define initial-repeats (rival-machine-initial-repeats machine))
   (define vregs (rival-machine-registers machine))
   (define iter (rival-machine-iteration machine))
   ; parameter for sampling histogram table
   (define first-iter? (zero? (rival-machine-iteration machine)))
-  (define something-got-reexecuted #f)
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
-        [precision (in-vector (if first-iter? incremental-precisions precisions))]
-        [repeat (in-vector repeats)]
+        [precision (in-vector (if first-iter? initial-precisions precisions))]
+        [repeat (in-vector (if first-iter? initial-repeats repeats))]
         [hint (in-vector vhint)]
-        #:unless (or (not hint) (and (not first-iter?) repeat)))
+        #:unless (or (not hint) repeat))
     (define out
       (match hint
         [#t ; instruction should be reevaluated
@@ -64,20 +64,6 @@
          (define time (- (current-inexact-milliseconds) start))
          (rival-machine-record machine name n precision time iter)
          res]
-        [(box old-precision) ; instr does not depend on arguments and result is known in old-precision
-         (match (or (> precision old-precision) something-got-reexecuted)
-           [#t
-            (define start (current-inexact-milliseconds))
-            (define res
-              (parameterize ([bf-precision precision])
-                (apply-instruction instr vregs)))
-            (define name (object-name (car instr)))
-            (define time (- (current-inexact-milliseconds) start))
-            (set-box! hint precision)
-            (set! something-got-reexecuted #t)
-            (rival-machine-record machine name n precision time iter)
-            res]
-           [#f (vector-ref vregs n)])]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))] ; result is known
         [(? ival? _) hint])) ; result is known
     (vector-set! vregs n out)))

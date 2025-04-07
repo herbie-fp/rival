@@ -4,7 +4,7 @@
          math/bigfloat
          math/flonum)
 
-(require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn make-default-hint)
+(require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn make-initial-repeats)
          (only-in "../eval/machine.rkt" *rival-max-precision* *rival-profile-executions*)
          "../eval/main.rkt"
          (only-in "../ops/core.rkt" new-ival)
@@ -22,7 +22,9 @@
                    discs
                    registers
                    precisions
+                   best-known-precisions
                    repeats
+                   initial-repeats
                    default-hint
                    [iteration #:mutable]
                    [precision #:mutable]
@@ -64,10 +66,6 @@
          (when (>= idx varc)
            (vhint-set! idx #t))
          o-hint]
-        [(? box? _)
-         (define srcs (rest instr)) ; then, children instructions should be known as well
-         (for-each (λ (x) (vhint-set! x (vector-ref old-hint (- x varc)))) srcs)
-         o-hint] ; box means that the result is known at some precision
         [#t
          (case (object-name (car instr))
            [(ival-assert)
@@ -141,7 +139,10 @@
                (set! converged? #f)
                #t])]
            [else ; at this point we are given that the current instruction should be executed
-            (define srcs (rest instr)) ; then, children instructions should be executed as well
+            (define srcs
+              (drop-self-pointers (rest instr)
+                                  (+ n
+                                     varc))) ; then, children instructions should be executed as well
             (for-each (λ (x) (vhint-set! x #t)) srcs)
             #t])]))
     (vector-set! vhint n hint*))
@@ -153,11 +154,6 @@
   (define-values (nodes roots) (exprs->batch exprs vars)) ; translations are taken from Rival machine
   (define register-count (vector-length nodes))
   (define registers (make-vector register-count))
-  (define start-prec (+ (discretization-target (last discs)) 10))
-  (define precisions
-    (make-vector (- register-count num-vars) start-prec)) ; vector that stores working precisions
-  (define repeats (make-vector (- register-count num-vars)))
-
   (define instructions
     (for/vector #:length (- register-count num-vars)
                 ([node (in-vector nodes num-vars)]
@@ -167,7 +163,16 @@
                      (vector-set! registers n (new-ival))
                      n))))
 
-  (define default-hint (make-default-hint instructions num-vars registers precisions))
+  (define start-prec (+ (discretization-target (last discs)) 10))
+  (define precisions
+    (make-vector (- register-count num-vars) start-prec)) ; vector that stores working precisions
+  (define best-known-precisions (make-vector (- register-count num-vars) 0)) ; for constant ops
+
+  (define repeats (make-vector (- register-count num-vars)))
+  (define initial-repeats
+    (make-initial-repeats instructions num-vars registers precisions best-known-precisions))
+
+  (define default-hint (make-vector (- register-count num-vars) #t))
 
   (baseline-machine (list->vector vars)
                     instructions
@@ -175,7 +180,9 @@
                     discs
                     registers
                     precisions
+                    best-known-precisions
                     repeats
+                    initial-repeats
                     default-hint
                     0
                     0
@@ -220,8 +227,9 @@
 
 (define (baseline-machine-adjust machine)
   (let ([start (current-inexact-milliseconds)])
-    (set-baseline-machine-precision! machine (bf-precision))
-    (vector-fill! (baseline-machine-precisions machine) (bf-precision))
+    (define new-prec (bf-precision))
+    (set-baseline-machine-precision! machine new-prec)
+    (vector-fill! (baseline-machine-precisions machine) new-prec)
 
     ; Whether a register is fixed already
     (define iter (baseline-machine-iteration machine))
@@ -229,10 +237,14 @@
       (define ivec (baseline-machine-instructions machine))
       (define vregs (baseline-machine-registers machine))
       (define rootvec (baseline-machine-outputs machine))
-      (define repeats (baseline-machine-repeats machine))
+      (define vrepeats (baseline-machine-repeats machine))
       (define args (baseline-machine-arguments machine))
+      (define vbest-precs (baseline-machine-best-known-precisions machine))
+      (define vinitial-repeats (baseline-machine-initial-repeats machine))
       (define varc (vector-length args))
       (define vuseful (make-vector (vector-length ivec) #f))
+
+      ; Useful feature
       (for ([root (in-vector rootvec)]
             #:when (>= root varc))
         (vector-set! vuseful (- root varc) #t))
@@ -243,16 +255,41 @@
         (cond
           [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vuseful i #f)]
           [useful?
-           (for ([arg (in-list (cdr instr))]
+           (for ([arg (in-list (drop-self-pointers (cdr instr) (+ i varc)))]
                  #:when (>= arg varc))
              (vector-set! vuseful (- arg varc) #t))]))
-      (vector-copy! repeats 0 (vector-map not vuseful)))
+
+      ; Constant operations
+      (for ([instr (in-vector ivec)]
+            [useful? (in-vector vuseful)]
+            [best-known-precision (in-vector vbest-precs)]
+            [constant? (in-vector vinitial-repeats)]
+            [n (in-naturals)])
+        (define tail-registers (drop-self-pointers (cdr instr) (+ n varc)))
+        ; When instr is a constant instruction - keep tracks of old precision with vbest-precs vector
+        (define no-need-to-reevaluate
+          (and constant?
+               (<= new-prec best-known-precision)
+               (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) tail-registers)))
+        (define result-is-exact-already (not useful?))
+        (define repeat (or result-is-exact-already no-need-to-reevaluate))
+
+        ; Precision of const instruction has increased + it will be reexecuted under that precision
+        (when (and constant? (not repeat) (not no-need-to-reevaluate))
+          (vector-set! vbest-precs
+                       n
+                       new-prec)) ; record new best precision for the constant instruction
+        (vector-set! vrepeats n repeat)))
+
     (baseline-machine-record machine
                              'adjust
                              -1
                              (* iter 1000)
                              (- (current-inexact-milliseconds) start)
                              iter)))
+
+(define (drop-self-pointers tail-regs n)
+  (filter (λ (x) (not (equal? x n))) tail-regs))
 
 (define (baseline-machine-full machine vhint)
   (baseline-machine-adjust machine)
@@ -268,16 +305,16 @@
   (define vregs (baseline-machine-registers machine))
   (define precisions (baseline-machine-precisions machine))
   (define repeats (baseline-machine-repeats machine))
+  (define initial-repeats (baseline-machine-initial-repeats machine))
   (define iter (baseline-machine-iteration machine))
   (define first-iter? (zero? (baseline-machine-iteration machine)))
-  (define something-got-reexecuted #f)
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
         [precision (in-vector precisions)]
-        [repeat (in-vector repeats)]
+        [repeat (in-vector (if first-iter? initial-repeats repeats))]
         [hint (in-vector vhint)]
-        #:unless (or (not hint) (and (not first-iter?) repeat)))
+        #:unless (or (not hint) repeat))
     (define out
       (match hint
         [#t
@@ -289,20 +326,6 @@
          (define time (- (current-inexact-milliseconds) start))
          (baseline-machine-record machine name n precision time iter)
          res]
-        [(box old-precision)
-         (match (or (> precision old-precision) something-got-reexecuted)
-           [#t ; reevaluate instruction at higher precision
-            (define start (current-inexact-milliseconds))
-            (define res
-              (parameterize ([bf-precision precision])
-                (apply-instruction instr vregs)))
-            (define name (object-name (car instr)))
-            (define time (- (current-inexact-milliseconds) start))
-            (set-box! hint precision)
-            (set! something-got-reexecuted #t)
-            (baseline-machine-record machine name n precision time iter)
-            res]
-           [#f (vector-ref vregs n)])]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))]
         [(? ival? _) hint]))
     (vector-set! vregs n out)))
