@@ -197,9 +197,11 @@
         (and (<= prec-new (if constant? best-known-precision prec-old))
              (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))) tail-registers)))
       ; update constant precision
-      (when constant?
-        (vector-set! vbest-precs n (max prec-new best-known-precision)))
-      (set! any-reevaluation? (or any-reevaluation? (not precision-has-not-increased)))
+      (define precision-has-increased (not precision-has-not-increased))
+      (when (and constant? precision-has-increased)
+        (vector-set! vbest-precs n prec-new))
+      (set! any-reevaluation? (or any-reevaluation? precision-has-increased))
+
       (vector-set! vrepeats n precision-has-not-increased))
     any-reevaluation?)
   (define any-reevaluation? (repeats))
