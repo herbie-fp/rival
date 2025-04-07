@@ -15,7 +15,7 @@
          "infra/run-sollya.rkt")
 
 (define sample-vals (make-parameter 5000))
-(define *sampling-timeout* (make-parameter 20.0)) ; this parameter is used for plots generation
+(define *sampling-timeout* (make-parameter 100.0)) ; this parameter is used for plots generation
 
 ; These parameters are used for latex data
 (define *num-tuned-benchmarks* (make-parameter 0))
@@ -78,8 +78,12 @@
          (sollya-compile exprs vars 53))])) ; prec=53 is an imitation of flonum
 
   (define tuned-bench #f)
+  (define new-points '())
+  (println (hash-ref rec 'points))
+  (println "---------------------")
   (define times
     (for/list ([pt (in-list (hash-ref rec 'points))])
+      #;(match-define (list pt sollya-exs sollya-status sollya-apply-time) rec*)
       ; --------------------------- Baseline execution ----------------------------------------------
       (define baseline-start-apply (current-inexact-milliseconds))
       (match-define (list baseline-status baseline-exs)
@@ -212,7 +216,13 @@
         (when (<= (*sampling-timeout*) rival-apply-time)
           (*rival-timeout* (add1 (*rival-timeout*))))
         (when (<= (*sampling-timeout*) baseline-apply-time)
-          (*baseline-timeout* (add1 (*baseline-timeout*)))))
+          (*baseline-timeout* (add1 (*baseline-timeout*))))
+
+        (set! new-points (cons (list pt sollya-exs sollya-status sollya-apply-time) new-points)))
+      
+      (unless (and (and rival-machine baseline-machine sollya-machine)
+                   (or (equal? rival-status 'valid) (equal? rival-status 'unsamplable)))
+        (set! new-points (cons (list pt #f #f #f) new-points)))
 
       ; Count differences where baseline is better than rival
       (define rival-baseline-difference
@@ -220,8 +230,12 @@
                  (equal? baseline-status 'valid))
             1
             0))
-
       (cons rival-status (cons rival-apply-time rival-baseline-difference))))
+  (println (list? (hash-ref rec 'points)))
+  (hash-set! rec 'points new-points)
+  (println (hash-ref rec 'points))
+  (sleep 20)
+  
 
   ; Zombie process
   (when sollya-machine
