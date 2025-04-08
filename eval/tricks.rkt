@@ -69,39 +69,36 @@
        [else (min (mpfr-exp lo) (mpfr-exp hi))])]))
 
 ; Returns (cons (minlog x) (maxlog x))
-(define (minlog+maxlog x)
+(define (minlog+maxlog x slack)
   (define lo (ival-lo x))
   (define hi (ival-hi x))
-  (define slack (get-slack))
+  (define lo-exp (mpfr-exp lo))
+  (define hi-exp (mpfr-exp hi))
   (cond
     ; x = [0.bf, 0.bf]
-    [(and (bfzero? lo) (bfzero? hi)) (cons (- slack) 0)]
+    [(and (bfzero? lo) (bfzero? hi)) (cons (- slack) (- slack))]
     [(bfzero? lo)
      (if (bfinfinite? hi)
          (cons (- slack) slack) ; x = [0.bf, +inf]
-         (cons (- (min (mpfr-exp hi) 0) slack) (max (mpfr-exp hi) 0)))] ; x = [0.bf, +...]
+         (cons (- (min hi-exp 0) slack) (+ hi-exp 1)))] ; x = [0.bf, +...]
     [(bfzero? hi)
      (if (bfinfinite? lo)
          (cons (- slack) slack) ; x = [-inf, 0.bf]
-         (cons (- (min (mpfr-exp lo) 0) slack) (max (mpfr-exp lo) 0)))] ; x = [-..., 0.bf]
+         (cons (- (min lo-exp 0) slack) (+ lo-exp 1)))] ; x = [-..., 0.bf]
     [(crosses-zero? x) ; x = [-..., +...]
      (cond
        [(and (bfinfinite? hi) (bfinfinite? lo)) (cons (- slack) slack)] ; [-inf, +inf]
-       [(bfinfinite? hi)
-        (cons (- (min (mpfr-exp lo) 0) slack) (+ (max (mpfr-exp lo) 0) slack))] ; [-..., +inf]
-       [(bfinfinite? lo)
-        (cons (- (min (mpfr-exp hi) 0) slack) (+ (max (mpfr-exp hi) 0) slack))] ; [-inf, +...]
-       [else
-        (cons (- (min (mpfr-exp lo) (mpfr-exp hi) 0) slack)
-              (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1))])] ; x = [-..., +...]
+       [(bfinfinite? hi) (cons (- (min lo-exp 0) slack) (+ (max lo-exp 0) slack))] ; [-..., +inf]
+       [(bfinfinite? lo) (cons (- (min hi-exp 0) slack) (+ (max hi-exp 0) slack))] ; [-inf, +...]
+       [else (cons (- (min lo-exp hi-exp 0) slack) (+ (max lo-exp hi-exp) 1))])] ; x = [-..., +...]
     [else
      (cond
        ; Can't both be inf, since:
        ;  - [inf, inf] not a valid interval
        ;  - [-inf, inf] crosses zero
-       [(bfinfinite? lo) (cons (mpfr-exp hi) (+ (max (mpfr-exp hi) 0) slack))] ; [-inf, -...]
-       [(bfinfinite? hi) (cons (mpfr-exp lo) (+ (max (mpfr-exp lo) 0) slack))] ; [+..., +inf]
-       [else (cons (min (mpfr-exp lo) (mpfr-exp hi)) (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1))])]))
+       [(bfinfinite? lo) (cons hi-exp (+ (max hi-exp 0) slack))] ; [-inf, -...]
+       [(bfinfinite? hi) (cons lo-exp (+ (max lo-exp 0) slack))] ; [+..., +inf]
+       [else (cons (min lo-exp hi-exp) (+ (max lo-exp hi-exp) 1))])]))
 
 (define (logspan x)
   (match (*bumps-activated*)
