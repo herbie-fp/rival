@@ -173,11 +173,7 @@
   ;   1) the result is already exact
   ;   2) the operation is a part of the path that has been reduced
   ;   Once the path is fully reduced - vrepeats will store this path - no more reduction is needed
-  (define reduction-needed (not (*path-fully-reduced*)))
-  (define converged? #t)
-  (when first-tuning-pass?
-    (vector-fill! vrepeats #t)) ; vrepeats will be reused for 2nd+ tuning pass
-  
+  (vector-fill! vrepeats #t)
   (for ([root (in-vector rootvec)]
         #:when (>= root varc))
     (vector-set! vrepeats (- root varc) #f))
@@ -188,11 +184,7 @@
         #:unless repeat?)
     (cond
       [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vrepeats i #t)]
-      [reduction-needed
-       (define-values (_ converged?*)
-         (path-reduction vrepeats vregs varc instr i #:reexec-val #f))
-       (set! converged? (and converged? converged?*))]))
-  (*path-fully-reduced* converged?)
+      [else (path-reduction vrepeats vregs varc instr i #:reexec-val #f)]))
 
   ; Step 2. Precision tuning
   (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
