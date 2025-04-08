@@ -48,7 +48,7 @@
 (define (read-from-string s)
   (read (open-input-string s)))
 
-(define (time-expr rec timeline)
+(define (time-expr rec new-points-port timeline)
   (define exprs (map read-from-string (hash-ref rec 'exprs)))
   (define vars (map read-from-string (hash-ref rec 'vars)))
   (unless (andmap symbol? vars)
@@ -79,8 +79,6 @@
 
   (define tuned-bench #f)
   (define new-points '())
-  (println (hash-ref rec 'points))
-  (println "---------------------")
   (define times
     (for/list ([pt (in-list (hash-ref rec 'points))])
       #;(match-define (list pt sollya-exs sollya-status sollya-apply-time) rec*)
@@ -218,8 +216,9 @@
         (when (<= (*sampling-timeout*) baseline-apply-time)
           (*baseline-timeout* (add1 (*baseline-timeout*))))
 
-        (set! new-points (cons (list pt sollya-exs sollya-status sollya-apply-time) new-points)))
-      
+        (set! new-points
+              (cons (list pt (~a sollya-exs) (~a sollya-status) sollya-apply-time) new-points)))
+
       (unless (and (and rival-machine baseline-machine sollya-machine)
                    (or (equal? rival-status 'valid) (equal? rival-status 'unsamplable)))
         (set! new-points (cons (list pt #f #f #f) new-points)))
@@ -231,11 +230,9 @@
             1
             0))
       (cons rival-status (cons rival-apply-time rival-baseline-difference))))
-  (println (list? (hash-ref rec 'points)))
-  (hash-set! rec 'points new-points)
-  (println (hash-ref rec 'points))
-  (sleep 20)
-  
+
+  (define h* (hash-set rec 'points new-points))
+  (write-json h* new-points-port)
 
   ; Zombie process
   (when sollya-machine
@@ -347,6 +344,8 @@
            (cons 'instr-executed-cnt (make-hash))
            (cons 'density (make-hash)))))
 
+  (define new-points-port (open-output-file "infra/new_points.json" #:mode 'text #:exists 'replace))
+
   (define table
     (for/list ([rec (in-port read-json points)]
                [i (in-naturals)]
@@ -356,7 +355,7 @@
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
 
       (match-define (list c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)
-        (time-exprs (time-expr rec timeline)))
+        (time-exprs (time-expr rec new-points-port timeline)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))
@@ -372,6 +371,8 @@
               (~r i-time #:precision '(= 3) #:min-width 8)
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
+
+  (close-output-port new-points-port)
 
   (printf "\nDATA:\n")
   (printf "\tNUMBER OF TUNED BENCHMARKS = ~a\n" (*num-tuned-benchmarks*))
