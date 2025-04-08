@@ -48,7 +48,7 @@
 (define (read-from-string s)
   (read (open-input-string s)))
 
-(define (time-expr rec new-points-port timeline)
+(define (time-expr rec timeline)
   (define exprs (map read-from-string (hash-ref rec 'exprs)))
   (define vars (map read-from-string (hash-ref rec 'vars)))
   (unless (andmap symbol? vars)
@@ -78,10 +78,9 @@
          (sollya-compile exprs vars 53))])) ; prec=53 is an imitation of flonum
 
   (define tuned-bench #f)
-  (define new-points '())
   (define times
-    (for/list ([pt (in-list (hash-ref rec 'points))])
-      #;(match-define (list pt sollya-exs sollya-status sollya-apply-time) rec*)
+    (for/list ([pt* (in-list (hash-ref rec 'points))])
+      (match-define (list pt sollya-exs sollya-status sollya-apply-time) pt*)
       ; --------------------------- Baseline execution ----------------------------------------------
       (define baseline-start-apply (current-inexact-milliseconds))
       (match-define (list baseline-status baseline-exs)
@@ -177,21 +176,30 @@
       (when (and (and rival-machine baseline-machine sollya-machine)
                  (or (equal? rival-status 'valid) (equal? rival-status 'unsamplable)))
 
-        (define sollya-apply-time 0.0)
-        (match-define (list sollya-status sollya-exs)
-          (match sollya-machine
-            [#f (list #f #f)] ; if sollya machine is not working for this benchmark
-            [else
-             (with-handlers ([exn:fail? (λ (e)
-                                          (printf "Sollya failed")
-                                          (printf "~a\n" e)
-                                          (sollya-kill sollya-machine)
-                                          (set! sollya-machine #f)
-                                          (list #f #f))])
-               (match-define (list internal-time external-time exs status)
-                 (sollya-apply sollya-machine pt #:timeout (*sampling-timeout*)))
-               (set! sollya-apply-time external-time)
-               (list status exs))]))
+        #;(define sollya-apply-time 0.0)
+        #;(match-define (list sollya-status sollya-exs)
+            (match sollya-machine
+              [#f (list #f #f)] ; if sollya machine is not working for this benchmark
+              [else
+               (with-handlers ([exn:fail? (λ (e)
+                                            (printf "Sollya failed")
+                                            (printf "~a\n" e)
+                                            (sollya-kill sollya-machine)
+                                            (set! sollya-machine #f)
+                                            (list #f #f))])
+                 (match-define (list internal-time external-time exs status)
+                   (sollya-apply sollya-machine pt #:timeout (*sampling-timeout*)))
+                 (set! sollya-apply-time external-time)
+                 (list status exs))]))
+        (set! sollya-exs
+              (match sollya-exs
+                ["#f" #f]
+                [_ (fl (string->number sollya-exs))]))
+
+        (set! sollya-status
+              (match sollya-status
+                ["#f" #f]
+                [_ (string->symbol sollya-status)]))
 
         ; -------------------------------- Combining results ----------------------------------------
         ; When all the machines have compiled and produced results - write the results to outcomes
@@ -214,14 +222,7 @@
         (when (<= (*sampling-timeout*) rival-apply-time)
           (*rival-timeout* (add1 (*rival-timeout*))))
         (when (<= (*sampling-timeout*) baseline-apply-time)
-          (*baseline-timeout* (add1 (*baseline-timeout*))))
-
-        (set! new-points
-              (cons (list pt (~a sollya-exs) (~a sollya-status) sollya-apply-time) new-points)))
-
-      (unless (and (and rival-machine baseline-machine sollya-machine)
-                   (or (equal? rival-status 'valid) (equal? rival-status 'unsamplable)))
-        (set! new-points (cons (list pt #f #f #f) new-points)))
+          (*baseline-timeout* (add1 (*baseline-timeout*)))))
 
       ; Count differences where baseline is better than rival
       (define rival-baseline-difference
@@ -230,9 +231,6 @@
             1
             0))
       (cons rival-status (cons rival-apply-time rival-baseline-difference))))
-
-  (define h* (hash-set rec 'points new-points))
-  (write-json h* new-points-port)
 
   ; Zombie process
   (when sollya-machine
@@ -344,8 +342,6 @@
            (cons 'instr-executed-cnt (make-hash))
            (cons 'density (make-hash)))))
 
-  (define new-points-port (open-output-file "infra/new_points.json" #:mode 'text #:exists 'replace))
-
   (define table
     (for/list ([rec (in-port read-json points)]
                [i (in-naturals)]
@@ -355,7 +351,7 @@
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
 
       (match-define (list c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)
-        (time-exprs (time-expr rec new-points-port timeline)))
+        (time-exprs (time-expr rec timeline)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))
@@ -371,9 +367,6 @@
               (~r i-time #:precision '(= 3) #:min-width 8)
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
-
-  (close-output-port new-points-port)
-
   (printf "\nDATA:\n")
   (printf "\tNUMBER OF TUNED BENCHMARKS = ~a\n" (*num-tuned-benchmarks*))
   (printf "\tRIVAL TIMEOUTS = ~a\n" (*rival-timeout*))
@@ -532,7 +525,7 @@
     "Produce a JSON profile"
     (set! profile-port (open-output-file fn #:mode 'text #:exists 'replace))]
    [("--id") ns "Run a single test" (set! n ns)]
-   #:args ([points "infra/points.json"])
+   #:args ([points "infra/new_points.json"])
    (match-define (list op-t ex-t ex-f)
      (if profile-port
          (profile #:order 'total
