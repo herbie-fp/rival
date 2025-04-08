@@ -27,11 +27,11 @@
         (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
+  (define slack (get-slack iter))
   (cond
-    ; x = [-inf, inf]
-    [(and (bfinfinite? hi) (bfinfinite? lo)) (get-slack iter)]
-    [(bfinfinite? hi) (+ (max (mpfr-exp lo) 0) (get-slack iter))] ; x = [..., inf]
-    [(bfinfinite? lo) (+ (max (mpfr-exp hi) 0) (get-slack iter))] ; x = [-inf, ...]
+    [(and (bfinfinite? hi) (bfinfinite? lo)) slack] ; x = [-inf, inf]
+    [(bfinfinite? hi) (+ (max (mpfr-exp lo) 0) slack)] ; x = [..., inf]
+    [(bfinfinite? lo) (+ (max (mpfr-exp hi) 0) slack)] ; x = [-inf, ...]
     [else
      (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1)])) ; x does not contain inf, safe with respect to 0.bf
 
@@ -42,23 +42,23 @@
         (*sampling-iteration*)))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
+  (define slack (get-slack iter))
   (cond
-    ; x = [0.bf, 0.bf]
-    [(and (bfzero? lo) (bfzero? hi)) (get-slack iter)]
-    [(bfzero? lo) ; x = [0.bf, ...]
+    [(and (bfzero? lo) (bfzero? hi)) (- slack)] ; x = [0.bf, 0.bf]
+    [(bfzero? lo)
      (if (bfinfinite? hi)
-         (- (get-slack iter))
-         (- (min (mpfr-exp hi) 0) (get-slack iter)))]
-    [(bfzero? hi) ; x = [..., 0.bf]
+         (- slack) ; x = [0.bf, +inf]
+         (- (min (mpfr-exp hi) 0) slack))] ; x = [0.bf, ...]
+    [(bfzero? hi)
      (if (bfinfinite? lo)
-         (- (get-slack iter))
-         (- (min (mpfr-exp lo) 0) (get-slack iter)))]
+         (- slack) ; x = [-inf, 0.bf]
+         (- (min (mpfr-exp lo) 0) slack))] ; x = [..., 0.bf]
     [(crosses-zero? x) ; x = [-..., +...]
      (cond
-       [(and (bfinfinite? hi) (bfinfinite? lo)) (- (get-slack iter))]
-       [(bfinfinite? hi) (- (min (mpfr-exp lo) 0) (get-slack iter))]
-       [(bfinfinite? lo) (- (min (mpfr-exp hi) 0) (get-slack iter))]
-       [else (- (min (mpfr-exp lo) (mpfr-exp hi) 0) (get-slack iter))])]
+       [(and (bfinfinite? hi) (bfinfinite? lo)) (- slack)]
+       [(bfinfinite? hi) (- (min (mpfr-exp lo) 0) slack)]
+       [(bfinfinite? lo) (- (min (mpfr-exp hi) 0) slack)]
+       [else (- (min (mpfr-exp lo) (mpfr-exp hi) 0) slack)])]
     [else
      (cond
        ; Can't both be inf, since:
@@ -67,6 +67,41 @@
        [(bfinfinite? lo) (mpfr-exp hi)]
        [(bfinfinite? hi) (mpfr-exp lo)]
        [else (min (mpfr-exp lo) (mpfr-exp hi))])]))
+
+; Returns (cons (minlog x) (maxlog x))
+(define (minlog+maxlog x)
+  (define lo (ival-lo x))
+  (define hi (ival-hi x))
+  (define slack (get-slack))
+  (cond
+    ; x = [0.bf, 0.bf]
+    [(and (bfzero? lo) (bfzero? hi)) (cons (- slack) 0)]
+    [(bfzero? lo)
+     (if (bfinfinite? hi)
+         (cons (- slack) slack) ; x = [0.bf, +inf]
+         (cons (- (min (mpfr-exp hi) 0) slack) (max (mpfr-exp hi) 0)))] ; x = [0.bf, +...]
+    [(bfzero? hi)
+     (if (bfinfinite? lo)
+         (cons (- slack) slack) ; x = [-inf, 0.bf]
+         (cons (- (min (mpfr-exp lo) 0) slack) (max (mpfr-exp lo) 0)))] ; x = [-..., 0.bf]
+    [(crosses-zero? x) ; x = [-..., +...]
+     (cond
+       [(and (bfinfinite? hi) (bfinfinite? lo)) (cons (- slack) slack)] ; [-inf, +inf]
+       [(bfinfinite? hi)
+        (cons (- (min (mpfr-exp lo) 0) slack) (+ (max (mpfr-exp lo) 0) slack))] ; [-..., +inf]
+       [(bfinfinite? lo)
+        (cons (- (min (mpfr-exp hi) 0) slack) (+ (max (mpfr-exp hi) 0) slack))] ; [-inf, +...]
+       [else
+        (cons (- (min (mpfr-exp lo) (mpfr-exp hi) 0) slack)
+              (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1))])] ; x = [-..., +...]
+    [else
+     (cond
+       ; Can't both be inf, since:
+       ;  - [inf, inf] not a valid interval
+       ;  - [-inf, inf] crosses zero
+       [(bfinfinite? lo) (cons (mpfr-exp hi) (+ (max (mpfr-exp hi) 0) slack))] ; [-inf, -...]
+       [(bfinfinite? hi) (cons (mpfr-exp lo) (+ (max (mpfr-exp lo) 0) slack))] ; [+..., +inf]
+       [else (cons (min (mpfr-exp lo) (mpfr-exp hi)) (+ (max (mpfr-exp lo) (mpfr-exp hi)) 1))])]))
 
 (define (logspan x)
   (match (*bumps-activated*)
