@@ -105,9 +105,9 @@
     (ival (endpoint lo real-lo!)
           (endpoint hi real-hi!)
           (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (not (= y-class 1))))
-          (or xerr yerr (and (bfzero? (endpoint-val xhi))
-                             (= y-class -1)
-                             (not (bfzero? (endpoint-val yhi)))))))
+          (or xerr
+              yerr
+              (and (bfzero? (endpoint-val xhi)) (= y-class -1) (not (bfzero? (endpoint-val yhi)))))))
 
   (match* (x-class y-class)
     [(1 1) (mk-pow xlo ylo xhi yhi)]
