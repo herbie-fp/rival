@@ -194,12 +194,20 @@
         (set! sollya-exs
               (match sollya-exs
                 ["#f" #f]
+                [#f #f]
                 [_ (fl (string->number sollya-exs))]))
 
         (set! sollya-status
               (match sollya-status
-                ["#f" #f]
+                ["#f" 'invalid]
+                [#f 'invalid]
                 [_ (string->symbol sollya-status)]))
+
+        (set! sollya-apply-time
+              (match sollya-apply-time
+                ["#f" 0.0]
+                [#f 0.0]
+                [_ sollya-apply-time]))
 
         ; -------------------------------- Combining results ----------------------------------------
         ; When all the machines have compiled and produced results - write the results to outcomes
