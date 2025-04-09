@@ -396,8 +396,15 @@
                      [#f (raise-user-error 'test.rkt "No function named ival-~a" fname)]
                      [(list ival-fn fn itypes otype)
                       (printf "~a on ~a inputs: " (object-name ival-fn) n)
-                      (for ([n (in-range (string->number n))])
-                        (test-entry ival-fn fn itypes)
-                        (printf "."))
+                      (define num-tests (string->number n))
+                      (for ([outer (in-range (quotient num-tests 1000))])
+                        (for ([inner (in-range (min 1000 (- num-tests (* outer 1000))))])
+                          (test-entry ival-fn fn itypes)
+                          (when (set-member? slow-tests ival-fn)
+                            (printf ".")
+                            (flush-output)))
+                        (unless (set-member? slow-tests ival-fn)
+                          (printf "*")
+                          (flush-output)))
                       (newline)])]
                   [else (run-tests)])))
