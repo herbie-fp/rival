@@ -48,7 +48,7 @@
 (define (read-from-string s)
   (read (open-input-string s)))
 
-(define (time-expr rec timeline)
+(define (time-expr rec timeline sollya-reeval)
   (define exprs (map read-from-string (hash-ref rec 'exprs)))
   (define vars (map read-from-string (hash-ref rec 'vars)))
   (unless (andmap symbol? vars)
@@ -79,7 +79,8 @@
 
   (define tuned-bench #f)
   (define times
-    (for/list ([pt (in-list (hash-ref rec 'points))])
+    (for/list ([pt* (in-list (hash-ref rec 'points))])
+      (match-define (list pt sollya-exs sollya-status sollya-apply-time) pt*)
       ; --------------------------- Baseline execution ----------------------------------------------
       (define baseline-start-apply (current-inexact-milliseconds))
       (match-define (list baseline-status baseline-exs)
@@ -174,22 +175,41 @@
       ; We treat Rival's results as the right ones since for some benchs Sollya has produced wrong results!
       (when (and (and rival-machine baseline-machine sollya-machine)
                  (or (equal? rival-status 'valid) (equal? rival-status 'unsamplable)))
+        (match sollya-reeval
+          [#t
+           (set! sollya-apply-time 0.0)
+           (match sollya-machine
+             [#f (list #f #f)] ; if sollya machine is not working for this benchmark
+             [else
+              (with-handlers ([exn:fail? (λ (e)
+                                           (printf "Sollya failed")
+                                           (printf "~a\n" e)
+                                           (sollya-kill sollya-machine)
+                                           (set! sollya-machine #f)
+                                           (list #f #f))])
+                (match-define (list internal-time external-time exs status)
+                  (sollya-apply sollya-machine pt #:timeout (*sampling-timeout*)))
+                (set! sollya-apply-time external-time)
+                (set! sollya-status status)
+                (set! sollya-exs exs))])]
+          [#f
+           (set! sollya-exs
+                 (match sollya-exs
+                   ["#f" #f]
+                   [#f #f]
+                   [_ (fl (string->number sollya-exs))]))
 
-        (define sollya-apply-time 0.0)
-        (match-define (list sollya-status sollya-exs)
-          (match sollya-machine
-            [#f (list #f #f)] ; if sollya machine is not working for this benchmark
-            [else
-             (with-handlers ([exn:fail? (λ (e)
-                                          (printf "Sollya failed")
-                                          (printf "~a\n" e)
-                                          (sollya-kill sollya-machine)
-                                          (set! sollya-machine #f)
-                                          (list #f #f))])
-               (match-define (list internal-time external-time exs status)
-                 (sollya-apply sollya-machine pt #:timeout (*sampling-timeout*)))
-               (set! sollya-apply-time external-time)
-               (list status exs))]))
+           (set! sollya-status
+                 (match sollya-status
+                   ["#f" 'invalid]
+                   [#f 'invalid]
+                   [_ (string->symbol sollya-status)]))
+
+           (set! sollya-apply-time
+                 (match sollya-apply-time
+                   ["#f" 0.0]
+                   [#f 0.0]
+                   [_ sollya-apply-time]))])
 
         ; -------------------------------- Combining results ----------------------------------------
         ; When all the machines have compiled and produced results - write the results to outcomes
@@ -220,7 +240,6 @@
                  (equal? baseline-status 'valid))
             1
             0))
-
       (cons rival-status (cons rival-apply-time rival-baseline-difference))))
 
   ; Zombie process
@@ -313,7 +332,7 @@
         (for/list ([(key value) (in-hash (hash-ref timeline 'density))])
           (list key value))))
 
-(define (make-expression-table points test-id timeline-port)
+(define (make-expression-table points test-id timeline-port sollya-reeval)
   (newline)
   (define total-c 0.0)
   (define total-v 0.0)
@@ -342,7 +361,7 @@
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
 
       (match-define (list c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)
-        (time-exprs (time-expr rec timeline)))
+        (time-exprs (time-expr rec timeline sollya-reeval)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))
@@ -358,7 +377,6 @@
               (~r i-time #:precision '(= 3) #:min-width 8)
               (~r u-time #:precision '(= 3) #:min-width 8))
       (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
-
   (printf "\nDATA:\n")
   (printf "\tNUMBER OF TUNED BENCHMARKS = ~a\n" (*num-tuned-benchmarks*))
   (printf "\tRIVAL TIMEOUTS = ~a\n" (*rival-timeout*))
@@ -433,12 +451,12 @@
     (fprintf port "<section id='profile'><h1>Profiling</h1>")
     (fprintf port "<p class='load-text'>Loading profile data...</p></section>")))
 
-(define (run test-id p timeline-port)
+(define (run test-id p timeline-port sollya-reeval)
   (define operation-table
     (and (or (not test-id) (not (string->number test-id))) (make-operation-table test-id)))
   (define-values (expression-table expression-footer)
     (if (and p (or (not test-id) (string->number test-id)))
-        (make-expression-table p test-id timeline-port)
+        (make-expression-table p test-id timeline-port sollya-reeval)
         (values #f #f)))
   (list operation-table expression-table expression-footer))
 
@@ -500,6 +518,7 @@
   (define html-port #f)
   (define timeline-port #f)
   (define profile-port #f)
+  (define sollya-reeval #f)
   (define n #f)
   (command-line
    #:once-each
@@ -517,14 +536,15 @@
     "Produce a JSON profile"
     (set! profile-port (open-output-file fn #:mode 'text #:exists 'replace))]
    [("--id") ns "Run a single test" (set! n ns)]
+   [("--sollya-reeval") "Reevaluate Sollya" (set! sollya-reeval #t)]
    #:args ([points "infra/points.json"])
    (match-define (list op-t ex-t ex-f)
      (if profile-port
          (profile #:order 'total
                   #:delay 0.001
                   #:render (profile-json-renderer profile-port)
-                  (run n (open-input-file points) timeline-port))
-         (run n (open-input-file points) timeline-port)))
+                  (run n (open-input-file points) timeline-port sollya-reeval))
+         (run n (open-input-file points) timeline-port sollya-reeval)))
    (when dir
      (generate-html html-port profile-port op-t ex-t ex-f dir))))
 
