@@ -239,18 +239,17 @@
   (define vprecs-min (make-vector (vector-length ivec) 0))
 
   (define slack (get-slack))
-  (define vlogs (vector-map (curryr minlog+maxlog+logspan slack) vregs))
+  (define vinfo (vector-map (curryr ival+minlog+maxlog+logspan slack) vregs))
 
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
         [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
-        [output (in-vector vregs (- (vector-length vregs) 1) -1 -1)]
-        [logs (in-vector vlogs (- (vector-length vlogs) 1) -1 -1)]
+        [output (in-vector vinfo (- (vector-length vinfo) 1) -1 -1)]
         #:when (and hint (not repeat?)))
     (define op (car instr))
     (define tail-registers (drop-self-pointer (cdr instr) n))
-    (define srcs (map (lambda (x) (cons (vector-ref vregs x) (vector-ref vlogs x))) tail-registers))
+    (define srcs (map (lambda (x) (vector-ref vinfo x)) tail-registers))
 
     (define max-prec (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
     (define min-prec (vector-ref vprecs-min (- n varc))) ; lower precision bound given from parent
@@ -271,8 +270,7 @@
          (*sampling-iteration* (*rival-max-iterations*)))])
 
     ; Precision propogation for each tail instruction
-    (define ampl-bounds
-      (get-bounds op (cons output logs) srcs)) ; amplification bounds for children instructions
+    (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
     (for ([x (in-list tail-registers)]
           [bound (in-list ampl-bounds)]
           #:when (>= x varc)) ; when tail register is not a variable
