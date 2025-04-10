@@ -69,22 +69,26 @@
        [(bfinfinite? hi) (mpfr-exp lo)]
        [else (min (mpfr-exp lo) (mpfr-exp hi))])]))
 
-; Returns (list x (minlog x) (maxlog x) (logspan x) (crosses-zero? x))
+; Returns (list (minlog x) (maxlog x) (logspan x) (crosses-zero? x) (bfzero? (ival-lo x)) (any-negative? x))
 (define (ival-info x)
   (define slack (get-slack))
   (define lo (ival-lo x))
   (define hi (ival-hi x))
   (match (and (boolean? lo) (boolean? hi))
-    [#t (list x #f #f #f #f)]
+    [#t (list #f #f #f #f #f #f)]
     [#f
      (define lo-exp (mpfr-exp lo))
      (define hi-exp (mpfr-exp hi))
+     (define lo-sgn (mpfr-sign lo))
+     (define hi-sgn (mpfr-sign hi))
+
+     (define any-negative? (or (equal? lo-sgn -1) (equal? hi-sgn -1)))
      (define-values (zero-lo? inf-lo? zero-hi? inf-hi? crosses-0?)
        (values (bfzero? lo)
                (bfinfinite? lo)
                (bfzero? hi)
                (bfinfinite? hi)
-               (not (equal? (mpfr-sign lo) (mpfr-sign hi)))))
+               (not (equal? lo-sgn hi-sgn))))
      ; logspan
      (define lg
        (match (*bumps-activated*)
@@ -122,7 +126,7 @@
             [inf-hi? (values lo-exp (+ (max lo-exp 0) slack))] ; [+..., +inf]
             [else (values (min lo-exp hi-exp) (+ (max lo-exp hi-exp) 1))])]))
      ; output
-     (list x mn mx lg crosses-0?)]))
+     (list mn mx lg crosses-0? zero-lo? any-negative?)]))
 
 (define (logspan x)
   (match (*bumps-activated*)
@@ -149,8 +153,8 @@
      ; Γ[*]'y     = 1
      ; ↑ampl[*]'y = logspan(x)
      ; ↓ampl[*]'y = 0
-     (match-define (list _ _ _ lg-x _) (first srcs))
-     (match-define (list _ _ _ lg-y _) (second srcs))
+     (match-define (list _ _ lg-x _ _ _) (first srcs))
+     (match-define (list _ _ lg-y _ _ _) (second srcs))
      (list (cons lg-x 0) ; bounds per x
            (cons lg-y 0))] ; bounds per y
 
@@ -162,8 +166,8 @@
      ; Γ[/]'y     = 1
      ; ↑ampl[/]'y = logspan(x) + 2 * logspan(y)
      ; ↓ampl[/]'y = 0
-     (match-define (list _ _ _ lg-x _) (first srcs))
-     (match-define (list _ _ _ lg-y _) (second srcs))
+     (match-define (list _ _ lg-x _ _ _) (first srcs))
+     (match-define (list _ _ lg-y _ _ _) (second srcs))
      (list (cons lg-y 0) ; bounds per x
            (cons (+ lg-x (* 2 lg-y)) 0))] ; bounds per y
 
@@ -175,7 +179,7 @@
      ; Γ[cbrt]'x     = 1/3
      ; ↑ampl[cbrt]'x = logspan(x)*2/3 - 1
      ; ↓ampl[cbrt]'x = 0
-     (match-define (list _ _ _ lg-x _) (first srcs))
+     (match-define (list _ _ lg-x _ _ _) (first srcs))
      (list (cons (quotient lg-x 2) 0))]
 
     [(ival-add ival-sub ival-add! ival-sub!)
@@ -186,15 +190,17 @@
      ; Γ[+ & -]'y     = |y/(x+y)| & |-y/(x-y)|
      ; ↑ampl[+ & -]'y = maxlog(y) - minlog(z)
      ; ↓ampl[+ & -]'y = minlog(y) - maxlog(z)
-     (match-define (list x _ mx-x _ _) (first srcs))
-     (match-define (list y _ mx-y _ _) (second srcs))
-     (match-define (list z mn-z _ _ _) output)
+     (match-define (list _ mx-x _ _ _ _) (first srcs))
+     (match-define (list _ mx-y _ _ _ _) (second srcs))
+     (match-define (list mn-z _ _ _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
          (list (cons (- mx-x mn-z)
-                     (- (minlog x #:less-slack #t) (maxlog z #:less-slack #t))) ; bounds per x
+                     0
+                     #;(- (minlog x #:less-slack #t) (maxlog z #:less-slack #t))) ; bounds per x
                (cons (- mx-y mn-z)
-                     (- (minlog y #:less-slack #t) (maxlog z #:less-slack #t)))) ; bounds per y
+                     0
+                     #;(- (minlog y #:less-slack #t) (maxlog z #:less-slack #t)))) ; bounds per y
          (list (cons (- mx-x mn-z) 0) ; bounds per x
                (cons (- mx-y mn-z) 0)))] ; bounds per y
 
@@ -206,30 +212,32 @@
      ; Γ[pow]'y     = |y*ln(x)|
      ; ↑ampl[pow]'y = maxlog(y) + max(|minlog(x)|,|maxlog(x)|) + logspan(z)
      ; ↓ampl[pow]'y = minlog(y)
-     (match-define (list x mn-x mx-x lg-x _) (first srcs))
-     (match-define (list y _ mx-y _ _) (second srcs))
-     (match-define (list z _ _ lg-z cr-z) output)
+     (match-define (list mn-x mx-x lg-x _ _ an-x) (first srcs))
+     (match-define (list _ mx-y _ _ _ _) (second srcs))
+     (match-define (list _ _ lg-z cr-z zl-z _) output)
 
      ; when output crosses zero and x is negative - means that y was fractional and not fixed (specific of Rival)
      ; solution - add more slack for y to converge
      (define y-slack
-       (if (and cr-z (bfnegative? (ival-lo x)))
+       (if (and cr-z an-x)
            (get-slack)
            0))
 
      ; when output is (ival 0.bf ...) - it means that x was close to 1 or 0 but not narrow enough
      (define x-slack
-       (if (bfzero? (ival-lo z))
+       (if zl-z
            (get-slack)
            0))
 
      (if (*lower-bound-early-stopping*)
          (list (cons (max (+ mx-y lg-x lg-z x-slack) x-slack)
-                     (minlog y #:less-slack #t)) ; bounds per x
+                     0
+                     #;(minlog y #:less-slack #t)) ; bounds per x
                (cons (max (+ mx-y (max (abs mx-x) (abs mn-x)) lg-z y-slack) y-slack)
-                     (cond
-                       [(zero? (min (abs mx-x) (abs mn-x))) 0]
-                       [else (minlog y #:less-slack #t)]))) ; bounds per y
+                     0
+                     #;(cond
+                         [(zero? (min (abs mx-x) (abs mn-x))) 0]
+                         [else (minlog y #:less-slack #t)]))) ; bounds per y
          (list (cons (max (+ mx-y lg-x lg-z x-slack) x-slack) 0) ; bounds per x
                (cons (max (+ mx-y (max (abs mx-x) (abs mn-x)) lg-z y-slack) y-slack)
                      0)))] ; bounds per y
@@ -238,25 +246,26 @@
      ; Γ[exp & exp2]'x     = |x| & |x*ln(2)|
      ; ↑ampl[exp & exp2]'x = maxlog(x) + logspan(z)
      ; ↓ampl[exp & exp2]'x = minlog(x)
-     (match-define (list x _ mx-x _ _) (first srcs))
-     (match-define (list _ _ _ lg-z _) output)
+     (match-define (list _ mx-x _ _ _ _) (first srcs))
+     (match-define (list _ _ lg-z _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
-         (list (cons (+ mx-x lg-z) (minlog x #:less-slack #t)))
+         (list (cons (+ mx-x lg-z) 0 #;(minlog x #:less-slack #t)))
          (list (cons (+ mx-x lg-z) 0)))]
 
     [(ival-tan)
      ; Γ[tan]'x     = |x / (cos(x) * sin(x))|
      ; ↑ampl[tan]'x = maxlog(x) + max(|minlog(z)|,|maxlog(z)|) + logspan(z) + 1
      ; ↓ampl[tan]'x = minlog(x) + min(|minlog(z)|,|maxlog(z)|) - 1
-     (match-define (list x _ mx-x _ _) (first srcs))
-     (match-define (list z mn-z mx-z lg-z _) output)
+     (match-define (list _ mx-x _ _ _ _) (first srcs))
+     (match-define (list mn-z mx-z lg-z _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
          (list (cons (+ mx-x (max (abs mx-z) (abs mn-z)) lg-z 1)
-                     (- (+ (minlog x #:less-slack #t)
-                           (min (abs (maxlog z #:less-slack #t)) (abs (minlog z #:less-slack #t))))
-                        1)))
+                     0
+                     #;(- (+ (minlog x #:less-slack #t)
+                             (min (abs (maxlog z #:less-slack #t)) (abs (minlog z #:less-slack #t))))
+                          1)))
          (list (cons (+ mx-x (max (abs mx-z) (abs mn-z)) lg-z 1) 0)))]
 
     [(ival-sin)
@@ -264,58 +273,59 @@
      ; ↑ampl[sin]'x = maxlog(x) - minlog(z)
      ; ↓ampl[sin]'x = | - maxlog(z) - 1, if maxlog(x) > 1
      ;                | 0 else
-     (match-define (list _ _ mx-x _ _) (first srcs))
-     (match-define (list z mn-z _ _ _) output)
+     (match-define (list _ mx-x _ _ _ _) (first srcs))
+     (match-define (list mn-z _ _ _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
          (list (cons (- mx-x mn-z)
-                     (if (>= mx-x 1)
-                         (- -1 (maxlog z #:less-slack #t))
-                         0)))
+                     0
+                     #;(if (>= mx-x 1)
+                           (- -1 (maxlog z #:less-slack #t))
+                           0)))
          (list (cons (- mx-x mn-z) 0)))]
 
     [(ival-cos)
      ; Γ[cos]'x     = |x * sin(x) / cos(x)|
      ; ↑ampl[cos]'x = maxlog(x) - minlog(z) + min(maxlog(x), 0)
      ; ↓ampl[cos]'x = - maxlog(x) - 2
-     (match-define (list _ _ mx-x _ _) (first srcs))
-     (match-define (list z mn-z _ _ _) output)
+     (match-define (list _ mx-x _ _ _ _) (first srcs))
+     (match-define (list mn-z _ _ _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
-         (list (cons (+ (- mx-x mn-z) (min mx-x 0)) (- (- 2) (maxlog z #:less-slack #t))))
+         (list (cons (+ (- mx-x mn-z) (min mx-x 0)) 0 #;(- (- 2) (maxlog z #:less-slack #t))))
          (list (cons (+ (- mx-x mn-z) (min mx-x 0)) 0)))]
 
     [(ival-sinh)
      ; Γ[sinh]'x     = |x * cosh(x) / sinh(x)|
      ; ↑ampl[sinh]'x = maxlog(x) + logspan(z) - min(minlog(x), 0)
      ; ↓ampl[sinh]'x = max(0, minlog(x))
-     (match-define (list x mn-x mx-x _ _) (first srcs))
-     (match-define (list _ _ _ lg-z _) output)
+     (match-define (list mn-x mx-x _ _ _ _) (first srcs))
+     (match-define (list _ _ lg-z _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
-         (list (cons (- (+ mx-x lg-z) (min mn-x 0)) (max 0 (minlog x #:less-slack #t))))
+         (list (cons (- (+ mx-x lg-z) (min mn-x 0)) 0 #;(max 0 (minlog x #:less-slack #t))))
          (list (cons (- (+ mx-x lg-z) (min mn-x 0)) 0)))]
 
     [(ival-cosh)
      ; Γ[cosh]'x     = |x * sinh(x) / cosh(x)|
      ; ↑ampl[cosh]'x = maxlog(x) + logspan(z) + min(maxlog(x), 0)
      ; ↓ampl[cosh]'x = max(0, minlog(x) - 1)
-     (match-define (list x _ mx-x lg-x _) (first srcs))
-     (match-define (list _ _ _ lg-z _) output)
+     (match-define (list _ mx-x lg-x _ _ _) (first srcs))
+     (match-define (list _ _ lg-z _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
-         (list (cons (+ mx-x lg-z (min mx-x 0)) (max 0 (- (minlog x #:less-slack #t) 1))))
+         (list (cons (+ mx-x lg-z (min mx-x 0)) 0 #;(max 0 (- (minlog x #:less-slack #t) 1))))
          (list (cons (+ mx-x lg-z (min mx-x 0)) 0)))]
 
     [(ival-log ival-log2 ival-log10)
      ; Γ[log & log2 & log10]'x     = |1 / ln(x)| & |ln(2) / ln(x)| & |ln(10) / ln(x)|
      ; ↑ampl[log & log2 & log10]'x = logspan(x) - minlog(z) + 1
      ; ↓ampl[log & log2 & log10]'x = - maxlog(z)
-     (match-define (list _ _ _ lg-x _) (first srcs))
-     (match-define (list z mn-z _ _ _) output)
+     (match-define (list _ _ lg-x _ _ _) (first srcs))
+     (match-define (list mn-z _ _ _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
-         (list (cons (+ (- lg-x mn-z) 1) (- (maxlog z #:less-slack #t))))
+         (list (cons (+ (- lg-x mn-z) 1) 0 #;(- (maxlog z #:less-slack #t))))
          (list (cons (+ (- lg-x mn-z) 1) 0)))]
 
     [(ival-asin)
@@ -323,7 +333,7 @@
      ; ↑ampl[asin]'x = | slack, if maxlog(z) > 1
      ;                 | 1 else
      ; ↓ampl[asin]'x = 0
-     (match-define (list _ _ mx-z _ _) output)
+     (match-define (list _ mx-z _ _ _ _) output)
 
      (list (if (>= mx-z 1)
                (cons (get-slack) 0) ; assumes that log[1-x^2]/2 is equal to slack
@@ -334,7 +344,7 @@
      ; ↑ampl[acos]'x = | slack, if maxlog(x) >= 0
      ;                 | 0 else
      ; ↓ampl[acos]'x = 0
-     (match-define (list _ _ mx-x _ _) (first srcs))
+     (match-define (list _ mx-x _ _ _ _) (first srcs))
 
      (list (if (>= mx-x 0)
                (cons (get-slack) 0) ; assumes that log[1-x^2]/2 is equal to slack
@@ -344,14 +354,15 @@
      ; Γ[atan]'x     = | x / ((1+x^2) * arctan(x))|
      ; ↑ampl[atan]'x = - min(|minlog(x)|, |maxlog(x)|) - minlog(z) + logspan(x)
      ; ↓ampl[atan]'x = - max(|minlog(x)|, |maxlog(x)|) - maxlog(z) - 2
-     (match-define (list x mn-x mx-x lg-x _) (first srcs))
-     (match-define (list z mn-z _ _ _) output)
+     (match-define (list mn-x mx-x lg-x _ _ _) (first srcs))
+     (match-define (list mn-z _ _ _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
          (list (cons (- lg-x (min (abs mn-x) (abs mx-x)) mn-z)
-                     (- (- (max (abs (minlog x #:less-slack #t)) (abs (maxlog x #:less-slack #t))))
-                        (maxlog z #:less-slack #t)
-                        2)))
+                     0
+                     #;(- (- (max (abs (minlog x #:less-slack #t)) (abs (maxlog x #:less-slack #t))))
+                          (maxlog z #:less-slack #t)
+                          2)))
          (list (cons (- lg-x (min (abs mn-x) (abs mx-x)) mn-z) 0)))]
 
     [(ival-fmod ival-remainder)
@@ -363,9 +374,9 @@
      ; Γ[mod]'y     ` |y/mod(x,y)|
      ; ↑ampl[mod]'y = maxlog(y) - minlog(z)
      ; ↓ampl[mod]'y = minlog(y) - maxlog(z) or just 0
-     (match-define (list _ _ mx-x _ _) (first srcs))
-     (match-define (list y _ _ _ cr-y) (second srcs))
-     (match-define (list _ mn-z _ _ _) output)
+     (match-define (list _ mx-x _ _ _ _) (first srcs))
+     (match-define (list _ _ _ cr-y _ _) (second srcs))
+     (match-define (list mn-z _ _ _ _ _) output)
 
      (define slack
        (if cr-y
@@ -381,13 +392,10 @@
      ; ↑ampl[log1p]'x = | maxlog(x) - minlog(z) + slack, if x is negative
      ;                  | maxlog(x) - minlog(z), else
      ; ↓ampl[log1p]'x = 0
-     (match-define (list x _ mx-x _ _) (first srcs))
-     (match-define (list _ mn-z _ _ _) output)
+     (match-define (list _ mx-x _ _ _ an-x) (first srcs))
+     (match-define (list mn-z _ _ _ _ _) output)
 
-     (define xhi (ival-hi x))
-     (define xlo (ival-lo x))
-
-     (list (if (or (equal? (mpfr-sign xlo) -1) (equal? (mpfr-sign xhi) -1))
+     (list (if an-x
                (cons (+ (- mx-x mn-z) (get-slack)) 0)
                (cons (- mx-x mn-z) 0)))]
 
@@ -396,8 +404,8 @@
      ; Γ[expm1]'x     = |x * e^x / expm1|
      ; ↑ampl[expm1]'x = max(1 + maxlog(x), 1 + maxlog(x) - minlog(z))
      ; ↓ampl[expm1]'x = 0
-     (match-define (list _ _ mx-x _ _) (first srcs))
-     (match-define (list _ mn-z _ _ _) output)
+     (match-define (list _ mx-x _ _ _ _) (first srcs))
+     (match-define (list mn-z _ _ _ _ _) output)
 
      (list (cons (max (+ 1 mx-x) (+ 1 (- mx-x mn-z))) 0))]
 
@@ -405,24 +413,25 @@
      ; Γ[atan2]'x = Γ[atan2]'y = |xy / ((x^2 + y^2)*arctan(y/x))|
      ; ↑ampl[expm1]'x          = maxlog(x) + maxlog(y) - 2*min(minlog(x), minlog(y)) - minlog(z)
      ; ↓ampl[expm1]'x          = minlog(x) + minlog(y) - 2*max(maxlog(x), maxlog(y)) - maxlog(z)
-     (match-define (list x mn-x mx-x _ _) (first srcs))
-     (match-define (list y mn-y mx-y _ _) (second srcs))
-     (match-define (list z mn-z _ _ _) output)
+     (match-define (list mn-x mx-x _ _ _ _) (first srcs))
+     (match-define (list mn-y mx-y _ _ _ _) (second srcs))
+     (match-define (list mn-z _ _ _ _ _) output)
 
      (if (*lower-bound-early-stopping*)
          (make-list 2
                     (cons (- (+ mx-x mx-y) (* 2 (min mn-x mn-y)) mn-z)
-                          (- (+ (minlog x #:less-slack #t) (minlog y #:less-slack #t))
-                             (* 2 (max (maxlog x #:less-slack #t) (maxlog y #:less-slack #t)))
-                             (maxlog z #:less-slack #t))))
+                          0
+                          #;(- (+ (minlog x #:less-slack #t) (minlog y #:less-slack #t))
+                               (* 2 (max (maxlog x #:less-slack #t) (maxlog y #:less-slack #t)))
+                               (maxlog z #:less-slack #t))))
          (make-list 2 (cons (- (+ mx-x mx-y) (* 2 (min mn-x mn-y)) mn-z) 0)))]
 
     [(ival-tanh)
      ; Γ[tanh]'x     = |x / (sinh(x) * cosh(x))|
      ; ↑ampl[tanh]'x = logspan(z) + logspan(x)
      ; ↓ampl[tanh]'x = 0
-     (match-define (list _ _ _ lg-x _) (first srcs))
-     (match-define (list _ _ _ lg-z _) output)
+     (match-define (list _ _ lg-x _ _ _) (first srcs))
+     (match-define (list _ _ lg-z _ _ _) output)
 
      (list (cons (+ lg-z lg-x) 0))]
 
@@ -431,7 +440,7 @@
      ; ↑ampl[atanh]'x = | 1, if x < 0.5
      ;                  | slack
      ; ↓ampl[atanh]'x = 0
-     (match-define (list _ _ mx-x _ _) (first srcs))
+     (match-define (list _ mx-x _ _ _ _) (first srcs))
      (list (if (>= mx-x 1)
                (cons (get-slack) 0)
                (cons 1 0)))]
@@ -441,7 +450,7 @@
      ; ↑ampl[acosh]'x = | -minlog(z) + slack, if minlog(z) < 2
      ;                  | 0
      ; ↓ampl[acosh]'x = 0
-     (match-define (list _ mn-z _ _ _) output)
+     (match-define (list mn-z _ _ _ _ _) output)
      (list (if (< mn-z 2) ; when acosh(x) < 1
                (cons (- (get-slack) mn-z) 0)
                (cons 0 0)))]
@@ -450,7 +459,7 @@
      ; Γ[acosh]'x = |2 x x* / x^2|
      ; ↑ampl[pow2]'x = logspan(x) + 1
      ; ↓ampl[pow2]'x = 0
-     (match-define (list _ _ _ lg-x _) (first srcs))
+     (match-define (list _ _ lg-x _ _ _) (first srcs))
      (list (cons (+ lg-x 1) 0))]
 
     ; TODO
