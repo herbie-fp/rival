@@ -21,6 +21,7 @@
 (require "main.rkt"
          "mpfr.rkt")
 (provide ival-valid?
+         ival-refines?
          function-table
          sample-interval
          slow-tests
