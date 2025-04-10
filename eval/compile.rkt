@@ -278,6 +278,8 @@
   (define ivec-length (- (vector-length nodes) num-vars))
   (define register-count (+ (length vars) ivec-length))
   (define registers (make-vector register-count))
+  (define tuning-info
+    (make-vector register-count)) ; this vector will store maxlog, minlog, logspan info
 
   (define instructions
     (for/vector #:length ivec-length
@@ -311,6 +313,7 @@
                  best-known-precisions
                  (make-vector (vector-length roots))
                  default-hint
+                 tuning-info
                  0
                  0
                  0

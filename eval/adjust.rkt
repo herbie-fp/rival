@@ -148,6 +148,7 @@
   (define vbest-precs (rival-machine-best-known-precisions machine))
   (define current-iter (rival-machine-iteration machine))
   (define bumps (rival-machine-bumps machine))
+  (define vinfo (rival-machine-tuning-info machine))
 
   (define varc (vector-length args))
   (define vprecs-new (make-vector (vector-length ivec) 0)) ; new vprecs vector
@@ -178,7 +179,7 @@
          (vector-set! vrepeats (- arg varc) #f))]))
 
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint vinfo)
 
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -217,11 +218,16 @@
     ; clean progress of the current tuning pass and start over
     (vector-fill! vprecs-new 0)
     (vector-fill! vrepeats #f)
-    (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
+    (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint vinfo)
     (repeats)) ; do repeats again
 
   ; Step 5. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new))
+
+(define (get-info! vinfo vregs)
+  (for ([reg (in-vector vregs)]
+        [n (in-naturals)])
+    (vector-set! vinfo n (ival-info reg))))
 
 ; Usually, add-bang instructions have a pointer to itself that is needed to be dropped
 (define (drop-self-pointer tail-regs n)
@@ -235,15 +241,12 @@
 ; Roughly speaking, the upper precision bound is calculated as:
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
-(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vrepeats vhint)
+(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vrepeats vhint vinfo)
+  (get-info! vinfo vregs)
   (define vprecs-min (make-vector (vector-length ivec) 0))
-
-  (define slack (get-slack))
-  (define vinfo (vector-map (curryr ival+minlog+maxlog+logspan slack) vregs))
-
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
-        [n (in-range (- (vector-length vregs) 1) -1 -1)]
+        [n (in-range (- (vector-length vinfo) 1) -1 -1)]
         [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
         [output (in-vector vinfo (- (vector-length vinfo) 1) -1 -1)]
         #:when (and hint (not repeat?)))

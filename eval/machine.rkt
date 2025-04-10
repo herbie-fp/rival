@@ -33,6 +33,7 @@
                    best-known-precisions
                    output-distance
                    default-hint
+                   tuning-info
                    [iteration #:mutable]
                    [bumps #:mutable]
                    [profile-ptr #:mutable]
