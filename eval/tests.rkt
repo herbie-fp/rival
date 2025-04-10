@@ -104,7 +104,7 @@
       (match-define (list res* hint* converged?*) (rival-analyze machine hyperrect hint))
       (check-equal? hint hint*)
       (check-equal? res res*)
-      (check equal? converged? converged?*)
+      (check-equal? converged? converged?*)
 
       (for ([_ (in-range number-of-random-pts-per-rect)])
         (define pt (sample-pts hyperrect))
@@ -159,3 +159,21 @@
                   (>= (log y) (log x)))
               x
               y))))
+
+(module+ test
+  (require rackunit
+           "machine.rkt"
+           "../main.rkt")
+  ; Test that checks correctness of early exit!
+  (define expr '(fmin (exp (pow 1e100 1e200)) (- (cos (+ 1 1e200)) (cos 1e200))))
+  (define machine (rival-compile (list expr) '() (list flonum-discretization)))
+  (define out (vector-ref (rival-apply machine (vector)) 0))
+  (check-equal? out 0.19018843355136827)
+
+  ; Test that checks correctness of path reducing!
+  (define machine2
+    (rival-compile (list '(+ (fmin (- (cos (+ 1 1e200)) (cos 1e200)) -3)
+                             (- (cos (+ 1 1e200)) (cos 1e200))))
+                   '()
+                   (list flonum-discretization)))
+  (check-equal? (vector-ref (rival-apply machine2 (vector)) 0) -2.809811566448632))

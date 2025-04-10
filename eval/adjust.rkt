@@ -29,14 +29,9 @@
   (define vhint (make-vector (vector-length ivec) #f))
   (define converged? #t)
 
-  ; helper function
-  (define (vhint-set! idx val)
-    (when (>= idx varc)
-      (vector-set! vhint (- idx varc) val)))
-
   ; roots always should be executed
   (for ([root-reg (in-vector rootvec)])
-    (vhint-set! root-reg #t))
+    (vector-shift-set! vhint varc root-reg #t))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
         [o-hint (in-vector old-hint (- (vector-length old-hint) 1) -1 -1)]
@@ -48,88 +43,101 @@
         [(? integer? ref) ; instr is already "hinted" by old hint,
          (define idx (list-ref instr ref)) ; however, one child needs to be recomputed
          (when (>= idx varc)
-           (vhint-set! idx #t))
+           (vector-shift-set! vhint varc idx #t))
          o-hint]
         [#t
-         (case (object-name (car instr))
-           [(ival-assert)
-            (match-define (list _ bool-idx) instr)
-            (define bool-reg (vector-ref vregs bool-idx))
-            (match* ((ival-lo bool-reg) (ival-hi bool-reg) (ival-err? bool-reg))
-              ; assert and its children should not be reexecuted if it is true already
-              [(#t #t #f) (ival-bool #t)]
-              ; assert and its children should not be reexecuted if it is false already
-              [(#f #f #f) (ival-bool #f)]
-              [(_ _ _) ; assert and its children should be reexecuted
-               (vhint-set! bool-idx #t)
-               (set! converged? #f)
-               #t])]
-           [(ival-if)
-            (match-define (list _ cond tru fls) instr)
-            (define cond-reg (vector-ref vregs cond))
-            (match* ((ival-lo cond-reg) (ival-hi cond-reg) (ival-err? cond-reg))
-              [(#t #t #f) ; only true path should be executed
-               (vhint-set! tru #t)
-               2]
-              [(#f #f #f) ; only false path should be executed
-               (vhint-set! fls #t)
-               3]
-              [(_ _ _) ; execute both paths and cond as well
-               (vhint-set! cond #t)
-               (vhint-set! tru #t)
-               (vhint-set! fls #t)
-               (set! converged? #f)
-               #t])]
-           [(ival-fmax)
-            (match-define (list _ arg1 arg2) instr)
-            (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
-            (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
-              [(#t #t #f) ; only arg1 should be executed
-               (vhint-set! arg1 #t)
-               1]
-              [(#f #f #f) ; only arg2 should be executed
-               (vhint-set! arg2 #t)
-               2]
-              [(_ _ _) ; both paths should be executed
-               (vhint-set! arg1 #t)
-               (vhint-set! arg2 #t)
-               (set! converged? #f)
-               #t])]
-           [(ival-fmin)
-            (match-define (list _ arg1 arg2) instr)
-            (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
-            (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
-              [(#t #t #f) ; only arg2 should be executed
-               (vhint-set! arg2 #t)
-               2]
-              [(#f #f #f) ; only arg1 should be executed
-               (vhint-set! arg1 #t)
-               1]
-              [(_ _ _) ; both paths should be executed
-               (vhint-set! arg1 #t)
-               (vhint-set! arg2 #t)
-               (set! converged? #f)
-               #t])]
-           [(ival-< ival-<= ival-> ival->= ival-== ival-!= ival-and ival-or ival-not)
-            (define cmp (vector-ref vregs (+ varc n)))
-            (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
-              ; result is known
-              [(#t #t #f) (ival-bool #t)]
-              ; result is known
-              [(#f #f #f) (ival-bool #f)]
-              [(_ _ _) ; all the paths should be executed
-               (define srcs (rest instr))
-               (for-each (λ (x) (vhint-set! x #t)) srcs)
-               (set! converged? #f)
-               #t])]
-           [else ; at this point we are given that the current instruction should be executed
-            (define srcs
-              (drop-self-pointer (rest instr)
-                                 (+ n varc))) ; then, children instructions should be executed as well
-            (for-each (λ (x) (vhint-set! x #t)) srcs)
-            #t])]))
+         (define-values (hint* converged?*) (path-reduction vhint vregs varc instr n))
+         (set! converged? (and converged?* converged?))
+         hint*]))
     (vector-set! vhint n hint*))
   (values vhint converged?))
+
+; helper function
+(define (vector-shift-set! vec varc idx val)
+  (when (>= idx varc)
+    (vector-set! vec (- idx varc) val)))
+
+(define (path-reduction vpath vregs varc instr n #:reexec-val [reexec-val #t])
+  (define converged? #t)
+  (define hint
+    (case (object-name (car instr))
+      [(ival-assert)
+       (match-define (list _ bool-idx) instr)
+       (define bool-reg (vector-ref vregs bool-idx))
+       (match* ((ival-lo bool-reg) (ival-hi bool-reg) (ival-err? bool-reg))
+         ; assert and its children should not be reexecuted if it is true already
+         [(#t #t #f) (ival-bool #t)]
+         ; assert and its children should not be reexecuted if it is false already
+         [(#f #f #f) (ival-bool #f)]
+         [(_ _ _) ; assert and its children should be reexecuted
+          (vector-shift-set! vpath varc bool-idx reexec-val)
+          (set! converged? #f)
+          #t])]
+      [(ival-if)
+       (match-define (list _ cond tru fls) instr)
+       (define cond-reg (vector-ref vregs cond))
+       (match* ((ival-lo cond-reg) (ival-hi cond-reg) (ival-err? cond-reg))
+         [(#t #t #f) ; only true path should be executed
+          (vector-shift-set! vpath varc tru reexec-val)
+          2]
+         [(#f #f #f) ; only false path should be executed
+          (vector-shift-set! vpath varc fls reexec-val)
+          3]
+         [(_ _ _) ; execute both paths and cond as well
+          (vector-shift-set! vpath varc cond reexec-val)
+          (vector-shift-set! vpath varc tru reexec-val)
+          (vector-shift-set! vpath varc fls reexec-val)
+          (set! converged? #f)
+          #t])]
+      [(ival-fmax)
+       (match-define (list _ arg1 arg2) instr)
+       (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+       (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
+         [(#t #t #f) ; only arg1 should be executed
+          (vector-shift-set! vpath varc arg1 reexec-val)
+          1]
+         [(#f #f #f) ; only arg2 should be executed
+          (vector-shift-set! vpath varc arg2 reexec-val)
+          2]
+         [(_ _ _) ; both paths should be executed
+          (vector-shift-set! vpath varc arg1 reexec-val)
+          (vector-shift-set! vpath varc arg2 reexec-val)
+          (set! converged? #f)
+          #t])]
+      [(ival-fmin)
+       (match-define (list _ arg1 arg2) instr)
+       (define cmp (ival-> (vector-ref vregs arg1) (vector-ref vregs arg2)))
+       (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
+         [(#t #t #f) ; only arg2 should be executed
+          (vector-shift-set! vpath varc arg2 reexec-val)
+          2]
+         [(#f #f #f) ; only arg1 should be executed
+          (vector-shift-set! vpath varc arg1 reexec-val)
+          1]
+         [(_ _ _) ; both paths should be executed
+          (vector-shift-set! vpath varc arg1 reexec-val)
+          (vector-shift-set! vpath varc arg2 reexec-val)
+          (set! converged? #f)
+          #t])]
+      [(ival-< ival-<= ival-> ival->= ival-== ival-!= ival-and ival-or ival-not)
+       (define cmp (vector-ref vregs (+ varc n)))
+       (match* ((ival-lo cmp) (ival-hi cmp) (ival-err? cmp))
+         ; result is known
+         [(#t #t #f) (ival-bool #t)]
+         ; result is known
+         [(#f #f #f) (ival-bool #f)]
+         [(_ _ _) ; all the paths should be executed
+          (define srcs (rest instr))
+          (for-each (λ (x) (vector-shift-set! vpath varc x reexec-val)) srcs)
+          (set! converged? #f)
+          #t])]
+      [else ; at this point we are given that the current instruction should be executed
+       (define srcs
+         (drop-self-pointer (rest instr)
+                            (+ n varc))) ; then, children instructions should be executed as well
+       (for-each (λ (x) (vector-shift-set! vpath varc x reexec-val)) srcs)
+       #t]))
+  (values hint converged?))
 
 (define (backward-pass machine vhint)
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
@@ -147,6 +155,7 @@
   (define current-iter (rival-machine-iteration machine))
   (define bumps (rival-machine-bumps machine))
 
+  (define first-tuning-pass? (equal? 1 current-iter))
   (define varc (vector-length args))
   (define vprecs-new (make-vector (vector-length ivec) 0)) ; new vprecs vector
 
@@ -159,10 +168,15 @@
     (vector-set! vprecs-new (- root-reg varc) (get-slack)))
 
   ; Step 1b. Checking if a operation should be computed again at all
-  (vector-fill! vrepeats #t) ; #t - means it WON'T be REEXECUTED
+  ;   This step traverses instructions top-down and check whether a reevaluation is needed
+  ;   Reevaluation can be skipped if:
+  ;   1) the result is already exact
+  ;   2) the operation is a part of the path that has been reduced
+  ;   Once the path is fully reduced - vrepeats will store this path - no more reduction is needed
+  (vector-fill! vrepeats #t)
   (for ([root (in-vector rootvec)]
         #:when (>= root varc))
-    (vector-set! vrepeats (- root varc) #f)) ; #f - means it WILL be REEXECUTED
+    (vector-set! vrepeats (- root varc) #f))
   (for ([reg (in-vector vregs (- (vector-length vregs) 1) (- varc 1) -1)]
         [instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [i (in-range (- (vector-length ivec) 1) -1 -1)]
@@ -170,10 +184,7 @@
         #:unless repeat?)
     (cond
       [(and (ival-lo-fixed? reg) (ival-hi-fixed? reg)) (vector-set! vrepeats i #t)]
-      [else
-       (for ([arg (in-list (drop-self-pointer (cdr instr) (+ i varc)))]
-             #:when (>= arg varc))
-         (vector-set! vrepeats (- arg varc) #f))]))
+      [else (path-reduction vrepeats vregs varc instr i #:reexec-val #f)]))
 
   ; Step 2. Precision tuning
   (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
@@ -185,7 +196,7 @@
     (define any-reevaluation? #f)
     (for ([instr (in-vector ivec)]
           [result-is-exact-already (in-vector vrepeats)]
-          [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
+          [prec-old (in-vector (if first-tuning-pass? vstart-precs vprecs))]
           [prec-new (in-vector vprecs-new)]
           [best-known-precision (in-vector vbest-precs)]
           [constant? (in-vector vinitial-repeats)]
