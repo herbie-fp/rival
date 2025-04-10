@@ -52,17 +52,20 @@
          (match-define (endpoint cval c!) c)
          (match-define (endpoint dval d!) d)
 
-         ;; Important: exp2-overflow-threshold is an exact power of 2, so we can use >=
+         ;; Can't use >=, even though exp2-overflow-threshold is a
+         ;; power of 2, because mpfr-exp is offset by 1 from the real
+         ;; exponent, which matters when we add them.
          (define must-overflow
            (and (bfinfinite? hi)
                 (= (* x-class y-class) 1)
-                (>= (+ (mpfr-exp bval) (mpfr-exp (rnd 'zero bflog2 aval)))
-                    (mpfr-exp exp2-overflow-threshold))))
+                (> (+ (mpfr-exp bval) (mpfr-exp (rnd 'zero bflog2 aval)))
+                   (mpfr-exp exp2-overflow-threshold))))
+
          (define must-underflow
            (and (bfzero? lo)
                 (= (* x-class y-class) -1)
-                (>= (+ (mpfr-exp dval) (mpfr-exp (rnd 'zero bflog2 cval)))
-                    (mpfr-exp exp2-overflow-threshold))))
+                (> (+ (mpfr-exp dval) (mpfr-exp (rnd 'zero bflog2 cval)))
+                   (mpfr-exp exp2-overflow-threshold))))
 
          (define real-lo! (or lo! must-underflow (and (bfzero? lo) a! b!)))
          (define real-hi! (or hi! must-underflow must-overflow (and (bfinfinite? hi) c! d!)))
