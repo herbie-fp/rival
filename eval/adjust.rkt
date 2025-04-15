@@ -154,6 +154,7 @@
   (define vbest-precs (rival-machine-best-known-precisions machine))
   (define current-iter (rival-machine-iteration machine))
   (define bumps (rival-machine-bumps machine))
+  (define constants-lookup (rival-machine-constant-lookup machine))
 
   (define first-tuning-pass? (equal? 1 current-iter))
   (define varc (vector-length args))
@@ -187,7 +188,7 @@
       [else (path-reduction vrepeats vregs varc instr i #:reexec-val #f)]))
 
   ; Step 2. Precision tuning
-  (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
+  (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint constants-lookup)
 
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -244,17 +245,18 @@
 ; Roughly speaking, the upper precision bound is calculated as:
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
-(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vrepeats vhint)
+(define (precision-tuning ivec vregs vprecs-max varc vstart-precs vrepeats vhint constants)
   (define vprecs-min (make-vector (vector-length ivec) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
         [hint (in-vector vhint (- (vector-length vhint) 1) -1 -1)]
         [output (in-vector vregs (- (vector-length vregs) 1) -1 -1)]
+        [constant (in-vector constants (- (vector-length constants) 1) -1 -1)]
         #:when (and hint (not repeat?)))
     (define op (car instr))
     (define tail-registers (drop-self-pointer (cdr instr) n))
-    (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
+    (define srcs (append (map (lambda (x) (vector-ref vregs x)) tail-registers) constant))
 
     (define max-prec (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
     (define min-prec (vector-ref vprecs-min (- n varc))) ; lower precision bound given from parent

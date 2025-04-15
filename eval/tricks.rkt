@@ -388,18 +388,16 @@
      ; ↑ampl[cosu]'x = ↑ampl[cosu]'n = maxlog(x) - minlog(n) - minlog(z) + 2 (accounting for pi)
      ; ↓ampl[cosu]'x = ↓ampl[cosu]'n = 0 <-- maybe can be better
      (define x (first srcs))
-     (define n (second srcs))
-     (list (make-list 2 (cons (- (maxlog x) (minlog n) (minlog z) -2) 0)))]
+     (define n (second srcs)) ; n is already a floor(log(n))
+     (list (cons (- (maxlog x) n (minlog z) -2) 0))]
 
     [(ival-tanu)
      ; Γ[tanu]'x = |x*pi/n * (1 / cos^2(x*pi/n)) / tan(x*pi/n)|
      ; ↑ampl[tanu]'x = ↑ampl[tanu]'n = maxlog(x) - minlog(n) + max(|minlog(z)|, |maxlog(z)|) + 3 (accounting for pi)
      ; ↓ampl[tanu]'x = ↓ampl[tanu]'n = 0 <-- maybe can be better
      (define x (first srcs))
-     (define n (second srcs))
-     (list (make-list 2
-                      (cons (- (maxlog x) (minlog n) (- (max (abs (maxlog z)) (abs (minlog z)))) -3)
-                            0)))]
+     (define n (second srcs)) ; n is already a floor(log(n))
+     (list (cons (- (maxlog x) n (- (max (abs (maxlog z)) (abs (minlog z)))) -3) 0))]
 
     ; TODO
     ; ↑ampl[...] = slack
