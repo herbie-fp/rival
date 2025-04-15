@@ -378,6 +378,29 @@
      (define x (first srcs))
      (list (cons (+ (logspan x) 1) 0))]
 
+    [(ival-sinu ival-cosu)
+     ; Γ[sinu]'x = |x*pi/n * cos(x*pi/n) / sin(x*pi/n)|
+     ; Γ[cosu]'x = |x*pi/n * sin(x*pi/n) / cos(x*pi/n)|
+     ;
+     ; ↑ampl[sinu]'x = ↑ampl[sinu]'n = maxlog(x) - minlog(n) - minlog(z) + 2 (accounting for pi)
+     ; ↓ampl[sinu]'x = ↓ampl[sinu]'n = 0 <-- maybe can be better
+     ;
+     ; ↑ampl[cosu]'x = ↑ampl[cosu]'n = maxlog(x) - minlog(n) - minlog(z) + 2 (accounting for pi)
+     ; ↓ampl[cosu]'x = ↓ampl[cosu]'n = 0 <-- maybe can be better
+     (define x (first srcs))
+     (define n (second srcs))
+     (list (make-list 2 (cons (- (maxlog x) (minlog n) (minlog z) -2) 0)))]
+
+    [(ival-tanu)
+     ; Γ[tanu]'x = |x*pi/n * (1 / cos^2(x*pi/n)) / tan(x*pi/n)|
+     ; ↑ampl[tanu]'x = ↑ampl[tanu]'n = maxlog(x) - minlog(n) + max(|minlog(z)|, |maxlog(z)|) + 3 (accounting for pi)
+     ; ↓ampl[tanu]'x = ↓ampl[tanu]'n = 0 <-- maybe can be better
+     (define x (first srcs))
+     (define n (second srcs))
+     (list (make-list 2
+                      (cons (- (maxlog x) (minlog n) (- (max (abs (maxlog z)) (abs (minlog z)))) -3)
+                            0)))]
+
     ; TODO
     ; ↑ampl[...] = slack
     ; ↓ampl[...] = 0
