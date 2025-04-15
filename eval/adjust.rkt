@@ -227,7 +227,7 @@
     ; clean progress of the current tuning pass and start over
     (vector-fill! vprecs-new 0)
     (vector-fill! vrepeats #f)
-    (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint)
+    (precision-tuning ivec vregs vprecs-new varc vstart-precs vrepeats vhint constants-lookup)
     (repeats)) ; do repeats again
 
   ; Step 5. Copying new precisions into vprecs
