@@ -313,27 +313,27 @@
 
   (unless (set-member? non-refine-tests ival-fn)
     (with-check-info
-      (['intervals is] ['points xs] ['iy iy] ['y y] ['precs (list out-prec in-precs)])
-      (for ([k (in-naturals)]
-            [i is]
-            [x xs])
-        (define-values (ilo ihi) (ival-split i x))
-        (when (and ilo ihi)
-          (define iylo
-            (parameterize ([bf-precision out-prec])
-              (apply ival-fn (list-set is k ilo))))
-          (define iyhi
-            (parameterize ([bf-precision out-prec])
-              (apply ival-fn (list-set is k ihi))))
-          (with-check-info (['split-argument k] ['ilo ilo] ['ihi ihi] ['iylo iylo] ['iyhi iyhi])
-            (check-ival-equals? iy
-                                (parameterize ([bf-precision out-prec])
-                                  (ival-union iylo iyhi))))))
-      (when (or (ival-lo-fixed? iy) (ival-hi-fixed? iy))
-        (define iy*
-          (parameterize ([bf-precision 128])
-            (apply ival-fn is)))
-        (check ival-refines? iy iy*)))))
+     (['intervals is] ['points xs] ['iy iy] ['y y] ['precs (list out-prec in-precs)])
+     (for ([k (in-naturals)]
+           [i is]
+           [x xs])
+       (define-values (ilo ihi) (ival-split i x))
+       (when (and ilo ihi)
+         (define iylo
+           (parameterize ([bf-precision out-prec])
+             (apply ival-fn (list-set is k ilo))))
+         (define iyhi
+           (parameterize ([bf-precision out-prec])
+             (apply ival-fn (list-set is k ihi))))
+         (with-check-info (['split-argument k] ['ilo ilo] ['ihi ihi] ['iylo iylo] ['iyhi iyhi])
+                          (check-ival-equals? iy
+                                              (parameterize ([bf-precision out-prec])
+                                                (ival-union iylo iyhi))))))
+     (when (or (ival-lo-fixed? iy) (ival-hi-fixed? iy))
+       (define iy*
+         (parameterize ([bf-precision 128])
+           (apply ival-fn is)))
+       (check ival-refines? iy iy*)))))
 
 (define (run-tests)
   (check ival-contains? (ival-bool #f) #f)

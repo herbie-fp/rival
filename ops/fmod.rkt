@@ -16,11 +16,11 @@
 ;; (define x
 ;;   (parameterize ([bf-precision 88])
 ;;     (ival (bf "2.023002359077489336695397166e258"))))
-;; 
+;;
 ;; (define y
 ;;   (parameterize ([bf-precision 91])
 ;;     (ival 0.bf (bf "6.4878140443992047719110337054e233"))))
-;; 
+;;
 ;; (define yhi
 ;;   (parameterize ([bf-precision 91])
 ;;     (ival 0.bf (bf "6.4878140443992047719110335995e233"))))
@@ -108,7 +108,8 @@
     (or (ival-err x) (ival-err y) (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
   (define y* (ival-exact-fabs y))
   (cond
-    [(= (mpfr-sign (ival-hi-val x)) -1) (ival-neg (ival-remainder-pos (ival-exact-neg x) y* err? err))]
+    [(= (mpfr-sign (ival-hi-val x)) -1)
+     (ival-neg (ival-remainder-pos (ival-exact-neg x) y* err? err))]
     [(= (mpfr-sign (ival-lo-val x)) 1) (ival-remainder-pos x y* err? err)]
     [else
      (define-values (neg pos) (split-ival x 0.bf))
