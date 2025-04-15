@@ -102,13 +102,16 @@
       ; A little hack, the analyze below uses hint from the previous run
       ; The analyze results must be equal. If not, something wrong has happened
       (match-define (list res* hint* converged?*) (rival-analyze machine hyperrect hint))
-      (check-equal? hint hint*)
-      (check-equal? res res*)
-      (check-equal? converged? converged?*)
+
+      (with-check-info (['hyperrect hyperrect] ['hint hint])
+                       (check-equal? hint hint*)
+                       (check-equal? res res*)
+                       (check-equal? converged? converged?*))
 
       (for ([_ (in-range number-of-random-pts-per-rect)])
         (define pt (sample-pts hyperrect))
-        (define-values (no-hint-cnt* hint-cnt*) (rival-check-hint machine hint pt))
+        (define-values (no-hint-cnt* hint-cnt*)
+          (with-check-info (['pt pt] ['hint hint]) (rival-check-hint machine hint pt)))
         (set! hint-cnt (+ hint-cnt hint-cnt*))
         (set! no-hint-cnt (+ no-hint-cnt no-hint-cnt*))))
     (define skipped-percentage (* (/ hint-cnt no-hint-cnt) 100))
@@ -119,7 +122,9 @@
     (define vars '(x y))
     (define varc (length vars))
     (define machine (rival-compile expressions vars discs))
-    (define skipped-instr (hints-random-checks machine (first rect) (second rect) varc))
+    (define skipped-instr
+      (with-check-info (['expressions expressions])
+                       (hints-random-checks machine (first rect) (second rect) varc)))
     (check-true (< skipped-instr 99)
                 (format "Almost no instructions got skipped by hint at ~a" expressions)))
 
