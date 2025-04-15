@@ -241,7 +241,7 @@
   (define err (or (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
 
   (if (and (bfzero? lo) (bfzero? xhi))
-      (ival (endpoint 0.bf xlo!) (endpoint 0.bf xhi!) err? err)
+      (ival (endpoint (bf 0) xlo!) (endpoint (bf 0) xhi!) err? err)
       (ival (endpoint (if (bflt? xlo lo) lo xlo) xlo!)
             (endpoint (if (bfgt? xhi hi) hi xhi) xhi!)
             err?
@@ -301,7 +301,7 @@
     [1 ((monotonic bfabs) x)]
     [0
      (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-     (ival (endpoint 0.bf (and xlo! xhi!))
+     (ival (endpoint (bf 0) (and xlo! xhi!))
            (rnd 'up endpoint-max2 (epfn bfabs (ival-lo x)) (ival-hi x))
            (ival-err? x)
            (ival-err x))]))
@@ -384,10 +384,10 @@
            (endpoint (rnd 'up pi.bf) #f)
            (or err? (bfgte? (ival-hi-val x) 0.bf))
            (or err
-               (and (bf=? (ival-lo-val x) 0.bf)
-                    (bf=? (ival-hi-val x) 0.bf)
-                    (bf=? (ival-lo-val y) 0.bf)
-                    (bf=? (ival-hi-val y) 0.bf))))]))
+               (and (bfzero? (ival-lo-val x))
+                    (bfzero? (ival-hi-val x))
+                    (bfzero? (ival-lo-val y))
+                    (bfzero? (ival-hi-val y)))))]))
 
 (define*
  ival-cosh
