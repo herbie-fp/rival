@@ -10,8 +10,34 @@
       0.bf
       (bfmul a b)))
 
+;; WARNING: double rounding issues below, it does not refine
+;;
+;;
+;; (define x
+;;   (parameterize ([bf-precision 88])
+;;     (ival (bf "2.023002359077489336695397166e258"))))
+;; 
+;; (define y
+;;   (parameterize ([bf-precision 91])
+;;     (ival 0.bf (bf "6.4878140443992047719110337054e233"))))
+;; 
+;; (define yhi
+;;   (parameterize ([bf-precision 91])
+;;     (ival 0.bf (bf "6.4878140443992047719110335995e233"))))
+;;
+;;
+;; Here yhi refines y, so you'd think fmod(x, yhi) refines fmod(x, y)
+;; but in fact it doesn't! Due to double-rounding, in fmox(x, y),
+;; we don't think there's an intersection along the top edge, but in
+;; fmod(x, yhi) we falsely do, which leads to a bigger interval.
+;;
+;; For this reason ival-fmod and ival-remainder skip refinement tests.
+;;
+;; Ideally we'd fix this and get even tighter bounds, but maybe it
+;; doesn't matter?
+
+;; Assumes both `x` and `y` are entirely positive
 (define (ival-fmod-pos x y err? err)
-  ;; Assumes both `x` and `y` are entirely positive
   (define a (rnd 'down bftruncate (bfdiv (ival-lo-val x) (ival-hi-val y))))
   (define b (rnd 'up bftruncate (bfdiv (ival-hi-val x) (ival-hi-val y))))
   (cond
@@ -25,7 +51,7 @@
         (ival (endpoint lo #f) (endpoint hi #f) err? err)]
        [else
         (ival (endpoint 0.bf #f)
-              (endpoint (rnd 'up bfmax2 (bfdiv (ival-hi-val x) (rnd 'down bfadd c 1.bf)) 0.bf) #f)
+              (endpoint (rnd 'up bfdiv (ival-hi-val x) (rnd 'down bfadd c 1.bf)) #f)
               err?
               err)])]
     [else (ival (endpoint 0.bf #f) (endpoint (ival-hi-val y) #f) err? err)]))
@@ -39,8 +65,8 @@
     (or (ival-err x) (ival-err y) (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
   (define y* (ival-exact-fabs y))
   (cond
-    [(bflte? (ival-hi-val x) 0.bf) (ival-neg (ival-fmod-pos (ival-exact-neg x) y* err? err))]
-    [(bfgte? (ival-lo-val x) 0.bf) (ival-fmod-pos x y* err? err)]
+    [(= (mpfr-sign (ival-hi-val x)) -1) (ival-neg (ival-fmod-pos (ival-exact-neg x) y* err? err))]
+    [(= (mpfr-sign (ival-lo-val x)) 1) (ival-fmod-pos x y* err? err)]
     [else
      (define-values (neg pos) (split-ival x 0.bf))
      (ival-union (ival-fmod-pos pos y* err? err)
@@ -56,14 +82,9 @@
      (define d (rnd 'up bfround (bfdiv (ival-hi-val x) (ival-lo-val y))))
      (cond
        [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
-        (define y* (rnd 'up bfdiv (ival-hi-val y) 2.bf))
-        (ival
-         (endpoint
-          (rnd 'down bfmax2 (bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y))) (bfneg y*))
-          #f)
-         (endpoint (rnd 'up bfmin2 (bfsub (ival-hi-val x) (rnd 'down bfmul c (ival-lo-val y))) y*) #f)
-         err?
-         err)]
+        (define lo (rnd 'down bfremainder (ival-lo-val x) (ival-hi-val y)))
+        (define hi (rnd 'up bfremainder (ival-hi-val x) (ival-lo-val y)))
+        (ival (endpoint lo #f) (endpoint hi #f) err? err)]
        [else
         ;; NOPE! need to subtract half.bf one way, add it another!
         (define y*-hi (rnd 'up bfdiv (bfdiv (ival-hi-val x) (rnd 'down bfadd c half.bf)) 2.bf))
@@ -87,8 +108,8 @@
     (or (ival-err x) (ival-err y) (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
   (define y* (ival-exact-fabs y))
   (cond
-    [(bflte? (ival-hi-val x) 0.bf) (ival-neg (ival-remainder-pos (ival-exact-neg x) y* err? err))]
-    [(bfgte? (ival-lo-val x) 0.bf) (ival-remainder-pos x y* err? err)]
+    [(= (mpfr-sign (ival-hi-val x)) -1) (ival-neg (ival-remainder-pos (ival-exact-neg x) y* err? err))]
+    [(= (mpfr-sign (ival-lo-val x)) 1) (ival-remainder-pos x y* err? err)]
     [else
      (define-values (neg pos) (split-ival x 0.bf))
      (ival-union (ival-remainder-pos pos y* err? err)
