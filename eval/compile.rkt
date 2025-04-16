@@ -19,7 +19,7 @@
 (define *rival-use-shorthands* (make-parameter #t))
 (define *rival-name-constants* (make-parameter #f))
 
-(define (fn->ival-fn node alloc-outreg!)
+(define (fn->ival-fn node alloc-outreg! [constants #f] [i #f])
   (match node
     [(? number?)
      (if (ival-point? (real->ival node))
@@ -89,9 +89,18 @@
 
     [(list 'pow2 x) (list ival-pow2 x)]
 
-    [(list `(cosu ,n) x) (list (ival-cosu n) x)]
-    [(list `(sinu ,n) x) (list (ival-sinu n) x)]
-    [(list `(tanu ,n) x) (list (ival-tanu n) x)]
+    [(list `(cosu ,n) x)
+     (when i
+       (vector-set! constants i (exact-floor (log n))))
+     (list (ival-cosu n) x)]
+    [(list `(sinu ,n) x)
+     (when i
+       (vector-set! constants i (exact-floor (log n))))
+     (list (ival-sinu n) x)]
+    [(list `(tanu ,n) x)
+     (when i
+       (vector-set! constants i (exact-floor (log n))))
+     (list (ival-tanu n) x)]
 
     [(list '== x y) (list ival-== x y)]
     [(list '!= x y) (list ival-!= x y)]
@@ -279,6 +288,8 @@
   (define register-count (+ (length vars) ivec-length))
   (define registers (make-vector register-count))
 
+  (define constants-lookup (make-vector ivec-length '()))
+
   (define instructions
     (for/vector #:length ivec-length
                 ([node (in-vector nodes num-vars)]
@@ -286,7 +297,9 @@
       (fn->ival-fn node
                    (lambda ()
                      (vector-set! registers n (new-ival))
-                     n))))
+                     n)
+                   constants-lookup
+                   (- n num-vars))))
 
   (define precisions (make-vector ivec-length)) ; vector that stores working precisions
   (define initial-precisions (setup-vstart-precs instructions num-vars roots discs))
@@ -311,6 +324,7 @@
                  best-known-precisions
                  (make-vector (vector-length roots))
                  default-hint
+                 constants-lookup
                  0
                  0
                  0
