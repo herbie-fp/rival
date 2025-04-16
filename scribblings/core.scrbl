@@ -57,17 +57,6 @@ functions, which return different intervals at different
 
 @section{Interval Operations}
 
-Rival provides a large set of interval operations. All of these
-operations are sound, meaning that the output interval always contains
-all valid outputs from points in the input intervals.
-
-Most operations are also weakly complete, meaning that the endpoints
-of the output interval come from some point in the input intervals
-(rounded outwards). Not all operations are weakly complete, however.
-
-These operations have their output precision determined by
-@racket[bf-precision].
-
 @deftogether[(
   @defproc[(ival-add [a ival?] [b ival?]) ival?]
   @defproc[(ival-sub [a ival?] [b ival?]) ival?]
@@ -86,7 +75,7 @@ These operations have their output precision determined by
   @defproc[(ival-log2 [a ival?]) ival?]
   @defproc[(ival-log10 [a ival?]) ival?]
   @defproc[(ival-log1p [a ival?]) ival?]
-  @defproc[(ival-log1b [a ival?]) ival?]
+  @defproc[(ival-logb [a ival?]) ival?]
   @defproc[(ival-pow [a ival?] [b ival?]) ival?]
   @defproc[(ival-sin [a ival?]) ival?]
   @defproc[(ival-cos [a ival?]) ival?]
@@ -118,15 +107,8 @@ These operations have their output precision determined by
   @defproc[(ival-fdim [a ival?] [b ival?]) ival?]
 )]{
   These are all interval functions with arguments in the order
-  corresponding to the same-name @code{math.h} functions. Barring
-  bugs, all are sound. Most are weakly complete, though some more
-  complex functions aren't, including @racket[ival-pow],
-  @racket[ival-fma], @racket[ival-fmod], and @racket[ival-atan2]. Even
-  these fuctions still make a best-effort attempt to produce
-  relatively narrow intervals. For example, @racket[ival-fma] is
-  implemented via the formula @code{(fma a b c) = (+ (* a b) c)},
-  which that it accumulates multiple rounding errors. The result is
-  therefore not maximally tight, but typically still pretty close.
+  corresponding to the same-name @code{math.h} functions. The
+  precision of the output can be set with @racket[bf-precision].
 
   @history[#:changed "1.7" @elem{Added @racket[ival-tgamma] and @racket[ival-lgamma]}]
 }
@@ -138,6 +120,81 @@ These operations have their output precision determined by
         (listof ival?)]{
   Sorts a list of intervals using a comparator function.
 }
+
+Rival aims to ensure three properties of all helper functions:
+
+@itemlist[
+  @item{
+    @italic{Soundness} means output intervals contain any
+    output on inputs drawn from the input intervals.
+    IEEE-1788 refers to this as the output interval being @italic{valid}.
+  }
+
+  @item{
+    @italic{Refinement} means, moreover, that narrower input intervals
+    lead to narrower output intervals. Rival's movability flags make this
+    a somewhat more complicated property than typical.
+  }
+
+  @item{
+    @italic{Weak completeness} means, moreover, that Rival returns
+    the narrowest possible valid interval. IEEE-1788 refers
+    to this as the output interval being @italic{tight}.
+  }
+]
+
+Weak completeness (tightness) is the strongest possible property,
+while soundness (validity) is the weakest, with refinement somewhere
+in between. Rival's interval functions offer the following guarantees:
+
+@tabular[
+(list (list @racket[ival-add]       "tight")
+      (list @racket[ival-sub]       "tight")
+      (list @racket[ival-neg]       "tight")
+      (list @racket[ival-mul]       "tight")
+      (list @racket[ival-div]       "tight")
+      (list @racket[ival-fma]       "refinement")
+      (list @racket[ival-fabs]      "tight")
+      (list @racket[ival-sqrt]      "tight")
+      (list @racket[ival-cbrt]      "tight")
+      (list @racket[ival-hypot]     "tight")
+      (list @racket[ival-exp]       "tight")
+      (list @racket[ival-exp2]      "tight")
+      (list @racket[ival-exp2m1]    "tight")
+      (list @racket[ival-log]       "tight")
+      (list @racket[ival-log2]      "tight")
+      (list @racket[ival-log10]     "tight")
+      (list @racket[ival-log1p]     "tight")
+      (list @racket[ival-logb]      "tight")
+      (list @racket[ival-pow]       "refinement")
+      (list @racket[ival-sin]       "valid")
+      (list @racket[ival-cos]       "valid")
+      (list @racket[ival-tan]       "valid")
+      (list @racket[ival-asin]      "tight")
+      (list @racket[ival-acos]      "tight")
+      (list @racket[ival-atan]      "tight")
+      (list @racket[ival-atan2]     "valid")
+      (list @racket[ival-sinh]      "tight")
+      (list @racket[ival-cosh]      "tight")
+      (list @racket[ival-tanh]      "tight")
+      (list @racket[ival-asinh]     "tight")
+      (list @racket[ival-acosh]     "tight")
+      (list @racket[ival-atanh]     "tight")
+      (list @racket[ival-erf]       "tight")
+      (list @racket[ival-erfc]      "tight")
+      (list @racket[ival-tgamma]    "valid")
+      (list @racket[ival-lgamma]    "valid")
+      (list @racket[ival-fmod]      "valid")
+      (list @racket[ival-remainder] "valid")
+      (list @racket[ival-rint]      "tight")
+      (list @racket[ival-round]     "tight")
+      (list @racket[ival-ceil]      "tight")
+      (list @racket[ival-floor]     "tight")
+      (list @racket[ival-trunc]     "tight")
+      (list @racket[ival-fmin]      "tight")
+      (list @racket[ival-fmax]      "tight")
+      (list @racket[ival-copysign]  "tight")
+      (list @racket[ival-fdim]      "tight"))]
 
 @section{Interval Helper Functions}
 
