@@ -57,70 +57,6 @@ functions, which return different intervals at different
 
 @section{Interval Operations}
 
-@deftogether[(
-  @defproc[(ival-add [a ival?] [b ival?]) ival?]
-  @defproc[(ival-sub [a ival?] [b ival?]) ival?]
-  @defproc[(ival-neg [a ival?]) ival?]
-  @defproc[(ival-mul [a ival?] [b ival?]) ival?]
-  @defproc[(ival-div [a ival?] [b ival?]) ival?]
-  @defproc[(ival-fma [a ival?] [b ival?] [c ival?]) ival?]
-  @defproc[(ival-fabs [a ival?]) ival?]
-  @defproc[(ival-sqrt [a ival?]) ival?]
-  @defproc[(ival-cbrt [a ival?]) ival?]
-  @defproc[(ival-hypot [a ival?] [b ival?]) ival?]
-  @defproc[(ival-exp [a ival?]) ival?]
-  @defproc[(ival-exp2 [a ival?]) ival?]
-  @defproc[(ival-exp2m1 [a ival?]) ival?]
-  @defproc[(ival-log [a ival?]) ival?]
-  @defproc[(ival-log2 [a ival?]) ival?]
-  @defproc[(ival-log10 [a ival?]) ival?]
-  @defproc[(ival-log1p [a ival?]) ival?]
-  @defproc[(ival-logb [a ival?]) ival?]
-  @defproc[(ival-pow [a ival?] [b ival?]) ival?]
-  @defproc[(ival-sin [a ival?]) ival?]
-  @defproc[(ival-cos [a ival?]) ival?]
-  @defproc[(ival-tan [a ival?]) ival?]
-  @defproc[(ival-asin [a ival?]) ival?]
-  @defproc[(ival-acos [a ival?]) ival?]
-  @defproc[(ival-atan [a ival?]) ival?]
-  @defproc[(ival-atan2 [a ival?] [b ival?]) ival?]
-  @defproc[(ival-sinh [a ival?]) ival?]
-  @defproc[(ival-cosh [a ival?]) ival?]
-  @defproc[(ival-tanh [a ival?]) ival?]
-  @defproc[(ival-asinh [a ival?]) ival?]
-  @defproc[(ival-acosh [a ival?]) ival?]
-  @defproc[(ival-atanh [a ival?]) ival?]
-  @defproc[(ival-erf [a ival?]) ival?]
-  @defproc[(ival-erfc [a ival?]) ival?]
-  @defproc[(ival-tgamma [a ival?]) ival?]
-  @defproc[(ival-lgamma [a ival?]) ival?]
-  @defproc[(ival-fmod [a ival?] [b ival?]) ival?]
-  @defproc[(ival-remainder [a ival?] [b ival?]) ival?]
-  @defproc[(ival-rint [a ival?]) ival?]
-  @defproc[(ival-round [a ival?]) ival?]
-  @defproc[(ival-ceil [a ival?]) ival?]
-  @defproc[(ival-floor [a ival?]) ival?]
-  @defproc[(ival-trunc [a ival?]) ival?]
-  @defproc[(ival-fmin [a ival?] [b ival?]) ival?]
-  @defproc[(ival-fmax [a ival?] [b ival?]) ival?]
-  @defproc[(ival-copysign [a ival?] [b ival?]) ival?]
-  @defproc[(ival-fdim [a ival?] [b ival?]) ival?]
-)]{
-  These are all interval functions with arguments in the order
-  corresponding to the same-name @code{math.h} functions. The
-  precision of the output can be set with @racket[bf-precision].
-
-  @history[#:changed "1.7" @elem{Added @racket[ival-tgamma] and @racket[ival-lgamma]}]
-}
-
-@defproc[(ival-sort [lst (listof ival?)]
-                  [< (-> (or/c bigfloat? boolean?)
-                        (or/c bigfloat? boolean?)
-                        boolean?)])
-        (listof ival?)]{
-  Sorts a list of intervals using a comparator function.
-}
-
 Rival aims to ensure three properties of all helper functions:
 
 @itemlist[
@@ -145,56 +81,101 @@ Rival aims to ensure three properties of all helper functions:
 
 Weak completeness (tightness) is the strongest possible property,
 while soundness (validity) is the weakest, with refinement somewhere
-in between. Rival's interval functions offer the following guarantees:
+in between.
 
-@tabular[
-(list (list @racket[ival-add]       "tight")
-      (list @racket[ival-sub]       "tight")
-      (list @racket[ival-neg]       "tight")
-      (list @racket[ival-mul]       "tight")
-      (list @racket[ival-div]       "tight")
-      (list @racket[ival-fma]       "refinement")
-      (list @racket[ival-fabs]      "tight")
-      (list @racket[ival-sqrt]      "tight")
-      (list @racket[ival-cbrt]      "tight")
-      (list @racket[ival-hypot]     "tight")
-      (list @racket[ival-exp]       "tight")
-      (list @racket[ival-exp2]      "tight")
-      (list @racket[ival-exp2m1]    "tight")
-      (list @racket[ival-log]       "tight")
-      (list @racket[ival-log2]      "tight")
-      (list @racket[ival-log10]     "tight")
-      (list @racket[ival-log1p]     "tight")
-      (list @racket[ival-logb]      "tight")
-      (list @racket[ival-pow]       "refinement")
-      (list @racket[ival-sin]       "valid")
-      (list @racket[ival-cos]       "valid")
-      (list @racket[ival-tan]       "valid")
-      (list @racket[ival-asin]      "tight")
-      (list @racket[ival-acos]      "tight")
-      (list @racket[ival-atan]      "tight")
-      (list @racket[ival-atan2]     "valid")
-      (list @racket[ival-sinh]      "tight")
-      (list @racket[ival-cosh]      "tight")
-      (list @racket[ival-tanh]      "tight")
-      (list @racket[ival-asinh]     "tight")
-      (list @racket[ival-acosh]     "tight")
-      (list @racket[ival-atanh]     "tight")
-      (list @racket[ival-erf]       "tight")
-      (list @racket[ival-erfc]      "tight")
-      (list @racket[ival-tgamma]    "valid")
-      (list @racket[ival-lgamma]    "valid")
-      (list @racket[ival-fmod]      "valid")
-      (list @racket[ival-remainder] "valid")
-      (list @racket[ival-rint]      "tight")
-      (list @racket[ival-round]     "tight")
-      (list @racket[ival-ceil]      "tight")
-      (list @racket[ival-floor]     "tight")
-      (list @racket[ival-trunc]     "tight")
-      (list @racket[ival-fmin]      "tight")
-      (list @racket[ival-fmax]      "tight")
-      (list @racket[ival-copysign]  "tight")
-      (list @racket[ival-fdim]      "tight"))]
+@deftogether[(
+  @defproc[(ival-add [a ival?] [b ival?]) ival?]
+  @defproc[(ival-sub [a ival?] [b ival?]) ival?]
+  @defproc[(ival-neg [a ival?]) ival?]
+  @defproc[(ival-mul [a ival?] [b ival?]) ival?]
+  @defproc[(ival-div [a ival?] [b ival?]) ival?]
+  @defproc[(ival-fabs [a ival?]) ival?]
+  @defproc[(ival-sqrt [a ival?]) ival?]
+  @defproc[(ival-cbrt [a ival?]) ival?]
+  @defproc[(ival-hypot [a ival?] [b ival?]) ival?]
+  @defproc[(ival-exp [a ival?]) ival?]
+  @defproc[(ival-exp2 [a ival?]) ival?]
+  @defproc[(ival-exp2m1 [a ival?]) ival?]
+  @defproc[(ival-log [a ival?]) ival?]
+  @defproc[(ival-log2 [a ival?]) ival?]
+  @defproc[(ival-log10 [a ival?]) ival?]
+  @defproc[(ival-log1p [a ival?]) ival?]
+  @defproc[(ival-logb [a ival?]) ival?]
+  @defproc[(ival-asin [a ival?]) ival?]
+  @defproc[(ival-acos [a ival?]) ival?]
+  @defproc[(ival-atan [a ival?]) ival?]
+  @defproc[(ival-sinh [a ival?]) ival?]
+  @defproc[(ival-cosh [a ival?]) ival?]
+  @defproc[(ival-tanh [a ival?]) ival?]
+  @defproc[(ival-asinh [a ival?]) ival?]
+  @defproc[(ival-acosh [a ival?]) ival?]
+  @defproc[(ival-atanh [a ival?]) ival?]
+  @defproc[(ival-erf [a ival?]) ival?]
+  @defproc[(ival-erfc [a ival?]) ival?]
+  @defproc[(ival-rint [a ival?]) ival?]
+  @defproc[(ival-round [a ival?]) ival?]
+  @defproc[(ival-ceil [a ival?]) ival?]
+  @defproc[(ival-floor [a ival?]) ival?]
+  @defproc[(ival-trunc [a ival?]) ival?]
+  @defproc[(ival-fmin [a ival?] [b ival?]) ival?]
+  @defproc[(ival-fmax [a ival?] [b ival?]) ival?]
+  @defproc[(ival-copysign [a ival?] [b ival?]) ival?]
+  @defproc[(ival-fdim [a ival?] [b ival?]) ival?]
+)]{
+  These are all interval functions with arguments in the order
+  corresponding to the same-name @code{math.h} functions. The
+  precision of the output can be set with @racket[bf-precision].
+  All of these functions are weakly complete, returning the tightest
+  possible intervals for the strongest possible guarantees.
+}
+
+@deftogether[(
+  @defproc[(ival-fma [a ival?] [b ival?] [c ival?]) ival?]
+  @defproc[(ival-pow [a ival?] [b ival?]) ival?]
+  @defproc[(ival-sin [a ival?]) ival?]
+  @defproc[(ival-cos [a ival?]) ival?]
+  @defproc[(ival-tan [a ival?]) ival?]
+  @defproc[(ival-atan2 [a ival?] [b ival?]) ival?]
+)]{
+  These interval functions, like the previous set, are analogous to
+  the same-name @code{math.h} functions and set their precision with
+  @racket[bf-precision]. However, these functions are more complex and
+  do not guarantee weak completeness. We do, however, have high
+  confidence that they satisfy the refinement property.
+}
+
+@deftogether[(
+  @defproc[(ival-fmod [a ival?] [b ival?]) ival?]
+  @defproc[(ival-remainder [a ival?] [b ival?]) ival?]
+)]{
+  Like the others, these interval functions take arguments and return
+  values analogous to the same-name @code{math.h} functions and
+  produce output with @racket[bf-precision] precision. However,
+  these functions do not guarantee refinement in all cases due to
+  several subtle double-rounding cases.
+}
+
+@deftogether[(
+  @defproc[(ival-tgamma [a ival?]) ival?]
+  @defproc[(ival-lgamma [a ival?]) ival?]
+)]{
+  These two interval functions (which take arguments and return
+  values analogous to the same-name @code{math.h} functions and
+  produce output with @racket[bf-precision] precision) are extremely
+  slow, and we have only moderate confidence that these functions
+  satisfy soundness in all cases. We do not recommended using these
+  functions in typical use cases or at high precision.
+
+  @history[#:changed "1.7" @elem{Added @racket[ival-tgamma] and @racket[ival-lgamma]}]
+}
+
+@defproc[(ival-sort [lst (listof ival?)]
+                  [< (-> (or/c bigfloat? boolean?)
+                        (or/c bigfloat? boolean?)
+                        boolean?)])
+        (listof ival?)]{
+  Sorts a list of intervals using a comparator function.
+}
 
 @section{Interval Helper Functions}
 
