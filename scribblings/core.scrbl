@@ -57,16 +57,31 @@ functions, which return different intervals at different
 
 @section{Interval Operations}
 
-Rival provides a large set of interval operations. All of these
-operations are sound, meaning that the output interval always contains
-all valid outputs from points in the input intervals.
+Rival aims to ensure three properties of all helper functions:
 
-Most operations are also weakly complete, meaning that the endpoints
-of the output interval come from some point in the input intervals
-(rounded outwards). Not all operations are weakly complete, however.
+@itemlist[
+  @item{
+    @italic{Soundness} means output intervals contain any
+    output on inputs drawn from the input intervals.
+    IEEE-1788 refers to this as the output interval being @italic{valid}.
+  }
 
-These operations have their output precision determined by
-@racket[bf-precision].
+  @item{
+    @italic{Refinement} means, moreover, that narrower input intervals
+    lead to narrower output intervals. Rival's movability flags make this
+    a somewhat more complicated property than typical.
+  }
+
+  @item{
+    @italic{Weak completeness} means, moreover, that Rival returns
+    the narrowest possible valid interval. IEEE-1788 refers
+    to this as the output interval being @italic{tight}.
+  }
+]
+
+Weak completeness (tightness) is the strongest possible property,
+while soundness (validity) is the weakest, with refinement somewhere
+in between.
 
 @deftogether[(
   @defproc[(ival-add [a ival?] [b ival?]) ival?]
@@ -74,7 +89,6 @@ These operations have their output precision determined by
   @defproc[(ival-neg [a ival?]) ival?]
   @defproc[(ival-mul [a ival?] [b ival?]) ival?]
   @defproc[(ival-div [a ival?] [b ival?]) ival?]
-  @defproc[(ival-fma [a ival?] [b ival?] [c ival?]) ival?]
   @defproc[(ival-fabs [a ival?]) ival?]
   @defproc[(ival-sqrt [a ival?]) ival?]
   @defproc[(ival-cbrt [a ival?]) ival?]
@@ -86,15 +100,10 @@ These operations have their output precision determined by
   @defproc[(ival-log2 [a ival?]) ival?]
   @defproc[(ival-log10 [a ival?]) ival?]
   @defproc[(ival-log1p [a ival?]) ival?]
-  @defproc[(ival-log1b [a ival?]) ival?]
-  @defproc[(ival-pow [a ival?] [b ival?]) ival?]
-  @defproc[(ival-sin [a ival?]) ival?]
-  @defproc[(ival-cos [a ival?]) ival?]
-  @defproc[(ival-tan [a ival?]) ival?]
+  @defproc[(ival-logb [a ival?]) ival?]
   @defproc[(ival-asin [a ival?]) ival?]
   @defproc[(ival-acos [a ival?]) ival?]
   @defproc[(ival-atan [a ival?]) ival?]
-  @defproc[(ival-atan2 [a ival?] [b ival?]) ival?]
   @defproc[(ival-sinh [a ival?]) ival?]
   @defproc[(ival-cosh [a ival?]) ival?]
   @defproc[(ival-tanh [a ival?]) ival?]
@@ -103,10 +112,6 @@ These operations have their output precision determined by
   @defproc[(ival-atanh [a ival?]) ival?]
   @defproc[(ival-erf [a ival?]) ival?]
   @defproc[(ival-erfc [a ival?]) ival?]
-  @defproc[(ival-tgamma [a ival?]) ival?]
-  @defproc[(ival-lgamma [a ival?]) ival?]
-  @defproc[(ival-fmod [a ival?] [b ival?]) ival?]
-  @defproc[(ival-remainder [a ival?] [b ival?]) ival?]
   @defproc[(ival-rint [a ival?]) ival?]
   @defproc[(ival-round [a ival?]) ival?]
   @defproc[(ival-ceil [a ival?]) ival?]
@@ -118,15 +123,48 @@ These operations have their output precision determined by
   @defproc[(ival-fdim [a ival?] [b ival?]) ival?]
 )]{
   These are all interval functions with arguments in the order
-  corresponding to the same-name @code{math.h} functions. Barring
-  bugs, all are sound. Most are weakly complete, though some more
-  complex functions aren't, including @racket[ival-pow],
-  @racket[ival-fma], @racket[ival-fmod], and @racket[ival-atan2]. Even
-  these fuctions still make a best-effort attempt to produce
-  relatively narrow intervals. For example, @racket[ival-fma] is
-  implemented via the formula @code{(fma a b c) = (+ (* a b) c)},
-  which that it accumulates multiple rounding errors. The result is
-  therefore not maximally tight, but typically still pretty close.
+  corresponding to the same-name @code{math.h} functions. The
+  precision of the output can be set with @racket[bf-precision].
+  All of these functions are weakly complete, returning the tightest
+  possible intervals for the strongest possible guarantees.
+}
+
+@deftogether[(
+  @defproc[(ival-fma [a ival?] [b ival?] [c ival?]) ival?]
+  @defproc[(ival-pow [a ival?] [b ival?]) ival?]
+  @defproc[(ival-sin [a ival?]) ival?]
+  @defproc[(ival-cos [a ival?]) ival?]
+  @defproc[(ival-tan [a ival?]) ival?]
+  @defproc[(ival-atan2 [a ival?] [b ival?]) ival?]
+)]{
+  These interval functions, like the previous set, are analogous to
+  the same-name @code{math.h} functions and set their precision with
+  @racket[bf-precision]. However, these functions are more complex and
+  do not guarantee weak completeness. We do, however, have high
+  confidence that they satisfy the refinement property.
+}
+
+@deftogether[(
+  @defproc[(ival-fmod [a ival?] [b ival?]) ival?]
+  @defproc[(ival-remainder [a ival?] [b ival?]) ival?]
+)]{
+  Like the others, these interval functions take arguments and return
+  values analogous to the same-name @code{math.h} functions and
+  produce output with @racket[bf-precision] precision. However,
+  these functions do not guarantee refinement in all cases due to
+  several subtle double-rounding cases.
+}
+
+@deftogether[(
+  @defproc[(ival-tgamma [a ival?]) ival?]
+  @defproc[(ival-lgamma [a ival?]) ival?]
+)]{
+  These two interval functions (which take arguments and return
+  values analogous to the same-name @code{math.h} functions and
+  produce output with @racket[bf-precision] precision) are extremely
+  slow, and we have only moderate confidence that these functions
+  satisfy soundness in all cases. We do not recommended using these
+  functions in typical use cases or at high precision.
 
   @history[#:changed "1.7" @elem{Added @racket[ival-tgamma] and @racket[ival-lgamma]}]
 }
