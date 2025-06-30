@@ -14,6 +14,7 @@
          rival-compile
          rival-apply
          rival-analyze
+         rival-analyze-with-hints
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
          (struct-out exn:rival:unsamplable)
@@ -82,7 +83,7 @@
       [else (loop (+ 1 iter))])))
 
 ; Assumes that hint (if provided) is correct for the given rect
-(define (rival-analyze machine rect [hint #f])
+(define (rival-analyze-with-hints machine rect [hint #f])
   ; Load arguments
   (rival-machine-load machine rect)
   (define-values (good? done? bad? stuck? fvec)
@@ -91,3 +92,11 @@
   (define-values (hint* hint*-converged?)
     (make-hint machine (or hint (rival-machine-default-hint machine))))
   (list (ival (or bad? stuck?) (not good?)) hint* hint*-converged?))
+
+(define (rival-analyze machine rect)
+  ; Load arguments
+  (rival-machine-load machine rect)
+  (define-values (good? done? bad? stuck? fvec)
+    (parameterize ([*sampling-iteration* 0])
+      (rival-machine-full machine (rival-machine-default-hint machine))))
+  (ival (or bad? stuck?) (not good?)))
