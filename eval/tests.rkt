@@ -97,11 +97,11 @@
     (define no-hint-cnt 0)
     (for ([n (in-range number-of-random-hyperrects)])
       (define hyperrect (sample-hyperrect-within-bounds rect-lo rect-hi varc))
-      (match-define (list res hint converged?) (rival-analyze machine hyperrect))
+      (match-define (list res hint converged?) (rival-analyze-with-hints machine hyperrect))
 
       ; A little hack, the analyze below uses hint from the previous run
       ; The analyze results must be equal. If not, something wrong has happened
-      (match-define (list res* hint* converged?*) (rival-analyze machine hyperrect hint))
+      (match-define (list res* hint* converged?*) (rival-analyze-with-hints machine hyperrect hint))
 
       (with-check-info (['hyperrect hyperrect] ['hint hint])
                        (check-equal? hint hint*)
