@@ -94,9 +94,4 @@
   (list (ival (or bad? stuck?) (not good?)) hint* hint*-converged?))
 
 (define (rival-analyze machine rect)
-  ; Load arguments
-  (rival-machine-load machine rect)
-  (define-values (good? done? bad? stuck? fvec)
-    (parameterize ([*sampling-iteration* 0])
-      (rival-machine-full machine (rival-machine-default-hint machine))))
-  (ival (or bad? stuck?) (not good?)))
+  (car (rival-analyze-with-hints machine rect)))
