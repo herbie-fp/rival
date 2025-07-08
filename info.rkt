@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "rival")
-(define version "2.0")
+(define version "2.2")
 (define license 'MIT)
 
 ;; Packaging information
