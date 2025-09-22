@@ -34,6 +34,7 @@
                    output-distance
                    default-hint
                    constant-lookup
+                   max-precision
                    [iteration #:mutable]
                    [bumps #:mutable]
                    [profile-ptr #:mutable]
