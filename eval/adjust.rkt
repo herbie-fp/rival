@@ -262,14 +262,14 @@
 ;   vprecs-max[i] = (+ max-prec vstart-precs[i]), where min-prec < (+ max-prec vstart-precs[i]) < max-prec
 ;   max-prec = (car (get-bounds parent))
 (define (precision-tuning machine-max-precision
-                           ivec
-                           vregs
-                           vprecs-max
-                           varc
-                           vstart-precs
-                           vrepeats
-                           vhint
-                           constants)
+                          ivec
+                          vregs
+                          vprecs-max
+                          varc
+                          vstart-precs
+                          vrepeats
+                          vhint
+                          constants)
   (define vprecs-min (make-vector (vector-length ivec) 0))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
@@ -282,7 +282,8 @@
     (define tail-registers (drop-self-pointer (cdr instr) n))
     (define srcs (append (map (lambda (x) (vector-ref vregs x)) tail-registers) constant))
 
-    (define parent-max-prec (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
+    (define parent-max-prec
+      (vector-ref vprecs-max (- n varc))) ; upper precision bound given from parent
     (define min-prec (vector-ref vprecs-min (- n varc))) ; lower precision bound given from parent
 
     ; Final precision assignment based on the upper bound
