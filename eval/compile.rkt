@@ -325,6 +325,7 @@
                  (make-vector (vector-length roots))
                  default-hint
                  constants-lookup
+                 (*rival-max-precision*)
                  0
                  0
                  0
