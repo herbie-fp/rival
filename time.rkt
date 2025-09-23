@@ -341,6 +341,7 @@
   (define count-i 0.0)
   (define total-u 0.0)
   (define count-u 0.0)
+  (define total-mem-bytes 0)
 
   (define timeline
     (make-hash ; this hash is to be used for the plots
@@ -360,8 +361,12 @@
       (when test-id
         (pretty-print (map read-from-string (hash-ref rec 'exprs))))
 
+      (define mem-before (current-memory-use 'cumulative))
       (match-define (list c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)
         (time-exprs (time-expr rec timeline sollya-reeval)))
+      (define mem-after (current-memory-use 'cumulative))
+      (define mem-delta (- mem-after mem-before))
+      (define mem-mib (/ (exact->inexact mem-delta) (* 1024 1024)))
       (set! total-c (+ total-c c-time))
       (set! total-v (+ total-v v-time))
       (set! count-v (+ count-v v-num))
@@ -369,14 +374,16 @@
       (set! count-i (+ count-i i-num))
       (set! total-u (+ total-u u-time))
       (set! count-u (+ count-u u-num))
+      (set! total-mem-bytes (+ total-mem-bytes mem-delta))
       (define t-time (+ c-time v-time i-time u-time))
-      (printf "~a: ~as ~as ~as ~as\n"
+      (printf "~a: ~as ~as ~as ~as ~as MiB\n"
               (~a i #:align 'left #:min-width 3)
               (~r t-time #:precision '(= 3) #:min-width 8)
               (~r v-time #:precision '(= 3) #:min-width 8)
               (~r i-time #:precision '(= 3) #:min-width 8)
-              (~r u-time #:precision '(= 3) #:min-width 8))
-      (list i t-time c-time v-num v-time i-num i-time u-num u-time rival-baseline-diff)))
+              (~r u-time #:precision '(= 3) #:min-width 8)
+              (~r mem-mib #:precision '(= 3) #:min-width 8))
+      (list i t-time c-time v-num v-time i-num i-time u-num u-time mem-mib rival-baseline-diff)))
   (printf "\nDATA:\n")
   (printf "\tNUMBER OF TUNED BENCHMARKS = ~a\n" (*num-tuned-benchmarks*))
   (printf "\tRIVAL TIMEOUTS = ~a\n" (*rival-timeout*))
@@ -388,8 +395,11 @@
     (close-output-port timeline-port))
 
   (define total-t (+ total-c total-v total-i total-u))
+  (define total-mem (/ (exact->inexact total-mem-bytes) (* 1024 1024)))
   (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
-  (define footer (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u))
+  (printf "Total Memory: ~a MiB\n"
+          (~r total-mem #:precision '(= 3)))
+  (define footer (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u total-mem))
   (values table footer))
 
 (define (html-write port)
@@ -485,6 +495,7 @@
             ("(s)" "s")
             "Unable"
             ("(s)" "s")
+            ("Memory" "MiB")
             "Baseline-valid, Rival-exit"))
     (html-write-table html-port "Expression timing" cols)
     (for ([row (in-list expression-table)])
