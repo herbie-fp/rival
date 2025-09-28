@@ -333,6 +333,7 @@
                  (make-vector (*rival-profile-executions*))
                  (make-flvector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))
+                 (make-vector (*rival-profile-executions*))
                  (make-vector (*rival-profile-executions*))))
 
 ;;  Defining instructions that do not depend on input arguments

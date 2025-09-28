@@ -28,7 +28,7 @@
   (define iter 0)
   (define last #f)
   (for/list ([exec (in-vector execs)])
-    (match-define (execution name id precision time _) exec)
+    (match-define (execution name id precision time _ _) exec)
     (when (and last (< id last))
       (set! iter (+ iter 1)))
     (set! last id)
@@ -106,7 +106,7 @@
                     #:when (and (= (modulo col 2) 0) (> col 2))
                     (define iter (- (/ col 2) 1))
                     (list-find-match execs*
-                                     (cons (== iter) (execution 'adjust _ _ time _))
+                                     (cons (== iter) (execution 'adjust _ _ time _ _))
                                      (~r (* time 1000) #:precision '(= 1)))]
                    [(2 col) ""]
                    [((== (+ 3 num-instructions)) _) "------"]
@@ -126,19 +126,19 @@
                    [(row 0)
                     (define id (+ (- row 3) num-args))
                     (list-find-match execs*
-                                     (cons _ (execution name (== id) _ _ _))
+                                     (cons _ (execution name (== id) _ _ _ _))
                                      (normalize-function-name (~a name)))]
                    [(row col)
                     #:when (= (modulo col 2) 1) ; precision
                     (define id (+ (- row 3) num-args))
                     (define iter (/ (- col 1) 2))
-                    (list-find-match execs* (cons (== iter) (execution _ (== id) prec _ _)) prec)]
+                    (list-find-match execs* (cons (== iter) (execution _ (== id) prec _ _ _)) prec)]
                    [(row col)
                     #:when (= (modulo col 2) 0) ; time
                     (define id (+ (- row 3) num-args))
                     (define iter (/ (- col 2) 2))
                     (list-find-match execs*
-                                     (cons (== iter) (execution _ (== id) _ time _))
+                                     (cons (== iter) (execution _ (== id) _ time _ _))
                                      (~r (* time 1000) #:precision '(= 1)))]))))
 
 (define (rival-repl p)

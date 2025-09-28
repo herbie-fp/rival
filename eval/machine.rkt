@@ -41,6 +41,7 @@
                    profile-instruction
                    profile-number
                    profile-time
+                   profile-memory
                    profile-precision
                    profile-iteration))
 

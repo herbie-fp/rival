@@ -20,16 +20,18 @@
   (set-rival-machine-bumps! machine 0)
   (*bumps-activated* #f))
 
-(define (rival-machine-record machine name number precision time iter)
+(define (rival-machine-record machine name number precision time memory iter)
   (define profile-ptr (rival-machine-profile-ptr machine))
   (define profile-instruction (rival-machine-profile-instruction machine))
   (when (< profile-ptr (vector-length profile-instruction))
     (define profile-number (rival-machine-profile-number machine))
     (define profile-time (rival-machine-profile-time machine))
+    (define profile-memory (rival-machine-profile-memory machine))
     (define profile-precision (rival-machine-profile-precision machine))
     (define profile-iteration (rival-machine-profile-iteration machine))
     (vector-set! profile-instruction profile-ptr name)
     (vector-set! profile-number profile-ptr number)
+    (vector-set! profile-memory profile-ptr memory)
     (vector-set! profile-precision profile-ptr precision)
     (vector-set! profile-iteration profile-ptr iter)
     (flvector-set! profile-time profile-ptr time)
@@ -56,13 +58,15 @@
     (define out
       (match hint
         [#t ; instruction should be reevaluated
-         (define start (current-inexact-milliseconds))
+         (define start-time (current-inexact-milliseconds))
+         (define start-memory (current-memory-use #f))
          (define res
            (parameterize ([bf-precision precision])
              (apply-instruction instr vregs)))
          (define name (object-name (car instr)))
-         (define time (- (current-inexact-milliseconds) start))
-         (rival-machine-record machine name n precision time iter)
+         (define time (- (current-inexact-milliseconds) start-time))
+         (define memory (max 0 (- (current-memory-use #f) start-memory)))
+         (rival-machine-record machine name n precision time memory iter)
          res]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))] ; result is known
         [(? ival? _) hint])) ; result is known
@@ -112,12 +116,14 @@
 
 (define (rival-machine-adjust machine vhint)
   (define iter (rival-machine-iteration machine))
-  (let ([start (current-inexact-milliseconds)])
+  (let ([start-time (current-inexact-milliseconds)]
+        [start-memory (current-memory-use #f)])
     (unless (zero? iter)
       (backward-pass machine vhint))
     (rival-machine-record machine
                           'adjust
                           -1
                           (* iter 1000)
-                          (- (current-inexact-milliseconds) start)
+                          (- (current-inexact-milliseconds) start-time)
+                          (max 0 (- (current-memory-use #f) start-memory))
                           iter)))
