@@ -59,13 +59,13 @@
       (match hint
         [#t ; instruction should be reevaluated
          (define start-time (current-inexact-milliseconds))
-         (define start-memory (current-memory-use #f))
+         (define start-memory (current-memory-use 'cumulative))
          (define res
            (parameterize ([bf-precision precision])
              (apply-instruction instr vregs)))
          (define name (object-name (car instr)))
          (define time (- (current-inexact-milliseconds) start-time))
-         (define memory (max 0 (- (current-memory-use #f) start-memory)))
+         (define memory (- (current-memory-use 'cumulative) start-memory))
          (rival-machine-record machine name n precision time memory iter)
          res]
         [(? integer? _) (vector-ref vregs (list-ref instr hint))] ; result is known
@@ -117,7 +117,7 @@
 (define (rival-machine-adjust machine vhint)
   (define iter (rival-machine-iteration machine))
   (let ([start-time (current-inexact-milliseconds)]
-        [start-memory (current-memory-use #f)])
+        [start-memory (current-memory-use 'cumulative)])
     (unless (zero? iter)
       (backward-pass machine vhint))
     (rival-machine-record machine
@@ -125,5 +125,5 @@
                           -1
                           (* iter 1000)
                           (- (current-inexact-milliseconds) start-time)
-                          (max 0 (- (current-memory-use #f) start-memory))
+                          (- (current-memory-use 'cumulative) start-memory)
                           iter)))
