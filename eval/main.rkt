@@ -24,7 +24,13 @@
          *rival-use-shorthands*
          *rival-name-constants*
          rival-profile
-         (struct-out execution)
+         make-execution
+         execution-name
+         execution-number
+         execution-precision
+         execution-time
+         execution-memory
+         execution-iteration
          *rival-profile-executions*)
 
 (define (rival-machine-full machine vhint)
@@ -41,6 +47,9 @@
 (struct exn:rival:unsamplable exn:rival (pt))
 
 (struct execution (name number precision time memory iteration) #:prefab)
+
+(define (make-execution name number precision time memory iteration)
+  (execution name number precision time memory iteration))
 
 (define (rival-profile machine param)
   (match param

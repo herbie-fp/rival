@@ -401,7 +401,7 @@
                           [time (in-flvector profile-time 0 profile-ptr)]
                           [memory (in-vector profile-memory 0 profile-ptr)]
                           [iter (in-vector profile-iteration 0 profile-ptr)])
-               (execution instruction number precision time memory iter))
+               (make-execution instruction number precision time memory iter))
        (set-baseline-machine-profile-ptr! machine 0))]))
 
 (define (baseline-machine-record machine name number precision time memory iter)
