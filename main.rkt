@@ -122,7 +122,13 @@
          *rival-profile-executions*
          *rival-use-shorthands*
          *rival-name-constants*
-         (struct-out execution))
+         make-execution
+         execution-name
+         execution-number
+         execution-precision
+         execution-time
+         execution-memory
+         execution-iteration)
 
 (require "utils.rkt")
 (provide flonum-discretization
