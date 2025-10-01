@@ -28,7 +28,7 @@
   (define iter 0)
   (define last #f)
   (for/list ([exec (in-vector execs)])
-    (match-define (execution name id precision time _) exec)
+    (define id (execution-number exec))
     (when (and last (< id last))
       (set! iter (+ iter 1)))
     (set! last id)
@@ -40,13 +40,21 @@
       (display (~a (fn row col) #:width width #:align 'right)))
     (newline)))
 
-(define-syntax-rule (list-find-match l pattern body ...)
-  (let loop ([l l])
-    (match l
-      [(cons pattern rest)
-       body ...]
-      [(cons _ rest) (loop rest)]
-      ['() ""])))
+(define (lookup-execution execs
+                          #:iter [target-iter #f]
+                          #:id [target-id #f]
+                          #:name [target-name #f]
+                          #:default [default ""]
+                          #:value [value (lambda (_iter exec) exec)])
+  (define entry
+    (for/first ([exec (in-list execs)]
+                #:when (and (or (not target-iter) (= (car exec) target-iter))
+                            (or (not target-id) (= (execution-number (cdr exec)) target-id))
+                            (or (not target-name) (= (execution-name (cdr exec)) target-name))))
+      exec))
+  (if entry
+      (value (car entry) (cdr entry))
+      default))
 
 (struct repl ([precision #:mutable] context))
 
@@ -88,58 +96,73 @@
   (printf "Executed ~a instructions for ~a iterations:\n\n" num-instructions num-iterations)
 
   (define execs* (executions-iterations execs))
-  (write-table #:rows (+ 5 num-instructions) ; 1 for the "adjust" row
-               #:cols (+ 1 (* 2 num-iterations))
-               #:width 6
-               (lambda (row col)
-                 (match* (row col)
-                   [(0 0) ""]
-                   [(0 col)
-                    #:when (= (modulo col 2) 1)
-                    "Bits"]
-                   [(0 col)
-                    #:when (= (modulo col 2) 0)
-                    "Time"]
-                   [(1 _) "------"]
-                   [(2 0) 'adjust]
-                   [(2 col)
-                    #:when (and (= (modulo col 2) 0) (> col 2))
-                    (define iter (- (/ col 2) 1))
-                    (list-find-match execs*
-                                     (cons (== iter) (execution 'adjust _ _ time _))
-                                     (~r (* time 1000) #:precision '(= 1)))]
-                   [(2 col) ""]
-                   [((== (+ 3 num-instructions)) _) "------"]
-                   [((== (+ 4 num-instructions)) 0) "Total"]
-                   [((== (+ 4 num-instructions)) col)
-                    #:when (= (modulo col 2) 1)
-                    ""]
-                   [((== (+ 4 num-instructions)) col)
-                    #:when (= (modulo col 2) 0)
-                    (define iter (/ (- col 2) 2))
-                    (define time
-                      (apply +
-                             (for/list ([exec (in-list execs*)]
-                                        #:when (= (car exec) iter))
-                               (execution-time (cdr exec)))))
-                    (~r (* time 1000) #:precision '(= 1))]
-                   [(row 0)
-                    (define id (+ (- row 3) num-args))
-                    (list-find-match execs*
-                                     (cons _ (execution name (== id) _ _ _))
-                                     (normalize-function-name (~a name)))]
-                   [(row col)
-                    #:when (= (modulo col 2) 1) ; precision
-                    (define id (+ (- row 3) num-args))
-                    (define iter (/ (- col 1) 2))
-                    (list-find-match execs* (cons (== iter) (execution _ (== id) prec _ _)) prec)]
-                   [(row col)
-                    #:when (= (modulo col 2) 0) ; time
-                    (define id (+ (- row 3) num-args))
-                    (define iter (/ (- col 2) 2))
-                    (list-find-match execs*
-                                     (cons (== iter) (execution _ (== id) _ time _))
-                                     (~r (* time 1000) #:precision '(= 1)))]))))
+  (write-table
+   #:rows (+ 5 num-instructions) ; 1 for the "adjust" row
+   #:cols (+ 1 (* 2 num-iterations))
+   #:width 6
+   (lambda (row col)
+     (match* (row col)
+       [(0 0) ""]
+       [(0 col)
+        #:when (= (modulo col 2) 1)
+        "Bits"]
+       [(0 col)
+        #:when (= (modulo col 2) 0)
+        "Time"]
+       [(1 _) "------"]
+       [(2 0) 'adjust]
+       [(2 col)
+        #:when (and (= (modulo col 2) 0) (> col 2))
+        (define iter (- (/ col 2) 1))
+        (lookup-execution execs*
+                          #:iter iter
+                          #:name 'adjust
+                          #:default ""
+                          #:value (lambda (_iter exec)
+                                    (~r (* (execution-time exec) 1000) #:precision '(= 1))))]
+       [(2 col) ""]
+       [((== (+ 3 num-instructions)) _) "------"]
+       [((== (+ 4 num-instructions)) 0) "Total"]
+       [((== (+ 4 num-instructions)) col)
+        #:when (= (modulo col 2) 1)
+        ""]
+       [((== (+ 4 num-instructions)) col)
+        #:when (= (modulo col 2) 0)
+        (define iter (/ (- col 2) 2))
+        (define time
+          (apply +
+                 (for/list ([exec (in-list execs*)]
+                            #:when (= (car exec) iter))
+                   (execution-time (cdr exec)))))
+        (~r (* time 1000) #:precision '(= 1))]
+       [(row 0)
+        (define id (+ (- row 3) num-args))
+        (lookup-execution execs*
+                          #:id id
+                          #:default ""
+                          #:value (lambda (_iter exec)
+                                    (normalize-function-name (~a (execution-name exec)))))]
+       [(row col)
+        #:when (= (modulo col 2) 1) ; precision
+        (define id (+ (- row 3) num-args))
+        (define iter (/ (- col 1) 2))
+        (lookup-execution execs*
+                          #:iter iter
+                          #:id id
+                          #:default ""
+                          #:value (lambda (_iter exec) (execution-precision exec)))]
+       [(row col)
+        #:when (= (modulo col 2) 0) ; time
+        (define id (+ (- row 3) num-args))
+        (define iter (/ (- col 2) 2))
+        (define value
+          (lookup-execution execs*
+                            #:iter iter
+                            #:id id
+                            #:default ""
+                            #:value (lambda (_iter exec)
+                                      (~r (* (execution-time exec) 1000) #:precision '(= 1)))))
+        value]))))
 
 (define (rival-repl p)
   (let/ec k

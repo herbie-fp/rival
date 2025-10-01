@@ -151,7 +151,9 @@
         (define h (make-hash))
         (define max-prec 0)
         (for ([exec (in-vector rival-executions)])
-          (match-define (execution name number precision time _) exec)
+          (define name (execution-name exec))
+          (define number (execution-number exec))
+          (define precision (execution-precision exec))
           (unless (equal? name 'adjust)
             (define precision* (hash-ref h (list name number) (λ () 0)))
             (hash-set! h (list name number) (max precision precision*))
@@ -397,9 +399,9 @@
   (define total-t (+ total-c total-v total-i total-u))
   (define total-mem (/ (exact->inexact total-mem-bytes) (* 1024 1024)))
   (printf "\nTotal Time: ~as\n" (~r total-t #:precision '(= 3)))
-  (printf "Total Memory: ~a MiB\n"
-          (~r total-mem #:precision '(= 3)))
-  (define footer (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u total-mem))
+  (printf "Total Memory: ~a MiB\n" (~r total-mem #:precision '(= 3)))
+  (define footer
+    (list "Total" total-t total-c count-v total-v count-i total-i count-u total-u total-mem))
   (values table footer))
 
 (define (html-write port)

@@ -24,7 +24,13 @@
          *rival-use-shorthands*
          *rival-name-constants*
          rival-profile
-         (struct-out execution)
+         make-execution
+         execution-name
+         execution-number
+         execution-precision
+         execution-time
+         execution-memory
+         execution-iteration
          *rival-profile-executions*)
 
 (define (rival-machine-full machine vhint)
@@ -40,7 +46,10 @@
 (struct exn:rival:invalid exn:rival (pt))
 (struct exn:rival:unsamplable exn:rival (pt))
 
-(struct execution (name number precision time iteration) #:prefab)
+(struct execution (name number precision time memory iteration) #:prefab)
+
+(define (make-execution name number precision time memory iteration)
+  (execution name number precision time memory iteration))
 
 (define (rival-profile machine param)
   (match param
@@ -52,6 +61,7 @@
      (define profile-instruction (rival-machine-profile-instruction machine))
      (define profile-number (rival-machine-profile-number machine))
      (define profile-time (rival-machine-profile-time machine))
+     (define profile-memory (rival-machine-profile-memory machine))
      (define profile-precision (rival-machine-profile-precision machine))
      (define profile-iteration (rival-machine-profile-iteration machine))
      (begin0 (for/vector #:length profile-ptr
@@ -59,8 +69,9 @@
                           [number (in-vector profile-number 0 profile-ptr)]
                           [precision (in-vector profile-precision 0 profile-ptr)]
                           [time (in-flvector profile-time 0 profile-ptr)]
+                          [memory (in-vector profile-memory 0 profile-ptr)]
                           [iter (in-vector profile-iteration 0 profile-ptr)])
-               (execution instruction number precision time iter))
+               (execution instruction number precision time memory iter))
        (set-rival-machine-profile-ptr! machine 0))]))
 
 (define (ival-real x)
