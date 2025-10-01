@@ -21,7 +21,7 @@ The currently-supported command symbols and their return values are:
 @item{@code{instructions} returns the number of register machine instructions in the compiled @racket[machine].}
 @item{@code{iterations} returns the number of re-evaluation iterations needed for the most recent call to @racket[rival-apply] with the compiled @racket[machine]. This should be a number from 0 to @racket[*rival-max-iterations*], inclusive.}
 @item{@code{bumps} returns the number of unexpected non-convergences detected during the most recent call to @racket[rival-apply] with the compiled @racket[machine]. These generally represent internal errors in Rival. While Rival will attempt to handle these "bumps" smoothly, they should still be reported to the developers as a bug.}
-@item{@code{executions} returns a list of @racket{execution} structs, one for every register machine instruction executed by Rival. These executions are stored in a fixed-size buffer (see @racket[*rival-profile-executions*]) which is retained across @racket[rival-apply] calls and can fill up. The buffer is emptied by calls to @racket[(rival-profile machine 'executions)], so make sure to call this function regularly. If the list of @racket{execution}s returned by @racket[rival-profile] is equal in length to @racket[*rival-profile-executions*], you likely filled the buffer and are missing some executions.}
+@item{@code{executions} returns a list of values from which you can obtain execution metadata using the accessor functions @racket[execution-name], @racket[execution-number], @racket[execution-precision], @racket[execution-time], @racket[execution-memory], and @racket[execution-iteration]. These executions are stored in a fixed-size buffer (see @racket[*rival-profile-executions*]) which is retained across @racket[rival-apply] calls and can fill up. The buffer is emptied by calls to @racket[(rival-profile machine 'executions)], so make sure to call this function regularly. If the list of @racket{execution}s returned by @racket[rival-profile] is equal in length to @racket[*rival-profile-executions*], you likely filled the buffer and are missing some executions.}
 ]
 
 }
@@ -30,7 +30,9 @@ The currently-supported command symbols and their return values are:
   ([name symbol?]
    [number natural?]
    [precision natural?]
-   [time flonum?])]{
+   [time flonum?]
+   [memory natural?]
+   [iteration natural?])]{
   Each execution corresponds to a single Rival interval operator being executed.
   The @racket[name] names the operator,
     except the special symbol @racket['adjust],
@@ -39,7 +41,9 @@ The currently-supported command symbols and their return values are:
     this allows disambiguating if an expression contains, say, multiple
     addition operations.
   The @racket[precision] is the @racket[bf-precision] that the operator is executed at,
-    and the @racket[time] is the time, in milliseconds, that that execution took.
+    the @racket[time] is the time, in milliseconds, that the execution took,
+    and the @racket[memory] is the number of bytes allocated during that execution.
+  The @racket[iteration] records which sampling iteration triggered the execution.
   Note that, because Rival executes the register machine multiple times,
     the same operator (with the same @racket[name] and @racket[number])
     can appear multiple times for a single point.
@@ -48,6 +52,8 @@ The currently-supported command symbols and their return values are:
     so not every operator may show up in the executions list
     the same number of times.
 }
+
+Only the accessor functions (such as @racket[execution-name]) are exported.
 
 @defparam[*rival-profile-executions* executions natural? #:value 1000]{
 
