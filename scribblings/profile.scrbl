@@ -53,7 +53,7 @@ The currently-supported command symbols and their return values are:
     the same number of times.
 }
 
-Only the accessor functions (such as @racket[execution-name]) are exported. You can make an execution struct using @racket[make-execution].
+Only the accessor functions (such as @racket[execution-name]) are exported.
 
 @defparam[*rival-profile-executions* executions natural? #:value 1000]{
 
