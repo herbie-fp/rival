@@ -78,7 +78,8 @@
 (define (rival-apply machine pt [hint #f])
   ; Load arguments
   (define ival-pt
-    (for/vector #:length (vector-length pt) ([x (in-vector pt)])
+    (for/vector #:length (vector-length pt)
+                ([x (in-vector pt)])
       (ival x)))
   (rival-machine-load machine ival-pt)
   (let loop ([iter 0])
