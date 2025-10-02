@@ -157,6 +157,7 @@
          bfnan?
          bfinfinite?
          bfnegative?
+         bfrational?
          bfeven?
          bfodd?
          bfcopy
