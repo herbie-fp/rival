@@ -74,13 +74,13 @@
                (execution instruction number precision time memory iter))
        (set-rival-machine-profile-ptr! machine 0))]))
 
-(define (ival-real x)
-  (ival x))
-
 ; Assumes that hint (if provided) is correct for the given pt
 (define (rival-apply machine pt [hint #f])
   ; Load arguments
-  (rival-machine-load machine (vector-map ival-real pt))
+  (define ival-pt
+    (for/vector #:length (vector-length pt) ([x (in-vector pt)])
+      (ival x)))
+  (rival-machine-load machine ival-pt)
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
       (parameterize ([*sampling-iteration* iter])
