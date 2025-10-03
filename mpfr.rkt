@@ -56,6 +56,20 @@
 (define mpfr-remainder!
   (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
+(define mpfr-hypot!
+  (get-mpfr-fun 'mpfr_hypot (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-pow!
+  (get-mpfr-fun 'mpfr_pow (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-log! (get-mpfr-fun 'mpfr_log (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-exp! (get-mpfr-fun 'mpfr_exp (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-expm1! (get-mpfr-fun 'mpfr_expm1 (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-sqrt! (get-mpfr-fun 'mpfr_sqrt (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
 (define mpfr-set-prec! (get-mpfr-fun 'mpfr_set_prec (_fun _mpfr-pointer _prec_t -> _void)))
 
 (define mpfr-init2! (get-mpfr-fun 'mpfr_init2 (_fun _mpfr-pointer _prec_t -> _void)))
@@ -229,6 +243,12 @@
          mpfr-sub!
          mpfr-mul!
          mpfr-div!
+         mpfr-hypot!
+         mpfr-pow!
+         mpfr-exp!
+         mpfr-expm1!
+         mpfr-sqrt!
+         mpfr-log!
          mpfr-set-prec!
          mpfr-new!
          mpfr-set!)

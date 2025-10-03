@@ -12,6 +12,7 @@
          ival-div
          ival-fma
          ival-fdim
+         ival-hypot!
          ival-hypot)
 
 ;; Endpoint computation for both `add`, `sub`, and `hypot` (which has an add inside)
@@ -153,12 +154,15 @@
 (define (ival-fdim x y)
   (ival-fmax (ival-sub x y) (mk-ival 0.bf)))
 
-(define (ival-hypot x y)
+(define (ival-hypot! out x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
   (define x* (ival-exact-fabs x))
   (define y* (ival-exact-fabs y))
-  (ival (rnd 'down eplinear bfhypot (ival-lo x*) (ival-lo y*))
-        (rnd 'up eplinear bfhypot (ival-hi x*) (ival-hi y*))
+  (ival (eplinear! (ival-lo-val out) mpfr-hypot! (ival-lo x*) (ival-lo y*) 'down)
+        (eplinear! (ival-hi-val out) mpfr-hypot! (ival-hi x*) (ival-hi y*) 'up)
         err?
         err))
+
+(define (ival-hypot x y)
+  (ival-hypot! (new-ival) x y))
