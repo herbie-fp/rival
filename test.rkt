@@ -15,8 +15,7 @@
                   bf/
                   bfmin
                   bfmax
-                  bfshift
-                  bigfloat->flonum))
+                  bfshift))
 (require rackunit)
 (require "main.rkt"
          "mpfr.rkt")
