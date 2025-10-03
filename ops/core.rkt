@@ -16,6 +16,7 @@
          ival-exact-fabs
          ival-maybe
          epfn
+         epunary!
          split-ival
          ival-max-prec
          ival-exact-neg
@@ -215,6 +216,12 @@
   (define-values (result exact?) (bf-return-exact? op args-bf))
   (endpoint result (and (andmap endpoint-immovable? args) exact?)))
 
+(define (epunary! out mpfr-fun! a-endpoint rnd)
+  (match-define (endpoint a a!) a-endpoint)
+  (mpfr-set-prec! out (bf-precision))
+  (define exact? (= 0 (mpfr-fun! out a rnd)))
+  (endpoint out (and a! exact?)))
+
 ;; Helpers for defining interval functions
 
 (define-syntax-rule (define* name expr)
@@ -252,6 +259,7 @@
         (or xerr? (bflte? xlo lo) (bfgte? xhi hi))
         (or xerr (bflte? xhi lo) (bfgte? xlo hi))))
 
+;; TODO: rewrite this for new functions
 (define ((overflows-at fn lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) (fn x))
@@ -323,21 +331,63 @@
 (define acosh-overflow-threshold (bfadd (bfacosh (bfprev +inf.bf)) 1.bf))
 
 (define (ival-exp x)
-  (define y ((monotonic bfexp) x))
+  (match-define (ival lo hi err? err) x)
+  (define out (new-ival))
+  (define y
+    (ival (epunary! (ival-lo-val out) mpfr-exp! lo 'down)
+          (epunary! (ival-hi-val out) mpfr-exp! hi 'up)
+          err?
+          err))
   ((overflows-loose-at (bfneg exp-overflow-threshold) exp-overflow-threshold) x y))
-(define* ival-expm1
-         (overflows-at (monotonic bfexpm1) (bfneg exp-overflow-threshold) exp-overflow-threshold))
+
+(define (ival-expm1 x)
+  (match-define (ival lo hi err? err) x)
+  (define out (new-ival))
+  (define y
+    (ival (epunary! (ival-lo-val out) mpfr-expm1! lo 'down)
+          (epunary! (ival-hi-val out) mpfr-expm1! hi 'up)
+          err?
+          err))
+  ; Expanded overflow-at
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) y)
+  (ival (endpoint ylo
+                  (or ylo!
+                      (bflte? xhi (bfneg exp-overflow-threshold))
+                      (and (bflte? xlo (bfneg exp-overflow-threshold)) xlo!)))
+        (endpoint
+         yhi
+         (or yhi! (bfgte? xlo exp-overflow-threshold) (and (bfgte? xhi exp-overflow-threshold) xhi!)))
+        xerr?
+        xerr))
+
 (define (ival-exp2 x)
   (define y ((monotonic bfexp2) x))
   ((overflows-loose-at (bfneg exp2-overflow-threshold) exp2-overflow-threshold) x y))
 
-(define* ival-log (compose (monotonic bflog) (clamp-strict 0.bf +inf.bf)))
+(define (ival-log x)
+  (define x* ((clamp-strict 0.bf +inf.bf) x))
+  (match-define (ival lo hi err? err) x*)
+  (define out (new-ival))
+  (ival (epunary! (ival-lo-val out) mpfr-log! lo 'down)
+        (epunary! (ival-hi-val out) mpfr-log! hi 'up)
+        err?
+        err))
+
 (define* ival-log2 (compose (monotonic bflog2) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log10 (compose (monotonic bflog10) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log1p (compose (monotonic bflog1p) (clamp-strict -1.bf +inf.bf)))
 [define* ival-logb (compose ival-floor ival-log2 ival-exact-fabs)]
 
-(define* ival-sqrt (compose (monotonic bfsqrt) (clamp 0.bf +inf.bf)))
+(define (ival-sqrt x)
+  (define x* ((clamp 0.bf +inf.bf) x))
+  (match-define (ival lo hi err? err) x*)
+  (define out (new-ival))
+  (ival (epunary! (ival-lo-val out) mpfr-sqrt! lo 'down)
+        (epunary! (ival-hi-val out) mpfr-sqrt! hi 'up)
+        err?
+        err))
+
 (define* ival-cbrt (monotonic bfcbrt))
 
 (define (ival-and . as)
