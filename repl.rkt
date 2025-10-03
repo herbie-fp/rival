@@ -5,6 +5,7 @@
                   bigfloats-between
                   bf-precision
                   bigfloat->string
+                  bigfloat?
                   bf))
 (require "eval/main.rkt"
          "eval/machine.rkt"
@@ -16,13 +17,18 @@
     (define body-type (rival-type body (map (curryr cons 'real) args)))
     (match body-type
       ['bool boolean-discretization]
-      ['real (bf-discretization (repl-precision repl))]
+      ['real (repl-real-discretization repl)]
       [#f (raise-user-error 'compile "Type error in function")])))
 
 (define (normalize-function-name name)
   (if (string-prefix? name "ival-")
       (substring name 5)
       name))
+
+(define (repl-real-discretization repl)
+  (match (repl-precision repl)
+    ['fp64 flonum-discretization]
+    [`(bf ,n) (bf-discretization n)]))
 
 (define (executions-iterations execs)
   (define iter 0)
@@ -58,7 +64,7 @@
 
 (struct repl ([precision #:mutable] context))
 
-(define (make-repl [precision 53])
+(define (make-repl [precision 'fp64])
   (repl precision (make-hash)))
 
 (define (repl-compile repl args bodies)
@@ -74,10 +80,21 @@
       (bf x)
       x))
 
+(define (repl-value->string val)
+  (cond
+    [(bigfloat? val) (bigfloat->string val)]
+    [(number? val) (~r val)]
+    [else (~a val)]))
+
+(define (repl-precision-bits repl)
+  (match (repl-precision repl)
+    [`(bf ,n) n]
+    ['fp64 53]))
+
 (define (repl-apply repl machine vals)
   (with-handlers ([exn:rival:invalid? (const "Domain error")]
                   [exn:rival:unsamplable? (const "Could not evaluate")])
-    (parameterize ([bf-precision (repl-precision repl)])
+    (parameterize ([bf-precision (repl-precision-bits repl)])
       (rival-apply machine (list->vector (map ->bf vals))))))
 
 (define (repl-save-machine! repl name args bodies)
@@ -174,10 +191,12 @@
       (for ([cmd (in-port read p)])
         (with-handlers ([exn:fail:user? (lambda (e) (eprintf "ERROR ~a\n" (exn-message e)))])
           (match cmd
+            [`(set precision fp64)
+             (set-repl-precision! repl 'fp64)]
             [`(set precision ,(? integer? n))
              (when (< n 4)
                (raise-user-error 'set "Precision must be an integer greater than 3"))
-             (set-repl-precision! repl n)]
+             (set-repl-precision! repl (list 'bf n))]
             [`(define (,(? symbol? name) ,(? symbol? args) ...)
                 ,bodies ...)
              (repl-save-machine! repl name args bodies)]
