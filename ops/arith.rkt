@@ -154,22 +154,8 @@
 (define (ival-hypot x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (define x* (ival-exact-fabs x))
-  (define y* (ival-exact-fabs y))
-  (define-values (lo-val lo-imm?)
-    (rnd 'down
-         eplinear
-         bfhypot
-         (ival-lo-val x*)
-         (ival-lo-fixed? x*)
-         (ival-lo-val y*)
-         (ival-lo-fixed? y*)))
-  (define-values (hi-val hi-imm?)
-    (rnd 'up
-         eplinear
-         bfhypot
-         (ival-hi-val x*)
-         (ival-hi-fixed? x*)
-         (ival-hi-val y*)
-         (ival-hi-fixed? y*)))
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) _ _) (ival-exact-fabs x))
+  (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) _ _) (ival-exact-fabs y))
+  (define-values (lo-val lo-imm?) (rnd 'down eplinear bfhypot xlo xlo! ylo xlo!))
+  (define-values (hi-val hi-imm?) (rnd 'up eplinear bfhypot xhi xhi! yhi yhi!))
   (ival (endpoint lo-val lo-imm?) (endpoint hi-val hi-imm?) err? err))
