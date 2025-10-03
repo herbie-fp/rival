@@ -25,8 +25,22 @@
   (values out (or (and a! b! exact?) (and a! (bfinfinite? a)) (and b! (bfinfinite? b)))))
 
 (define (ival-add! out x y)
-  (define-values (lo-val lo-imm?) (eplinear! (ival-lo-val out) mpfr-add! (ival-lo-val x) (ival-lo-fixed? x) (ival-lo-val y) (ival-lo-fixed? y) 'down))
-  (define-values (hi-val hi-imm?) (eplinear! (ival-hi-val out) mpfr-add! (ival-hi-val x) (ival-hi-fixed? x) (ival-hi-val y) (ival-hi-fixed? y) 'up))
+  (define-values (lo-val lo-imm?)
+    (eplinear! (ival-lo-val out)
+               mpfr-add!
+               (ival-lo-val x)
+               (ival-lo-fixed? x)
+               (ival-lo-val y)
+               (ival-lo-fixed? y)
+               'down))
+  (define-values (hi-val hi-imm?)
+    (eplinear! (ival-hi-val out)
+               mpfr-add!
+               (ival-hi-val x)
+               (ival-hi-fixed? x)
+               (ival-hi-val y)
+               (ival-hi-fixed? y)
+               'up))
   (ival (endpoint lo-val lo-imm?)
         (endpoint hi-val hi-imm?)
         (or (ival-err? x) (ival-err? y))
@@ -36,8 +50,22 @@
   (ival-add! (new-ival) x y))
 
 (define (ival-sub! out x y)
-  (define-values (lo-val lo-imm?) (eplinear! (ival-lo-val out) mpfr-sub! (ival-lo-val x) (ival-lo-fixed? x) (ival-hi-val y) (ival-hi-fixed? y) 'down))
-  (define-values (hi-val hi-imm?) (eplinear! (ival-hi-val out) mpfr-sub! (ival-hi-val x) (ival-hi-fixed? x) (ival-lo-val y) (ival-lo-fixed? y) 'up))
+  (define-values (lo-val lo-imm?)
+    (eplinear! (ival-lo-val out)
+               mpfr-sub!
+               (ival-lo-val x)
+               (ival-lo-fixed? x)
+               (ival-hi-val y)
+               (ival-hi-fixed? y)
+               'down))
+  (define-values (hi-val hi-imm?)
+    (eplinear! (ival-hi-val out)
+               mpfr-sub!
+               (ival-hi-val x)
+               (ival-hi-fixed? x)
+               (ival-lo-val y)
+               (ival-lo-fixed? y)
+               'up))
   (ival (endpoint lo-val lo-imm?)
         (endpoint hi-val hi-imm?)
         (or (ival-err? x) (ival-err? y))
@@ -158,9 +186,20 @@
   (define err (or (ival-err x) (ival-err y)))
   (define x* (ival-exact-fabs x))
   (define y* (ival-exact-fabs y))
-  (define-values (lo-val lo-imm?) (rnd 'down eplinear bfhypot (ival-lo-val x*) (ival-lo-fixed? x*) (ival-lo-val y*) (ival-lo-fixed? y*)))
-  (define-values (hi-val hi-imm?) (rnd 'up eplinear bfhypot (ival-hi-val x*) (ival-hi-fixed? x*) (ival-hi-val y*) (ival-hi-fixed? y*)))
-  (ival (endpoint lo-val lo-imm?)
-        (endpoint hi-val hi-imm?)
-        err?
-        err))
+  (define-values (lo-val lo-imm?)
+    (rnd 'down
+         eplinear
+         bfhypot
+         (ival-lo-val x*)
+         (ival-lo-fixed? x*)
+         (ival-lo-val y*)
+         (ival-lo-fixed? y*)))
+  (define-values (hi-val hi-imm?)
+    (rnd 'up
+         eplinear
+         bfhypot
+         (ival-hi-val x*)
+         (ival-hi-fixed? x*)
+         (ival-hi-val y*)
+         (ival-hi-fixed? y*)))
+  (ival (endpoint lo-val lo-imm?) (endpoint hi-val hi-imm?) err? err))

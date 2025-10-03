@@ -39,8 +39,24 @@
   (define y-class (classify-ival y))
 
   (define (mk-pow a b c d)
-    (define-values (lo lo!) (rnd 'down eppow (endpoint-val a) (endpoint-immovable? a) (endpoint-val b) (endpoint-immovable? b) x-class y-class))
-    (define-values (hi hi!) (rnd 'up eppow (endpoint-val c) (endpoint-immovable? c) (endpoint-val d) (endpoint-immovable? d) x-class y-class))
+    (define-values (lo lo!)
+      (rnd 'down
+           eppow
+           (endpoint-val a)
+           (endpoint-immovable? a)
+           (endpoint-val b)
+           (endpoint-immovable? b)
+           x-class
+           y-class))
+    (define-values (hi hi!)
+      (rnd 'up
+           eppow
+           (endpoint-val c)
+           (endpoint-immovable? c)
+           (endpoint-val d)
+           (endpoint-immovable? d)
+           x-class
+           y-class))
 
     (define-values (real-lo! real-hi!)
       (cond
