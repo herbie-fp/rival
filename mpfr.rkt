@@ -162,6 +162,7 @@
          bfodd?
          bfcopy
          bfstep
+         bigfloat->flonum
          bigfloats-between
          bfprev
          bfnext
