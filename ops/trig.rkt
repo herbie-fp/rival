@@ -42,10 +42,10 @@
          [1 ((comonotonic->ival (curry bfcosu n)) x)]
          [else
           (ival (rnd 'down
-                     epfn
+                     epfn2
                      bfmin2
-                     (epfn (curry bfcosu n) (ival-lo x))
-                     (epfn (curry bfcosu n) (ival-hi x)))
+                     (epfn1 (curry bfcosu n) (ival-lo x))
+                     (epfn1 (curry bfcosu n) (ival-hi x)))
                 (endpoint 1.bf #f)
                 (ival-err? x)
                 (ival-err x))])]
@@ -59,18 +59,18 @@
          [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
           (ival (endpoint -1.bf #f)
                 (rnd 'up
-                     epfn
+                     epfn2
                      bfmax2
-                     (epfn (curry bfcosu n) (ival-lo x))
-                     (epfn (curry bfcosu n) (ival-hi x)))
+                     (epfn1 (curry bfcosu n) (ival-lo x))
+                     (epfn1 (curry bfcosu n) (ival-hi x)))
                 (ival-err? x)
                 (ival-err x))]
          [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
           (ival (rnd 'down
-                     epfn
+                     epfn2
                      bfmin2
-                     (epfn (curry bfcosu n) (ival-lo x))
-                     (epfn (curry bfcosu n) (ival-hi x)))
+                     (epfn1 (curry bfcosu n) (ival-lo x))
+                     (epfn1 (curry bfcosu n) (ival-hi x)))
                 (endpoint 1.bf #f)
                 (ival-err? x)
                 (ival-err x))]
@@ -86,7 +86,7 @@
        [-1 ((monotonic->ival bfcos) x)]
        [1 ((comonotonic->ival bfcos) x)]
        [else
-        (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+        (ival (rnd 'down epfn2 bfmin2 (epfn1 bfcos (ival-lo x)) (epfn1 bfcos (ival-hi x)))
               (endpoint 1.bf #f)
               (ival-err? x)
               (ival-err x))])]
@@ -99,11 +99,11 @@
        [(and (bf=? a b) (bfodd? a)) ((monotonic->ival bfcos) x)]
        [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
         (ival (endpoint -1.bf #f)
-              (rnd 'up epfn bfmax2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+              (rnd 'up epfn2 bfmax2 (epfn1 bfcos (ival-lo x)) (epfn1 bfcos (ival-hi x)))
               (ival-err? x)
               (ival-err x))]
        [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-        (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+        (ival (rnd 'down epfn2 bfmin2 (epfn1 bfcos (ival-lo x)) (epfn1 bfcos (ival-hi x)))
               (endpoint 1.bf #f)
               (ival-err? x)
               (ival-err x))]
@@ -126,18 +126,18 @@
          [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
           (ival (endpoint -1.bf #f)
                 (rnd 'up
-                     epfn
+                     epfn2
                      bfmax2
-                     (epfn (curry bfsinu n) (ival-lo x))
-                     (epfn (curry bfsinu n) (ival-hi x)))
+                     (epfn1 (curry bfsinu n) (ival-lo x))
+                     (epfn1 (curry bfsinu n) (ival-hi x)))
                 (ival-err? x)
                 (ival-err x))]
          [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
           (ival (rnd 'down
-                     epfn
+                     epfn2
                      bfmin2
-                     (epfn (curry bfsinu n) (ival-lo x))
-                     (epfn (curry bfsinu n) (ival-hi x)))
+                     (epfn1 (curry bfsinu n) (ival-lo x))
+                     (epfn1 (curry bfsinu n) (ival-hi x)))
                 (endpoint 1.bf #f)
                 (ival-err? x)
                 (ival-err x))]
@@ -159,11 +159,11 @@
        [(and (bf=? a b) (bfeven? a)) ((monotonic->ival bfsin) x)]
        [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
         (ival (endpoint -1.bf #f)
-              (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+              (rnd 'up epfn2 bfmax2 (epfn1 bfsin (ival-lo x)) (epfn1 bfsin (ival-hi x)))
               (ival-err? x)
               (ival-err x))]
        [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-        (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+        (ival (rnd 'down epfn2 bfmin2 (epfn1 bfsin (ival-lo x)) (epfn1 bfsin (ival-hi x)))
               (endpoint 1.bf #f)
               (ival-err? x)
               (ival-err x))]

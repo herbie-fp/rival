@@ -15,7 +15,8 @@
          new-ival
          ival-exact-fabs
          ival-maybe
-         epfn
+         epfn1
+         epfn2
          split-ival
          ival-max-prec
          ival-exact-neg
@@ -206,16 +207,22 @@
            (or (ival-err? x) (ival-err? y))
            (and (ival-err x) (ival-err y)))]
     [(boolean? (ival-lo-val x))
-     (ival (epfn and-fn (ival-lo x) (ival-lo y))
-           (epfn or-fn (ival-hi x) (ival-hi y))
+     (ival (epfn2 and-fn (ival-lo x) (ival-lo y))
+           (epfn2 or-fn (ival-hi x) (ival-hi y))
            (or (ival-err? x) (ival-err? y))
            (and (ival-err x) (ival-err y)))]))
 
-;; This function computes and propagates the immovable? flag for endpoints
-(define (epfn op . args)
-  (define args-bf (map endpoint-val args))
-  (define-values (result exact?) (bf-return-exact? op args-bf))
-  (endpoint result (and (andmap endpoint-immovable? args) exact?)))
+;; These functions compute and propagate the immovable? flag for endpoints
+(define (epfn1 op arg)
+  (define-values (result exact?) (bf-return-exact? op (list (endpoint-val arg))))
+  (endpoint result (and (endpoint-immovable? arg) exact?)))
+
+(define (epfn2 op arg0 arg1)
+  (define-values (result exact?)
+    (bf-return-exact? op (list (endpoint-val arg0) (endpoint-val arg1))))
+  (endpoint result (and (endpoint-immovable? arg0)
+                        (endpoint-immovable? arg1)
+                        exact?)))
 
 ;; Helpers for defining interval functions
 
@@ -224,11 +231,11 @@
 
 (define ((monotonic bffn) x)
   (match-define (ival lo hi err? err) x)
-  (ival (rnd 'down epfn bffn lo) (rnd 'up epfn bffn hi) err? err))
+  (ival (rnd 'down epfn1 bffn lo) (rnd 'up epfn1 bffn hi) err? err))
 
 (define ((comonotonic bffn) x)
   (match-define (ival lo hi err? err) x)
-  (ival (rnd 'down epfn bffn hi) (rnd 'up epfn bffn lo) err? err))
+  (ival (rnd 'down epfn1 bffn hi) (rnd 'up epfn1 bffn lo) err? err))
 
 (define ((close-enough->ival bffn) x)
   (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) x)
@@ -302,7 +309,7 @@
     [0
      (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
      (ival (endpoint (bf 0) (and xlo! xhi!))
-           (rnd 'up endpoint-max2 (epfn bfabs (ival-lo x)) (ival-hi x))
+           (rnd 'up endpoint-max2 (epfn1 bfabs (ival-lo x)) (ival-hi x))
            (ival-err? x)
            (ival-err x))]))
 
@@ -355,7 +362,7 @@
         (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (epfn not (ival-hi x)) (epfn not (ival-lo x)) (ival-err? x) (ival-err x)))
+  (ival (epfn1 not (ival-hi x)) (epfn1 not (ival-lo x)) (ival-err? x) (ival-err x)))
 
 (define* ival-asin (compose (monotonic bfasin) (clamp -1.bf 1.bf)))
 (define* ival-acos (compose (comonotonic bfacos) (clamp -1.bf 1.bf)))
@@ -369,7 +376,7 @@
   (define err (or (ival-err x) (ival-err y)))
 
   (define (mkatan a b c d)
-    (ival (rnd 'down epfn bfatan2 a b) (rnd 'up epfn bfatan2 c d) err? err))
+    (ival (rnd 'down epfn2 bfatan2 a b) (rnd 'up epfn2 bfatan2 c d) err? err))
 
   (match* ((classify-ival-strict x) (classify-ival-strict y))
     [(-1 -1) (mkatan yhi xlo ylo xhi)]
@@ -404,10 +411,10 @@
 (define* ival-erfc (comonotonic bferfc))
 
 (define (ival-cmp x y)
-  (define can-< (epfn bflt? (ival-lo x) (ival-hi y)))
-  (define must-< (epfn bflt? (ival-hi x) (ival-lo y)))
-  (define can-> (epfn bfgt? (ival-hi x) (ival-lo y)))
-  (define must-> (epfn bfgt? (ival-lo x) (ival-hi y)))
+  (define can-< (epfn2 bflt? (ival-lo x) (ival-hi y)))
+  (define must-< (epfn2 bflt? (ival-hi x) (ival-lo y)))
+  (define can-> (epfn2 bfgt? (ival-hi x) (ival-lo y)))
+  (define must-> (epfn2 bfgt? (ival-lo x) (ival-hi y)))
   (values can-< must-< can-> must->))
 
 (define (ival-<2 x y)
@@ -416,7 +423,7 @@
 
 (define (ival-<=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn not c>) (epfn not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (epfn1 not c>) (epfn1 not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival->2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
@@ -424,12 +431,12 @@
 
 (define (ival->=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn not c<) (epfn not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (epfn1 not c<) (epfn1 not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-==2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn and-fn (epfn not c<) (epfn not c>))
-        (epfn and-fn (epfn not m<) (epfn not m>))
+  (ival (epfn2 and-fn (epfn1 not c<) (epfn1 not c>))
+        (epfn2 and-fn (epfn1 not m<) (epfn1 not m>))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
@@ -449,8 +456,8 @@
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn or-fn m< m>)
-        (epfn or-fn c< c>)
+  (ival (epfn2 or-fn m< m>)
+        (epfn2 or-fn c< c>)
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
@@ -524,8 +531,8 @@
   (define err? (or (ival-err? y) xerr?))
   (define err (or (ival-err y) xerr))
   (match* (can-neg can-pos)
-    [(#t #t) (ival (rnd 'down epfn bfneg xhi) (rnd 'up epfn bfcopy xhi) err? err)]
-    [(#t #f) (ival (rnd 'down epfn bfneg xhi) (rnd 'up epfn bfneg xlo) err? err)]
+    [(#t #t) (ival (rnd 'down epfn1 bfneg xhi) (rnd 'up epfn1 bfcopy xhi) err? err)]
+    [(#t #f) (ival (rnd 'down epfn1 bfneg xhi) (rnd 'up epfn1 bfneg xlo) err? err)]
     [(#f #t) (ival xlo xhi err? err)]
     [(#f #f)
      (unless (ival-err y)

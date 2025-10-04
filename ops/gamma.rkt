@@ -44,8 +44,8 @@
     ; Purely decreasing
     [(bflt? (endpoint-val hi) xmin) ((comonotonic->ival fn) i)]
     [else
-     (ival-union (ival (endpoint ymin #f) (rnd 'up epfn fn lo) err? err)
-                 (ival (endpoint ymin #f) (rnd 'up epfn fn hi) err? err))]))
+     (ival-union (ival (endpoint ymin #f) (rnd 'up epfn1 fn lo) err? err)
+                 (ival (endpoint ymin #f) (rnd 'up epfn1 fn hi) err? err))]))
 
 ; Optimized version of `ival-lgamma-basin` for positive values, adds a cache
 (define lgamma-pos-xmin #f)
