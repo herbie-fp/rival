@@ -126,13 +126,16 @@
 
 (define mpfr-cosh! (get-mpfr-fun 'mpfr_cosh (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
-(define mpfr-set-prec! (get-mpfr-fun 'mpfr_set_prec (_fun _mpfr-pointer _prec_t -> _void)))
-
 (define mpfr-init2! (get-mpfr-fun 'mpfr_init2 (_fun _mpfr-pointer _prec_t -> _void)))
 
 (define mpfr-set! (get-mpfr-fun 'mpfr_set (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _void)))
 
 (define mpfr-set-prec! set-mpfr-prec!)
+
+(define mpfr-const-pi! (get-mpfr-fun 'mpfr_const_pi (_fun _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-atan2!
+  (get-mpfr-fun 'mpfr_atan2 (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
 (define (bfremainder x mod)
   (define out (bf 0))
@@ -332,4 +335,6 @@
          mpfr-trunc!
          mpfr-log!
          mpfr-set-prec!
-         mpfr-set!)
+         mpfr-set!
+         mpfr-const-pi!
+         mpfr-atan2!)
