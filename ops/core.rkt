@@ -206,8 +206,8 @@
            (or (ival-err? x) (ival-err? y))
            (and (ival-err x) (ival-err y)))]
     [(boolean? (ival-lo-val x))
-     (ival (epfn and-fn (ival-lo x) (ival-lo y))
-           (epfn or-fn (ival-hi x) (ival-hi y))
+     (ival (bool-endpoint and-fn (ival-lo x) (ival-lo y))
+           (bool-endpoint or-fn (ival-hi x) (ival-hi y))
            (or (ival-err? x) (ival-err? y))
            (and (ival-err x) (ival-err y)))]))
 
@@ -216,6 +216,10 @@
   (define args-bf (map endpoint-val args))
   (define-values (result exact?) (bf-return-exact? op args-bf))
   (endpoint result (and (andmap endpoint-immovable? args) exact?)))
+
+(define (bool-endpoint op . endpoints)
+  (endpoint (apply op (map endpoint-val endpoints))
+            (andmap endpoint-immovable? endpoints)))
 
 ;; Helpers for defining interval functions
 
@@ -355,7 +359,10 @@
         (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (epfn not (ival-hi x)) (epfn not (ival-lo x)) (ival-err? x) (ival-err x)))
+  (ival (bool-endpoint not (ival-hi x))
+        (bool-endpoint not (ival-lo x))
+        (ival-err? x)
+        (ival-err x)))
 
 (define* ival-asin (compose (monotonic bfasin) (clamp -1.bf 1.bf)))
 (define* ival-acos (compose (comonotonic bfacos) (clamp -1.bf 1.bf)))
@@ -404,10 +411,10 @@
 (define* ival-erfc (comonotonic bferfc))
 
 (define (ival-cmp x y)
-  (define can-< (epfn bflt? (ival-lo x) (ival-hi y)))
-  (define must-< (epfn bflt? (ival-hi x) (ival-lo y)))
-  (define can-> (epfn bfgt? (ival-hi x) (ival-lo y)))
-  (define must-> (epfn bfgt? (ival-lo x) (ival-hi y)))
+  (define can-< (bool-endpoint bflt? (ival-lo x) (ival-hi y)))
+  (define must-< (bool-endpoint bflt? (ival-hi x) (ival-lo y)))
+  (define can-> (bool-endpoint bfgt? (ival-hi x) (ival-lo y)))
+  (define must-> (bool-endpoint bfgt? (ival-lo x) (ival-hi y)))
   (values can-< must-< can-> must->))
 
 (define (ival-<2 x y)
@@ -416,7 +423,10 @@
 
 (define (ival-<=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn not c>) (epfn not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (bool-endpoint not c>)
+        (bool-endpoint not m>)
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival->2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
@@ -424,12 +434,19 @@
 
 (define (ival->=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn not c<) (epfn not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (bool-endpoint not c<)
+        (bool-endpoint not m<)
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival-==2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn and-fn (epfn not c<) (epfn not c>))
-        (epfn and-fn (epfn not m<) (epfn not m>))
+  (define not-c< (bool-endpoint not c<))
+  (define not-c> (bool-endpoint not c>))
+  (define not-m< (bool-endpoint not m<))
+  (define not-m> (bool-endpoint not m>))
+  (ival (bool-endpoint and-fn not-c< not-c>)
+        (bool-endpoint and-fn not-m< not-m>)
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
@@ -449,8 +466,8 @@
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn or-fn m< m>)
-        (epfn or-fn c< c>)
+  (ival (bool-endpoint or-fn m< m>)
+        (bool-endpoint or-fn c< c>)
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
