@@ -145,15 +145,13 @@
   (ormap identity as))
 
 (define (ival-pi)
-  (define lo (mpfr-new! (bf-precision)))
-  (define hi (mpfr-new! (bf-precision)))
+  (define-values (lo hi) (make-endpoint-pair))
   (mpfr-const-pi! lo 'down)
   (mpfr-const-pi! hi 'up)
   (ival (endpoint lo #f) (endpoint hi #f) #f #f))
 
 (define (ival-e)
-  (define lo (mpfr-new! (bf-precision)))
-  (define hi (mpfr-new! (bf-precision)))
+  (define-values (lo hi) (make-endpoint-pair))
   (mpfr-exp! lo 1.bf 'down)
   (mpfr-exp! hi 1.bf 'up)
   (ival (endpoint lo #f) (endpoint hi #f) #f #f))
@@ -343,8 +341,7 @@
     [1 ((monotonic-mpfr mpfr-abs!) x)]
     [0
      (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-     (define tmp1 (mpfr-new! (bf-precision)))
-     (define tmp2 (mpfr-new! (bf-precision)))
+     (define-values (tmp1 tmp2) (make-endpoint-pair))
      (define abs-lo (epunary! tmp1 mpfr-abs! (ival-lo x) 'up))
      (define abs-hi (epunary! tmp2 mpfr-abs! (ival-hi x) 'up))
      (ival (endpoint (bf 0) (and xlo! xhi!)) (endpoint-max2 abs-lo abs-hi 'nearest) xerr? xerr)]))
@@ -353,20 +350,17 @@
 (define (ival-max-prec x)
   (max (bigfloat-precision (ival-lo-val x)) (bigfloat-precision (ival-hi-val x))))
 
-;; TODO: Cleanup, use begin1
 (define (ival-exact-fabs x)
   (define saved-prec (bf-precision))
   (bf-precision (ival-max-prec x))
-  (define result (ival-fabs x))
-  (bf-precision saved-prec)
-  result)
+  (begin0 (ival-fabs x)
+    (bf-precision saved-prec)))
 
 (define (ival-exact-neg x)
   (define saved-prec (bf-precision))
   (bf-precision (ival-max-prec x))
-  (define result (ival-neg x))
-  (bf-precision saved-prec)
-  result)
+  (begin0 (ival-neg x)
+    (bf-precision saved-prec)))
 
 ;; Since MPFR has a cap on exponents, no value can be more than twice MAX_VAL
 (define exp-overflow-threshold (bfadd (bflog (bfprev +inf.bf)) 1.bf))
@@ -420,8 +414,7 @@
   (define err (or (ival-err x) (ival-err y)))
 
   (define (mkatan a b c d)
-    (define lo-out (mpfr-new! (bf-precision)))
-    (define hi-out (mpfr-new! (bf-precision)))
+    (define-values (lo-out hi-out) (make-endpoint-pair))
     (ival (epbinary! lo-out mpfr-atan2! a b 'down) (epbinary! hi-out mpfr-atan2! c d 'up) err? err))
 
   (match* ((classify-ival-strict x) (classify-ival-strict y))
@@ -434,8 +427,7 @@
     [(-1 1) (mkatan yhi xhi ylo xlo)]
     [(_ 0)
      (define pi-int (ival-pi))
-     (define hi-out (mpfr-new! (bf-precision)))
-     (define lo-out (mpfr-new! (bf-precision)))
+     (define-values (hi-out lo-out) (make-endpoint-pair))
      (mpfr-set! hi-out (endpoint-val (ival-hi pi-int)) 'up)
      (mpfr-neg! lo-out (endpoint-val (ival-hi pi-int)) 'down)
      (ival (endpoint lo-out #f)

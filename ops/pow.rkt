@@ -56,11 +56,11 @@
          ;; Can't use >=, even though exp2-overflow-threshold is a
          ;; power of 2, because mpfr-exp is offset by 1 from the real
          ;; exponent, which matters when we add them.
+
+         (define log2-base (mpfr-new! (bf-precision)))
          (define (log2-sum-exceeds-threshold? exponent-value base-value)
-           (let ([log2-base (mpfr-new! (bf-precision))])
-             (mpfr-log2! log2-base base-value 'zero)
-             (> (+ (mpfr-exp exponent-value) (mpfr-exp log2-base))
-                (mpfr-exp exp2-overflow-threshold))))
+           (mpfr-log2! log2-base base-value 'zero)
+           (> (+ (mpfr-exp exponent-value) (mpfr-exp log2-base)) (mpfr-exp exp2-overflow-threshold)))
 
          (define must-overflow
            (and (bfinfinite? hi) (= (* x-class y-class) 1) (log2-sum-exceeds-threshold? bval aval)))

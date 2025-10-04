@@ -105,7 +105,6 @@
       ['range-reduce
        (define prec (range-reduce-precision xlo xhi))
        (define divisor-bf (mpfr-new! prec))
-       (mpfr-set-prec! divisor-bf prec)
        (mpfr-set! divisor-bf (bf (/ n 2)) 'nearest)
        (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-floor x divisor-bf prec))
        (define (mpfr-cosu-n! out a rnd)
@@ -145,7 +144,6 @@
     ['range-reduce
      (define prec (range-reduce-precision xlo xhi))
      (define pi-bf (mpfr-new! prec))
-     (mpfr-set-prec! pi-bf prec)
      (mpfr-const-pi! pi-bf 'nearest)
      (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-floor x pi-bf prec))
      (cond
@@ -177,7 +175,6 @@
       ['range-reduce
        (define prec (range-reduce-precision xlo xhi))
        (define divisor-bf (mpfr-new! prec))
-       (mpfr-set-prec! divisor-bf prec)
        (mpfr-set! divisor-bf (bf (/ n 2)) 'nearest)
        (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-round x divisor-bf prec))
        (cond
@@ -207,7 +204,6 @@
     ['range-reduce
      (define prec (range-reduce-precision xlo xhi))
      (define pi-bf (mpfr-new! prec))
-     (mpfr-set-prec! pi-bf prec)
      (mpfr-const-pi! pi-bf 'nearest)
      (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-round x pi-bf prec))
      (cond
@@ -239,7 +235,6 @@
       ['range-reduce
        (define prec (range-reduce-precision xlo xhi))
        (define divisor-bf (mpfr-new! prec))
-       (mpfr-set-prec! divisor-bf prec)
        (mpfr-set! divisor-bf (bf (/ n 2)) 'nearest)
        (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-round x divisor-bf prec))
 
@@ -257,7 +252,6 @@
     ['range-reduce
      (define prec (range-reduce-precision xlo xhi))
      (define pi-bf (mpfr-new! prec))
-     (mpfr-set-prec! pi-bf prec)
      (mpfr-const-pi! pi-bf 'nearest)
      (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-round x pi-bf prec))
 
