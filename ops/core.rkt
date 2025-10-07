@@ -218,8 +218,7 @@
   (endpoint result (and (andmap endpoint-immovable? args) exact?)))
 
 (define (bool-endpoint op . endpoints)
-  (endpoint (apply op (map endpoint-val endpoints))
-            (andmap endpoint-immovable? endpoints)))
+  (endpoint (apply op (map endpoint-val endpoints)) (andmap endpoint-immovable? endpoints)))
 
 ;; Helpers for defining interval functions
 
@@ -359,10 +358,7 @@
         (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (bool-endpoint not (ival-hi x))
-        (bool-endpoint not (ival-lo x))
-        (ival-err? x)
-        (ival-err x)))
+  (ival (bool-endpoint not (ival-hi x)) (bool-endpoint not (ival-lo x)) (ival-err? x) (ival-err x)))
 
 (define* ival-asin (compose (monotonic bfasin) (clamp -1.bf 1.bf)))
 (define* ival-acos (compose (comonotonic bfacos) (clamp -1.bf 1.bf)))
