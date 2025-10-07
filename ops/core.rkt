@@ -119,10 +119,8 @@
   (endpoint-immovable? (ival-hi ival)))
 
 (define (new-ival precision)
-  ; Warning, leaks memory unless `mpfr-clear!` called eventually
-  (define bf1 (parameterize ([bf-precision precision]) (bf 0)))
-  (define bf2 (parameterize ([bf-precision precision]) (bf 0)))
-  (ival (endpoint bf1 #f) (endpoint bf2 #f) #f #f))
+  (parameterize ([bf-precision precision])
+    (ival (endpoint (bf 1) #f) (endpoint (bf 2) #f) #f #f)))
 
 (define (mk-big-ival x y)
   (cond
