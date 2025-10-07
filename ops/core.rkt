@@ -218,11 +218,8 @@
   (endpoint result (and (endpoint-immovable? arg) exact?)))
 
 (define (epfn2 op arg0 arg1)
-  (define-values (result exact?)
-    (bf-return-exact? op (list (endpoint-val arg0) (endpoint-val arg1))))
-  (endpoint result (and (endpoint-immovable? arg0)
-                        (endpoint-immovable? arg1)
-                        exact?)))
+  (define-values (result exact?) (bf-return-exact? op (list (endpoint-val arg0) (endpoint-val arg1))))
+  (endpoint result (and (endpoint-immovable? arg0) (endpoint-immovable? arg1) exact?)))
 
 ;; Helpers for defining interval functions
 
@@ -423,7 +420,10 @@
 
 (define (ival-<=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn1 not c>) (epfn1 not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (epfn1 not c>)
+        (epfn1 not m>)
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival->2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
@@ -431,7 +431,10 @@
 
 (define (ival->=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn1 not c<) (epfn1 not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (epfn1 not c<)
+        (epfn1 not m<)
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival-==2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
