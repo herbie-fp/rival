@@ -63,13 +63,6 @@
 
 (define mpfr-set! (get-mpfr-fun 'mpfr_set (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _void)))
 
-(define (mpfr-new! prec)
-  (unless (<= 2 prec (*rival-max-precision*))
-    (error 'mpfr-new! "Cannot create an MPFR value with precision ~a" prec))
-  (define x (parameterize ([bf-precision (*rival-max-precision*)]) (bf 0)))
-  (set-mpfr-prec! x prec)
-  x)
-
 (define mpfr-set-prec! set-mpfr-prec!)
 
 (define (bfremainder x mod)
@@ -235,5 +228,4 @@
          mpfr-mul!
          mpfr-div!
          mpfr-set-prec!
-         mpfr-new!
          mpfr-set!)

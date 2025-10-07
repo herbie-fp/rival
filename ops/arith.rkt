@@ -35,7 +35,7 @@
         (or (ival-err x) (ival-err y))))
 
 (define (ival-add x y)
-  (ival-add! (new-ival) x y))
+  (ival-add! (new-ival (bf-precision)) x y))
 
 (define (ival-sub! out x y)
   (ival (eplinear! (ival-lo-val out) mpfr-sub! (ival-lo x) (ival-hi y) 'down)
@@ -44,7 +44,7 @@
         (or (ival-err x) (ival-err y))))
 
 (define (ival-sub x y)
-  (ival-sub! (new-ival) x y))
+  (ival-sub! (new-ival (bf-precision)) x y))
 
 (define (epmul! out a-endpoint b-endpoint a-class b-class)
   (match-define (endpoint a a!) a-endpoint)
@@ -66,9 +66,10 @@
                 (and b! (bfinfinite? b) (not (= a-class 0))))))
 
 (define (ival-mult x y)
-  (ival-mult! (new-ival) x y))
+  (ival-mult! (new-ival (bf-precision)) x y))
 
-(define extra-mult-ival (new-ival))
+(define extra-mult-ival-prec (*rival-max-precision*))
+(define extra-mult-ival (new-ival extra-mult-ival-prec))
 
 (define (ival-mult! out x y)
   (match-define (ival xlo xhi xerr? xerr) x)
@@ -96,6 +97,9 @@
     ;; Here, the two branches of the union are meaningless on their own;
     ;; however, both branches compute possible lo/hi's to min/max together
     [(0 0)
+     (when (< extra-mult-ival-prec (*rival-max-precision*))
+       (set! extra-mult-ival-prec (*rival-max-precision*))
+       (set! extra-mult-ival (new-ival extra-mult-ival-prec)))
      (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err)
        (ival-union (mkmult extra-mult-ival xhi ylo xlo ylo) (mkmult out xlo yhi xhi yhi)))
      (mpfr-set! (ival-lo-val out) lo 'down) ; should be exact
@@ -145,7 +149,7 @@
     [(0 -1) (mkdiv xhi yhi xlo yhi)]))
 
 (define (ival-div x y)
-  (ival-div! (new-ival) x y))
+  (ival-div! (new-ival (bf-precision)) x y))
 
 (define (ival-fma a b c)
   (ival-add (ival-mult a b) c))
