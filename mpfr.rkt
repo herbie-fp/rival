@@ -3,6 +3,8 @@
 (require math/private/bigfloat/mpfr
          ffi/unsafe)
 
+(define *rival-max-precision* (make-parameter 10000))
+
 (provide -inf.bf
          -1.bf
          0.bf
@@ -13,7 +15,8 @@
          +inf.bf
          +nan.bf
          bf-return-exact?
-         rnd)
+         rnd
+         *rival-max-precision*)
 
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
@@ -56,16 +59,11 @@
 (define mpfr-remainder!
   (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
-(define mpfr-set-prec! (get-mpfr-fun 'mpfr_set_prec (_fun _mpfr-pointer _prec_t -> _void)))
-
-(define mpfr-init2! (get-mpfr-fun 'mpfr_init2 (_fun _mpfr-pointer _prec_t -> _void)))
+;(define mpfr-set-prec! (get-mpfr-fun 'mpfr_set_prec (_fun _mpfr-pointer _prec_t -> _void)))
 
 (define mpfr-set! (get-mpfr-fun 'mpfr_set (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _void)))
 
-(define (mpfr-new! prec)
-  (define bf (make-mpfr 0 0 0 #f))
-  (mpfr-init2! bf prec)
-  bf)
+(define mpfr-set-prec! set-mpfr-prec!)
 
 (define (bfremainder x mod)
   (define out (bf 0))
@@ -230,5 +228,4 @@
          mpfr-mul!
          mpfr-div!
          mpfr-set-prec!
-         mpfr-new!
          mpfr-set!)
