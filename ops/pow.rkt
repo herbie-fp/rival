@@ -41,7 +41,7 @@
   (define y-class (classify-ival y))
 
   (define (mk-pow a b c d)
-    (define out (new-ival))
+    (define out (new-ival (bf-precision)))
     (match-define (endpoint lo lo!) (eppow! (ival-lo-val out) a b x-class y-class 'down))
     (match-define (endpoint hi hi!) (eppow! (ival-hi-val out) c d x-class y-class 'up))
 
@@ -57,7 +57,7 @@
          ;; power of 2, because mpfr-exp is offset by 1 from the real
          ;; exponent, which matters when we add them.
 
-         (define log2-base (mpfr-new! (bf-precision)))
+         (define log2-base (bf 0))
          (define (log2-sum-exceeds-threshold? exponent-value base-value)
            (mpfr-log2! log2-base base-value 'zero)
            (> (+ (mpfr-exp exponent-value) (mpfr-exp log2-base)) (mpfr-exp exp2-overflow-threshold)))
@@ -147,7 +147,7 @@
 
 (define (ival-pow2 x)
   (match-define (ival lo hi err? err) x)
-  (define out (new-ival))
+  (define out (new-ival (bf-precision)))
   (define (mpfr-pow2! out a rnd)
     (mpfr-mul! out a a rnd))
   (ival (epunary! (ival-lo-val out) mpfr-pow2! lo 'down)

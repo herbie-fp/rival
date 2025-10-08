@@ -169,4 +169,4 @@
         err))
 
 (define (ival-hypot x y)
-  (ival-hypot! (new-ival) x y))
+  (ival-hypot! (new-ival (bf-precision)) x y))

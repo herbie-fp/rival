@@ -121,6 +121,9 @@
 (define (ival-hi-fixed? ival)
   (endpoint-immovable? (ival-hi ival)))
 
+(define (make-endpoint-pair)
+  (values (bf 0) (bf 0)))
+
 (define (new-ival precision)
   (parameterize ([bf-precision precision])
     (ival (endpoint (bf 1) #f) (endpoint (bf 2) #f) #f #f)))
@@ -195,7 +198,9 @@
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
   (define src (endpoint-val (if (bflte? x y) e1 e2)))
-  (define out (mpfr-new! (bf-precision)))
+  (define out
+    (parameterize ([bf-precision (bf-precision)])
+      (bf 0)))
   (mpfr-set! out src rnd)
   (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
@@ -203,7 +208,9 @@
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
   (define src (endpoint-val (if (bfgte? x y) e1 e2)))
-  (define out (mpfr-new! (bf-precision)))
+  (define out
+    (parameterize ([bf-precision (bf-precision)])
+      (bf 0)))
   (mpfr-set! out src rnd)
   (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
@@ -243,7 +250,7 @@
 
 (define ((monotonic-mpfr mpfr-fn!) x)
   (match-define (ival lo hi err? err) x)
-  (define out (new-ival))
+  (define out (new-ival (bf-precision)))
   (ival (epunary! (ival-lo-val out) mpfr-fn! lo 'down)
         (epunary! (ival-hi-val out) mpfr-fn! hi 'up)
         err?
@@ -251,7 +258,7 @@
 
 (define ((comonotonic-mpfr mpfr-fn!) x)
   (match-define (ival lo hi err? err) x)
-  (define out (new-ival))
+  (define out (new-ival (bf-precision)))
   (ival (epunary! (ival-lo-val out) mpfr-fn! hi 'down)
         (epunary! (ival-hi-val out) mpfr-fn! lo 'up)
         err?
