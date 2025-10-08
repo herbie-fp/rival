@@ -13,17 +13,17 @@
     [(and (< (mpfr-exp (ival-hi-val x)) 1) (not (bfinfinite? (ival-hi-val x)))) -1]
     [else 0]))
 
-(define (eppow a-endpoint b-endpoint a-class b-class)
+(define (eppow! out a-endpoint b-endpoint a-class b-class rnd)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
-  (when (bfzero? a)
-    (set! a 0.bf)) ; Handle (-0)^(-1)
-  (define-values (val exact?) (bf-return-exact? bfexpt (list a b)))
-  (endpoint val
+  (define base (if (bfzero? a) 0.bf a)) ; Handle (-0)^(-1)
+  (mpfr-set-prec! out (bf-precision))
+  (define exact? (= 0 (mpfr-pow! out base b rnd)))
+  (endpoint out
             (or (and a! b! exact?)
-                (and a! (bf=? a 1.bf))
-                (and a! (bfzero? a) (not (= b-class 0)))
-                (and a! (bfinfinite? a) (not (= b-class 0)))
+                (and a! (bf=? base 1.bf))
+                (and a! (bfzero? base) (not (= b-class 0)))
+                (and a! (bfinfinite? base) (not (= b-class 0)))
                 (and b! (bfzero? b))
                 (and b! (bfinfinite? b) (not (= a-class 0))))))
 
@@ -41,8 +41,9 @@
   (define y-class (classify-ival y))
 
   (define (mk-pow a b c d)
-    (match-define (endpoint lo lo!) (rnd 'down eppow a b x-class y-class))
-    (match-define (endpoint hi hi!) (rnd 'up eppow c d x-class y-class))
+    (define out (new-ival (bf-precision)))
+    (match-define (endpoint lo lo!) (eppow! (ival-lo-val out) a b x-class y-class 'down))
+    (match-define (endpoint hi hi!) (eppow! (ival-hi-val out) c d x-class y-class 'up))
 
     (define-values (real-lo! real-hi!)
       (cond
@@ -55,17 +56,17 @@
          ;; Can't use >=, even though exp2-overflow-threshold is a
          ;; power of 2, because mpfr-exp is offset by 1 from the real
          ;; exponent, which matters when we add them.
+
+         (define log2-base (bf 0))
+         (define (log2-sum-exceeds-threshold? exponent-value base-value)
+           (mpfr-log2! log2-base base-value 'zero)
+           (> (+ (mpfr-exp exponent-value) (mpfr-exp log2-base)) (mpfr-exp exp2-overflow-threshold)))
+
          (define must-overflow
-           (and (bfinfinite? hi)
-                (= (* x-class y-class) 1)
-                (> (+ (mpfr-exp bval) (mpfr-exp (rnd 'zero bflog2 aval)))
-                   (mpfr-exp exp2-overflow-threshold))))
+           (and (bfinfinite? hi) (= (* x-class y-class) 1) (log2-sum-exceeds-threshold? bval aval)))
 
          (define must-underflow
-           (and (bfzero? lo)
-                (= (* x-class y-class) -1)
-                (> (+ (mpfr-exp dval) (mpfr-exp (rnd 'zero bflog2 cval)))
-                   (mpfr-exp exp2-overflow-threshold))))
+           (and (bfzero? lo) (= (* x-class y-class) -1) (log2-sum-exceeds-threshold? dval cval)))
 
          (define real-lo! (or lo! must-underflow (and (bfzero? lo) a! b!)))
          (define real-hi! (or hi! must-underflow must-overflow (and (bfinfinite? hi) c! d!)))
@@ -138,8 +139,21 @@
       (let ([pospow (ival-pow-pos (ival-exact-fabs x) y)])
         (ival-then (ival-assert ival-maybe) (ival-union (ival-neg pospow) pospow)))))
 
+(define (eppow2! out a-endpoint rnd)
+  (match-define (endpoint a a!) a-endpoint)
+  (mpfr-set-prec! out (bf-precision))
+  (define exact? (= 0 (mpfr-mul! out a a rnd)))
+  (endpoint out (and a! exact?)))
+
 (define (ival-pow2 x)
-  ((monotonic->ival (lambda (x) (bfmul x x))) (ival-exact-fabs x)))
+  (match-define (ival lo hi err? err) x)
+  (define out (new-ival (bf-precision)))
+  (define (mpfr-pow2! out a rnd)
+    (mpfr-mul! out a a rnd))
+  (ival (epunary! (ival-lo-val out) mpfr-pow2! lo 'down)
+        (epunary! (ival-hi-val out) mpfr-pow2! hi 'up)
+        err?
+        err))
 
 (define (ival-pow x y)
   (cond

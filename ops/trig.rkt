@@ -12,6 +12,60 @@
 
 (define *rival-precision* (make-parameter (expt 2 20)))
 
+(define (eptrig-min! out mpfr-fn! a-endpoint b-endpoint rnd)
+  (match-define (endpoint a a!) a-endpoint)
+  (match-define (endpoint b b!) b-endpoint)
+  (define out-a (bf 0))
+  (define out-b (bf 0))
+  (define exact-a? (= 0 (mpfr-fn! out-a a rnd)))
+  (define exact-b? (= 0 (mpfr-fn! out-b b rnd)))
+  (mpfr-set-prec! out (bf-precision))
+  (cond
+    [(bflt? out-a out-b)
+     (mpfr-set! out out-a rnd)
+     (endpoint out (and a! exact-a?))]
+    [(bflt? out-b out-a)
+     (mpfr-set! out out-b rnd)
+     (endpoint out (and b! exact-b?))]
+    [else
+     (mpfr-set! out out-a rnd)
+     (endpoint out (or (and a! exact-a?) (and b! exact-b?)))]))
+
+(define (eptrig-max! out mpfr-fn! a-endpoint b-endpoint rnd)
+  (match-define (endpoint a a!) a-endpoint)
+  (match-define (endpoint b b!) b-endpoint)
+  (define out-a (bf 0))
+  (define out-b (bf 0))
+  (define exact-a? (= 0 (mpfr-fn! out-a a rnd)))
+  (define exact-b? (= 0 (mpfr-fn! out-b b rnd)))
+  (mpfr-set-prec! out (bf-precision))
+  (cond
+    [(bfgt? out-a out-b)
+     (mpfr-set! out out-a rnd)
+     (endpoint out (and a! exact-a?))]
+    [(bfgt? out-b out-a)
+     (mpfr-set! out out-b rnd)
+     (endpoint out (and b! exact-b?))]
+    [else
+     (mpfr-set! out out-a rnd)
+     (endpoint out (or (and a! exact-a?) (and b! exact-b?)))]))
+
+(define (range-reduce-floor x divisor-bf prec)
+  (define saved-prec (bf-precision))
+  (bf-precision prec)
+  (define divisor-ival (mk-ival divisor-bf))
+  (define result-ival (ival-floor (ival-div x divisor-ival)))
+  (bf-precision saved-prec)
+  result-ival)
+
+(define (range-reduce-round x divisor-bf prec)
+  (define saved-prec (bf-precision))
+  (bf-precision prec)
+  (define divisor-ival (mk-ival divisor-bf))
+  (define result-ival (ival-round (ival-div x divisor-ival)))
+  (bf-precision saved-prec)
+  result-ival)
+
 (define (classify-ival-periodic x period)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (define period/4 (integer-length (exact-floor (/ period 4))))
@@ -37,40 +91,37 @@
     (match (classify-ival-periodic x n)
       ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
       ['near-0
+       (define (mpfr-cosu-n! out a rnd)
+         (mpfr-cosu! out a n rnd))
        (match (classify-ival x)
-         [-1 ((monotonic->ival (curry bfcosu n)) x)]
-         [1 ((comonotonic->ival (curry bfcosu n)) x)]
+         [-1 ((monotonic-mpfr mpfr-cosu-n!) x)]
+         [1 ((comonotonic-mpfr mpfr-cosu-n!) x)]
          [else
-          (ival (rnd 'down
-                     epfn
-                     bfmin2
-                     (epfn (curry bfcosu n) (ival-lo x))
-                     (epfn (curry bfcosu n) (ival-hi x)))
+          (define out (new-ival (bf-precision)))
+          (ival (eptrig-min! (ival-lo-val out) mpfr-cosu-n! (ival-lo x) (ival-hi x) 'down)
                 (endpoint 1.bf #f)
                 (ival-err? x)
                 (ival-err x))])]
       ['range-reduce
-       (match-define (ival (endpoint a _) (endpoint b _) _ _)
-         (parameterize ([bf-precision (range-reduce-precision xlo xhi)])
-           (ival-floor (ival-div x (mk-ival (bf (/ n 2)))))))
+       (define prec (range-reduce-precision xlo xhi))
+       (define divisor-bf
+         (parameterize ([bf-precision prec])
+           (bf (/ n 2))))
+       (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-floor x divisor-bf prec))
+       (define (mpfr-cosu-n! out a rnd)
+         (mpfr-cosu! out a n rnd))
        (cond
-         [(and (bf=? a b) (bfeven? a)) ((comonotonic->ival (curry bfcosu n)) x)]
-         [(and (bf=? a b) (bfodd? a)) ((monotonic->ival (curry bfcosu n)) x)]
+         [(and (bf=? a b) (bfeven? a)) ((comonotonic-mpfr mpfr-cosu-n!) x)]
+         [(and (bf=? a b) (bfodd? a)) ((monotonic-mpfr mpfr-cosu-n!) x)]
          [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+          (define out (new-ival (bf-precision)))
           (ival (endpoint -1.bf #f)
-                (rnd 'up
-                     epfn
-                     bfmax2
-                     (epfn (curry bfcosu n) (ival-lo x))
-                     (epfn (curry bfcosu n) (ival-hi x)))
+                (eptrig-max! (ival-hi-val out) mpfr-cosu-n! (ival-lo x) (ival-hi x) 'up)
                 (ival-err? x)
                 (ival-err x))]
          [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-          (ival (rnd 'down
-                     epfn
-                     bfmin2
-                     (epfn (curry bfcosu n) (ival-lo x))
-                     (epfn (curry bfcosu n) (ival-hi x)))
+          (define out (new-ival (bf-precision)))
+          (ival (eptrig-min! (ival-lo-val out) mpfr-cosu-n! (ival-lo x) (ival-hi x) 'down)
                 (endpoint 1.bf #f)
                 (ival-err? x)
                 (ival-err x))]
@@ -83,27 +134,33 @@
     ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
     ['near-0
      (match (classify-ival x)
-       [-1 ((monotonic->ival bfcos) x)]
-       [1 ((comonotonic->ival bfcos) x)]
+       [-1 ((monotonic-mpfr mpfr-cos!) x)]
+       [1 ((comonotonic-mpfr mpfr-cos!) x)]
        [else
-        (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+        (define out (new-ival (bf-precision)))
+        (ival (eptrig-min! (ival-lo-val out) mpfr-cos! (ival-lo x) (ival-hi x) 'down)
               (endpoint 1.bf #f)
               (ival-err? x)
               (ival-err x))])]
     ['range-reduce
-     (match-define (ival (endpoint a _) (endpoint b _) _ _)
-       (parameterize ([bf-precision (range-reduce-precision xlo xhi)])
-         (ival-floor (ival-div x (ival-pi)))))
+     (define prec (range-reduce-precision xlo xhi))
+     (define pi-bf
+       (parameterize ([bf-precision prec])
+         (bf 0)))
+     (mpfr-const-pi! pi-bf 'nearest)
+     (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-floor x pi-bf prec))
      (cond
-       [(and (bf=? a b) (bfeven? a)) ((comonotonic->ival bfcos) x)]
-       [(and (bf=? a b) (bfodd? a)) ((monotonic->ival bfcos) x)]
+       [(and (bf=? a b) (bfeven? a)) ((comonotonic-mpfr mpfr-cos!) x)]
+       [(and (bf=? a b) (bfodd? a)) ((monotonic-mpfr mpfr-cos!) x)]
        [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+        (define out (new-ival (bf-precision)))
         (ival (endpoint -1.bf #f)
-              (rnd 'up epfn bfmax2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+              (eptrig-max! (ival-hi-val out) mpfr-cos! (ival-lo x) (ival-hi x) 'up)
               (ival-err? x)
               (ival-err x))]
        [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-        (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+        (define out (new-ival (bf-precision)))
+        (ival (eptrig-min! (ival-lo-val out) mpfr-cos! (ival-lo x) (ival-hi x) 'down)
               (endpoint 1.bf #f)
               (ival-err? x)
               (ival-err x))]
@@ -113,31 +170,29 @@
   (define (ival-sinu x)
     (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
 
+    (define (mpfr-sinu-n! out a rnd)
+      (mpfr-sinu! out a n rnd))
     (match (classify-ival-periodic x n)
       ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
-      ['near-0 ((monotonic->ival (curry bfsinu n)) x)]
+      ['near-0 ((monotonic-mpfr mpfr-sinu-n!) x)]
       ['range-reduce
-       (match-define (ival (endpoint a _) (endpoint b _) _ _)
-         (parameterize ([bf-precision (range-reduce-precision xlo xhi)])
-           (ival-round (ival-div x (mk-ival (bf (/ n 2)))))))
+       (define prec (range-reduce-precision xlo xhi))
+       (define divisor-bf
+         (parameterize ([bf-precision prec])
+           (bf (/ n 2))))
+       (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-round x divisor-bf prec))
        (cond
-         [(and (bf=? a b) (bfodd? a)) ((comonotonic->ival (curry bfsinu n)) x)]
-         [(and (bf=? a b) (bfeven? a)) ((monotonic->ival (curry bfsinu n)) x)]
+         [(and (bf=? a b) (bfodd? a)) ((comonotonic-mpfr mpfr-sinu-n!) x)]
+         [(and (bf=? a b) (bfeven? a)) ((monotonic-mpfr mpfr-sinu-n!) x)]
          [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+          (define out (new-ival (bf-precision)))
           (ival (endpoint -1.bf #f)
-                (rnd 'up
-                     epfn
-                     bfmax2
-                     (epfn (curry bfsinu n) (ival-lo x))
-                     (epfn (curry bfsinu n) (ival-hi x)))
+                (eptrig-max! (ival-hi-val out) mpfr-sinu-n! (ival-lo x) (ival-hi x) 'up)
                 (ival-err? x)
                 (ival-err x))]
          [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-          (ival (rnd 'down
-                     epfn
-                     bfmin2
-                     (epfn (curry bfsinu n) (ival-lo x))
-                     (epfn (curry bfsinu n) (ival-hi x)))
+          (define out (new-ival (bf-precision)))
+          (ival (eptrig-min! (ival-lo-val out) mpfr-sinu-n! (ival-lo x) (ival-hi x) 'down)
                 (endpoint 1.bf #f)
                 (ival-err? x)
                 (ival-err x))]
@@ -149,21 +204,26 @@
 
   (match (classify-ival-periodic x (* 2 pi))
     ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
-    ['near-0 ((monotonic->ival bfsin) x)]
+    ['near-0 ((monotonic-mpfr mpfr-sin!) x)]
     ['range-reduce
-     (match-define (ival (endpoint a _) (endpoint b _) _ _)
-       (parameterize ([bf-precision (range-reduce-precision xlo xhi)])
-         (ival-round (ival-div x (ival-pi)))))
+     (define prec (range-reduce-precision xlo xhi))
+     (define pi-bf
+       (parameterize ([bf-precision prec])
+         (bf 0)))
+     (mpfr-const-pi! pi-bf 'nearest)
+     (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-round x pi-bf prec))
      (cond
-       [(and (bf=? a b) (bfodd? a)) ((comonotonic->ival bfsin) x)]
-       [(and (bf=? a b) (bfeven? a)) ((monotonic->ival bfsin) x)]
+       [(and (bf=? a b) (bfodd? a)) ((comonotonic-mpfr mpfr-sin!) x)]
+       [(and (bf=? a b) (bfeven? a)) ((monotonic-mpfr mpfr-sin!) x)]
        [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+        (define out (new-ival (bf-precision)))
         (ival (endpoint -1.bf #f)
-              (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+              (eptrig-max! (ival-hi-val out) mpfr-sin! (ival-lo x) (ival-hi x) 'up)
               (ival-err? x)
               (ival-err x))]
        [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-        (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+        (define out (new-ival (bf-precision)))
+        (ival (eptrig-min! (ival-lo-val out) mpfr-sin! (ival-lo x) (ival-hi x) 'down)
               (endpoint 1.bf #f)
               (ival-err? x)
               (ival-err x))]
@@ -172,17 +232,21 @@
 (define (ival-tanu n)
   (define (ival-tanu x)
     (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+    (define (mpfr-tanu-n! out a rnd)
+      (mpfr-tanu! out a n rnd))
 
     (match (classify-ival-periodic x (/ n 2))
       ['too-wide (ival (endpoint -inf.bf (and xlo! xhi!)) (endpoint +inf.bf (and xlo! xhi!)) #t xerr)]
-      ['near-0 ((monotonic->ival (curry bftanu n)) x)]
+      ['near-0 ((monotonic-mpfr mpfr-tanu-n!) x)]
       ['range-reduce
-       (match-define (ival (endpoint a _) (endpoint b _) _ _)
-         (parameterize ([bf-precision (range-reduce-precision xlo xhi)])
-           (ival-round (ival-div x (mk-ival (bf (/ n 2)))))))
+       (define prec (range-reduce-precision xlo xhi))
+       (define divisor-bf
+         (parameterize ([bf-precision prec])
+           (bf (/ n 2))))
+       (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-round x divisor-bf prec))
 
        (if (bf=? a b) ; Same period
-           ((monotonic->ival (curry bftanu n)) x)
+           ((monotonic-mpfr mpfr-tanu-n!) x)
            (ival (endpoint -inf.bf (and xlo! xhi!)) (endpoint +inf.bf (and xlo! xhi!)) #t xerr))]))
   (if bftanu ival-tanu #f))
 
@@ -191,12 +255,15 @@
 
   (match (classify-ival-periodic x pi)
     ['too-wide (ival (endpoint -inf.bf (and xlo! xhi!)) (endpoint +inf.bf (and xlo! xhi!)) #t xerr)]
-    ['near-0 ((monotonic->ival bftan) x)]
+    ['near-0 ((monotonic-mpfr mpfr-tan!) x)]
     ['range-reduce
-     (match-define (ival (endpoint a _) (endpoint b _) _ _)
-       (parameterize ([bf-precision (range-reduce-precision xlo xhi)])
-         (ival-round (ival-div x (ival-pi)))))
+     (define prec (range-reduce-precision xlo xhi))
+     (define pi-bf
+       (parameterize ([bf-precision prec])
+         (bf 0)))
+     (mpfr-const-pi! pi-bf 'nearest)
+     (match-define (ival (endpoint a _) (endpoint b _) _ _) (range-reduce-round x pi-bf prec))
 
      (if (bf=? a b) ; Same period
-         ((monotonic->ival bftan) x)
+         ((monotonic-mpfr mpfr-tan!) x)
          (ival (endpoint -inf.bf (and xlo! xhi!)) (endpoint +inf.bf (and xlo! xhi!)) #t xerr))]))

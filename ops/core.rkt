@@ -16,6 +16,9 @@
          ival-exact-fabs
          ival-maybe
          epfn
+         epunary!
+         monotonic-mpfr
+         comonotonic-mpfr
          split-ival
          ival-max-prec
          ival-exact-neg
@@ -118,11 +121,12 @@
 (define (ival-hi-fixed? ival)
   (endpoint-immovable? (ival-hi ival)))
 
-(define (new-ival)
-  ; Warning, leaks memory unless `mpfr-clear!` called eventually
-  (define bf1 (mpfr-new! (bf-precision)))
-  (define bf2 (mpfr-new! (bf-precision)))
-  (ival (endpoint bf1 #f) (endpoint bf2 #f) #f #f))
+(define (make-endpoint-pair)
+  (values (bf 0) (bf 0)))
+
+(define (new-ival precision)
+  (parameterize ([bf-precision precision])
+    (ival (endpoint (bf 1) #f) (endpoint (bf 2) #f) #f #f)))
 
 (define (mk-big-ival x y)
   (cond
@@ -144,10 +148,16 @@
   (ormap identity as))
 
 (define (ival-pi)
-  (ival (endpoint (rnd 'down pi.bf) #f) (endpoint (rnd 'up pi.bf) #f) #f #f))
+  (define-values (lo hi) (make-endpoint-pair))
+  (mpfr-const-pi! lo 'down)
+  (mpfr-const-pi! hi 'up)
+  (ival (endpoint lo #f) (endpoint hi #f) #f #f))
 
 (define (ival-e)
-  (ival (endpoint (rnd 'down bfexp 1.bf) #f) (endpoint (rnd 'up bfexp 1.bf) #f) #f #f))
+  (define-values (lo hi) (make-endpoint-pair))
+  (mpfr-exp! lo 1.bf 'down)
+  (mpfr-exp! hi 1.bf 'up)
+  (ival (endpoint lo #f) (endpoint hi #f) #f #f))
 
 (define (ival-bool b)
   (ival (endpoint b #t) (endpoint b #t) #f #f))
@@ -184,16 +194,24 @@
     [(bfnegative? (ival-hi-val x)) -1]
     [else 0]))
 
-(define (endpoint-min2 e1 e2)
+(define (endpoint-min2 e1 e2 rnd)
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
-  (define out (bfmin2 x y))
+  (define src (endpoint-val (if (bflte? x y) e1 e2)))
+  (define out
+    (parameterize ([bf-precision (bf-precision)])
+      (bf 0)))
+  (mpfr-set! out src rnd)
   (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
-(define (endpoint-max2 e1 e2)
+(define (endpoint-max2 e1 e2 rnd)
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
-  (define out (bfmax2 x y))
+  (define src (endpoint-val (if (bfgte? x y) e1 e2)))
+  (define out
+    (parameterize ([bf-precision (bf-precision)])
+      (bf 0)))
+  (mpfr-set! out src rnd)
   (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
 (define (ival-union x y)
@@ -201,8 +219,8 @@
     [(ival-err x) (struct-copy ival y [err? #t])]
     [(ival-err y) (struct-copy ival x [err? #t])]
     [(bigfloat? (ival-lo-val x))
-     (ival (rnd 'down endpoint-min2 (ival-lo x) (ival-lo y))
-           (rnd 'up endpoint-max2 (ival-hi x) (ival-hi y))
+     (ival (endpoint-min2 (ival-lo x) (ival-lo y) 'down)
+           (endpoint-max2 (ival-hi x) (ival-hi y) 'up)
            (or (ival-err? x) (ival-err? y))
            (and (ival-err x) (ival-err y)))]
     [(boolean? (ival-lo-val x))
@@ -216,6 +234,35 @@
   (define args-bf (map endpoint-val args))
   (define-values (result exact?) (bf-return-exact? op args-bf))
   (endpoint result (and (andmap endpoint-immovable? args) exact?)))
+
+(define (epunary! out mpfr-fun! a-endpoint rnd)
+  (match-define (endpoint a a!) a-endpoint)
+  (mpfr-set-prec! out (bf-precision))
+  (define exact? (= 0 (mpfr-fun! out a rnd)))
+  (endpoint out (and a! exact?)))
+
+(define (epbinary! out mpfr-fun! a-endpoint b-endpoint rnd)
+  (match-define (endpoint a a!) a-endpoint)
+  (match-define (endpoint b b!) b-endpoint)
+  (mpfr-set-prec! out (bf-precision))
+  (define exact? (= 0 (mpfr-fun! out a b rnd)))
+  (endpoint out (and a! b! exact?)))
+
+(define ((monotonic-mpfr mpfr-fn!) x)
+  (match-define (ival lo hi err? err) x)
+  (define out (new-ival (bf-precision)))
+  (ival (epunary! (ival-lo-val out) mpfr-fn! lo 'down)
+        (epunary! (ival-hi-val out) mpfr-fn! hi 'up)
+        err?
+        err))
+
+(define ((comonotonic-mpfr mpfr-fn!) x)
+  (match-define (ival lo hi err? err) x)
+  (define out (new-ival (bf-precision)))
+  (ival (epunary! (ival-lo-val out) mpfr-fn! hi 'down)
+        (epunary! (ival-hi-val out) mpfr-fn! lo 'up)
+        err?
+        err))
 
 ;; Helpers for defining interval functions
 
@@ -278,7 +325,7 @@
         yerr?
         yerr))
 
-(define* ival-neg (comonotonic bfneg))
+(define* ival-neg (comonotonic-mpfr mpfr-neg!))
 
 ;; This function fixes a bug in MPFR where mixed-precision
 ;; rint/round/ceil/floor/trunc operations are rounded in the input
@@ -289,7 +336,7 @@
       (bfrint x)
       (f x)))
 
-(define* ival-rint (monotonic bfrint))
+(define* ival-rint (monotonic-mpfr mpfr-rint!))
 (define* ival-round (monotonic (fix-rounding bfround)))
 (define* ival-ceil (monotonic (fix-rounding bfceiling)))
 (define* ival-floor (monotonic (fix-rounding bffloor)))
@@ -297,26 +344,30 @@
 
 (define (ival-fabs x)
   (match (classify-ival x)
-    [-1 ((comonotonic bfabs) x)]
-    [1 ((monotonic bfabs) x)]
+    [-1 ((comonotonic-mpfr mpfr-abs!) x)]
+    [1 ((monotonic-mpfr mpfr-abs!) x)]
     [0
      (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-     (ival (endpoint (bf 0) (and xlo! xhi!))
-           (rnd 'up endpoint-max2 (epfn bfabs (ival-lo x)) (ival-hi x))
-           (ival-err? x)
-           (ival-err x))]))
+     (define-values (tmp1 tmp2) (make-endpoint-pair))
+     (define abs-lo (epunary! tmp1 mpfr-abs! (ival-lo x) 'up))
+     (define abs-hi (epunary! tmp2 mpfr-abs! (ival-hi x) 'up))
+     (ival (endpoint (bf 0) (and xlo! xhi!)) (endpoint-max2 abs-lo abs-hi 'nearest) xerr? xerr)]))
 
 ;; These functions execute ival-fabs and ival-neg with input's precision
 (define (ival-max-prec x)
   (max (bigfloat-precision (ival-lo-val x)) (bigfloat-precision (ival-hi-val x))))
 
 (define (ival-exact-fabs x)
-  (parameterize ([bf-precision (ival-max-prec x)])
-    (ival-fabs x)))
+  (define saved-prec (bf-precision))
+  (bf-precision (ival-max-prec x))
+  (begin0 (ival-fabs x)
+    (bf-precision saved-prec)))
 
 (define (ival-exact-neg x)
-  (parameterize ([bf-precision (ival-max-prec x)])
-    (ival-neg x)))
+  (define saved-prec (bf-precision))
+  (bf-precision (ival-max-prec x))
+  (begin0 (ival-neg x)
+    (bf-precision saved-prec)))
 
 ;; Since MPFR has a cap on exponents, no value can be more than twice MAX_VAL
 (define exp-overflow-threshold (bfadd (bflog (bfprev +inf.bf)) 1.bf))
@@ -325,22 +376,23 @@
 (define acosh-overflow-threshold (bfadd (bfacosh (bfprev +inf.bf)) 1.bf))
 
 (define (ival-exp x)
-  (define y ((monotonic bfexp) x))
+  (define y ((monotonic-mpfr mpfr-exp!) x))
   ((overflows-loose-at (bfneg exp-overflow-threshold) exp-overflow-threshold) x y))
-(define* ival-expm1
-         (overflows-at (monotonic bfexpm1) (bfneg exp-overflow-threshold) exp-overflow-threshold))
+(define*
+ ival-expm1
+ (overflows-at (monotonic-mpfr mpfr-expm1!) (bfneg exp-overflow-threshold) exp-overflow-threshold))
 (define (ival-exp2 x)
-  (define y ((monotonic bfexp2) x))
+  (define y ((monotonic-mpfr mpfr-exp2!) x))
   ((overflows-loose-at (bfneg exp2-overflow-threshold) exp2-overflow-threshold) x y))
 
-(define* ival-log (compose (monotonic bflog) (clamp-strict 0.bf +inf.bf)))
-(define* ival-log2 (compose (monotonic bflog2) (clamp-strict 0.bf +inf.bf)))
-(define* ival-log10 (compose (monotonic bflog10) (clamp-strict 0.bf +inf.bf)))
-(define* ival-log1p (compose (monotonic bflog1p) (clamp-strict -1.bf +inf.bf)))
+(define* ival-log (compose (monotonic-mpfr mpfr-log!) (clamp-strict 0.bf +inf.bf)))
+(define* ival-log2 (compose (monotonic-mpfr mpfr-log2!) (clamp-strict 0.bf +inf.bf)))
+(define* ival-log10 (compose (monotonic-mpfr mpfr-log10!) (clamp-strict 0.bf +inf.bf)))
+(define* ival-log1p (compose (monotonic-mpfr mpfr-log1p!) (clamp-strict -1.bf +inf.bf)))
 [define* ival-logb (compose ival-floor ival-log2 ival-exact-fabs)]
 
-(define* ival-sqrt (compose (monotonic bfsqrt) (clamp 0.bf +inf.bf)))
-(define* ival-cbrt (monotonic bfcbrt))
+(define* ival-sqrt (compose (monotonic-mpfr mpfr-sqrt!) (clamp 0.bf +inf.bf)))
+(define* ival-cbrt (monotonic-mpfr mpfr-cbrt!))
 
 (define (ival-and . as)
   (ival (endpoint (andmap ival-lo-val as) (andmap (compose endpoint-immovable? ival-lo) as))
@@ -357,9 +409,9 @@
 (define (ival-not x)
   (ival (epfn not (ival-hi x)) (epfn not (ival-lo x)) (ival-err? x) (ival-err x)))
 
-(define* ival-asin (compose (monotonic bfasin) (clamp -1.bf 1.bf)))
-(define* ival-acos (compose (comonotonic bfacos) (clamp -1.bf 1.bf)))
-(define* ival-atan (monotonic bfatan))
+(define* ival-asin (compose (monotonic-mpfr mpfr-asin!) (clamp -1.bf 1.bf)))
+(define* ival-acos (compose (comonotonic-mpfr mpfr-acos!) (clamp -1.bf 1.bf)))
+(define* ival-atan (monotonic-mpfr mpfr-atan!))
 
 (define (ival-atan2 y x)
   (match-define (ival xlo xhi xerr? xerr) x)
@@ -369,7 +421,8 @@
   (define err (or (ival-err x) (ival-err y)))
 
   (define (mkatan a b c d)
-    (ival (rnd 'down epfn bfatan2 a b) (rnd 'up epfn bfatan2 c d) err? err))
+    (define-values (lo-out hi-out) (make-endpoint-pair))
+    (ival (epbinary! lo-out mpfr-atan2! a b 'down) (epbinary! hi-out mpfr-atan2! c d 'up) err? err))
 
   (match* ((classify-ival-strict x) (classify-ival-strict y))
     [(-1 -1) (mkatan yhi xlo ylo xhi)]
@@ -380,8 +433,12 @@
     [(0 1) (mkatan ylo xhi ylo xlo)]
     [(-1 1) (mkatan yhi xhi ylo xlo)]
     [(_ 0)
-     (ival (endpoint (bfneg (rnd 'up pi.bf)) #f)
-           (endpoint (rnd 'up pi.bf) #f)
+     (define pi-int (ival-pi))
+     (define-values (hi-out lo-out) (make-endpoint-pair))
+     (mpfr-set! hi-out (endpoint-val (ival-hi pi-int)) 'up)
+     (mpfr-neg! lo-out (endpoint-val (ival-hi pi-int)) 'down)
+     (ival (endpoint lo-out #f)
+           (endpoint hi-out #f)
            (or err? (bfgte? (ival-hi-val x) 0.bf))
            (or err
                (and (bfzero? (ival-lo-val x))
@@ -389,19 +446,21 @@
                     (bfzero? (ival-lo-val y))
                     (bfzero? (ival-hi-val y)))))]))
 
+(define* ival-cosh
+         (compose (overflows-at (monotonic-mpfr mpfr-cosh!)
+                                (bfneg acosh-overflow-threshold)
+                                acosh-overflow-threshold)
+                  ival-exact-fabs))
 (define*
- ival-cosh
- (compose (overflows-at (monotonic bfcosh) (bfneg acosh-overflow-threshold) acosh-overflow-threshold)
-          ival-exact-fabs))
-(define* ival-sinh
-         (overflows-at (monotonic bfsinh) (bfneg sinh-overflow-threshold) sinh-overflow-threshold))
-(define* ival-tanh (monotonic bftanh))
-(define* ival-asinh (monotonic bfasinh))
-(define* ival-acosh (compose (monotonic bfacosh) (clamp 1.bf +inf.bf)))
-(define* ival-atanh (compose (monotonic bfatanh) (clamp-strict -1.bf 1.bf)))
+ ival-sinh
+ (overflows-at (monotonic-mpfr mpfr-sinh!) (bfneg sinh-overflow-threshold) sinh-overflow-threshold))
+(define* ival-tanh (monotonic-mpfr mpfr-tanh!))
+(define* ival-asinh (monotonic-mpfr mpfr-asinh!))
+(define* ival-acosh (compose (monotonic-mpfr mpfr-acosh!) (clamp 1.bf +inf.bf)))
+(define* ival-atanh (compose (monotonic-mpfr mpfr-atanh!) (clamp-strict -1.bf 1.bf)))
 
-(define* ival-erf (monotonic bferf))
-(define* ival-erfc (comonotonic bferfc))
+(define* ival-erf (monotonic-mpfr mpfr-erf!))
+(define* ival-erfc (comonotonic-mpfr mpfr-erfc!))
 
 (define (ival-cmp x y)
   (define can-< (epfn bflt? (ival-lo x) (ival-hi y)))
@@ -504,14 +563,14 @@
   (ival (endpoint lo #f) (endpoint hi #f) err? err))
 
 (define (ival-fmin x y)
-  (ival (rnd 'down endpoint-min2 (ival-lo x) (ival-lo y))
-        (rnd 'up endpoint-min2 (ival-hi x) (ival-hi y))
+  (ival (endpoint-min2 (ival-lo x) (ival-lo y) 'down)
+        (endpoint-min2 (ival-hi x) (ival-hi y) 'up)
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
 (define (ival-fmax x y)
-  (ival (rnd 'down endpoint-max2 (ival-lo x) (ival-lo y))
-        (rnd 'up endpoint-max2 (ival-hi x) (ival-hi y))
+  (ival (endpoint-max2 (ival-lo x) (ival-lo y) 'down)
+        (endpoint-max2 (ival-hi x) (ival-hi y) 'up)
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 

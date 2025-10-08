@@ -83,7 +83,8 @@
   (rival-machine-load machine (vector-map ival-real pt))
   (let loop ([iter 0])
     (define-values (good? done? bad? stuck? fvec)
-      (parameterize ([*sampling-iteration* iter])
+      (parameterize ([*sampling-iteration* iter]
+                     [*rival-max-precision* (rival-machine-max-precision machine)])
         (rival-machine-full machine (or hint (rival-machine-default-hint machine)))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]

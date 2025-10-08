@@ -296,7 +296,7 @@
                  [n (in-naturals num-vars)])
       (fn->ival-fn node
                    (lambda ()
-                     (vector-set! registers n (new-ival))
+                     (vector-set! registers n (new-ival (*rival-max-precision*)))
                      n)
                    constants-lookup
                    (- n num-vars))))
