@@ -13,19 +13,17 @@
     [(and (< (mpfr-exp (ival-hi-val x)) 1) (not (bfinfinite? (ival-hi-val x)))) -1]
     [else 0]))
 
-(define (eppow a-endpoint b-endpoint a-class b-class)
-  (match-define (endpoint a a!) a-endpoint)
-  (match-define (endpoint b b!) b-endpoint)
+(define (eppow a a! b b! a-class b-class)
   (when (bfzero? a)
     (set! a 0.bf)) ; Handle (-0)^(-1)
   (define-values (val exact?) (bf-return-exact? bfexpt (list a b)))
-  (endpoint val
-            (or (and a! b! exact?)
-                (and a! (bf=? a 1.bf))
-                (and a! (bfzero? a) (not (= b-class 0)))
-                (and a! (bfinfinite? a) (not (= b-class 0)))
-                (and b! (bfzero? b))
-                (and b! (bfinfinite? b) (not (= a-class 0))))))
+  (values val
+          (or (and a! b! exact?)
+              (and a! (bf=? a 1.bf))
+              (and a! (bfzero? a) (not (= b-class 0)))
+              (and a! (bfinfinite? a) (not (= b-class 0)))
+              (and b! (bfzero? b))
+              (and b! (bfinfinite? b) (not (= a-class 0))))))
 
 (define (ival-copy-movability i1 i2)
   (ival (endpoint (ival-lo-val i1) (ival-lo-fixed? i2))
@@ -41,8 +39,24 @@
   (define y-class (classify-ival y))
 
   (define (mk-pow a b c d)
-    (match-define (endpoint lo lo!) (rnd 'down eppow a b x-class y-class))
-    (match-define (endpoint hi hi!) (rnd 'up eppow c d x-class y-class))
+    (define-values (lo lo!)
+      (rnd 'down
+           eppow
+           (endpoint-val a)
+           (endpoint-immovable? a)
+           (endpoint-val b)
+           (endpoint-immovable? b)
+           x-class
+           y-class))
+    (define-values (hi hi!)
+      (rnd 'up
+           eppow
+           (endpoint-val c)
+           (endpoint-immovable? c)
+           (endpoint-val d)
+           (endpoint-immovable? d)
+           x-class
+           y-class))
 
     (define-values (real-lo! real-hi!)
       (cond
