@@ -6,11 +6,12 @@
                   bf-precision
                   bigfloat->string
                   bigfloat?
-                  bf))
+                  bf)
+         profile)
 (require "eval/main.rkt"
          "eval/machine.rkt"
          "utils.rkt")
-(provide rival-repl)
+(provide repl-main repl-profile)
 
 (define (create-discs args bodies repl)
   (for/list ([body (in-list bodies)])
@@ -181,7 +182,58 @@
                                       (~r (* (execution-time exec) 1000) #:precision '(= 1)))))
         value]))))
 
-(define (rival-repl p)
+(define (repl-run repl cmd #:print? [print? #t])
+  (with-handlers ([exn:fail:user? (lambda (e) (eprintf "ERROR ~a\n" (exn-message e)))])
+    (match cmd
+      [`(set precision fp64)
+       (set-repl-precision! repl 'fp64)]
+      [`(set precision ,(? integer? n))
+       (when (< n 4)
+         (raise-user-error 'set "Precision must be an integer greater than 3"))
+       (set-repl-precision! repl (list 'bf n))]
+      [`(define (,(? symbol? name) ,(? symbol? args) ...)
+          ,bodies ...)
+       (repl-save-machine! repl name args bodies)]
+      [`(eval ,name ,(? (disjoin real? boolean?) vals) ...)
+       (define machine (repl-get-machine repl name))
+       (check-args! name machine vals)
+       (define out (repl-apply repl machine vals))
+       (when print?
+         (if (string? out)
+             (displayln out)
+             (for ([val (in-vector out)])
+               (displayln (bigfloat->string val)))))]
+      [`(explain ,name ,(? (disjoin real? boolean?) vals) ...)
+       (define machine (repl-get-machine repl name))
+       (check-args! name machine vals)
+
+       ;; Make sure the cache is warm
+       (repl-apply repl machine vals)
+       ;; Make sure the profile is clear
+       (rival-profile machine 'executions)
+
+       ;; Time the actual execution
+       (define start (current-inexact-milliseconds))
+       (repl-apply repl machine vals)
+       (define end (current-inexact-milliseconds))
+
+       (when print?
+         (write-explain machine)
+         (printf "\nTotal: ~aµs\n" (~r (* (- end start) 1000) #:precision '(= 1))))]
+      [(or '(help) 'help)
+       (displayln "This is the Rival REPL, a demo of the Rival real evaluator.")
+       (newline)
+       (displayln "Commands:")
+       (displayln "  (set precision <n>)                      Set working precision to n")
+       (displayln "  (define (<name> <args> ...) <body> ...)  Define a named function")
+       (displayln "  (eval <name> <vals> ...)                 Evaluate a named function")
+       (displayln
+        "  (explain <name> <vals> ...)          Show profile for evaluating a named function")
+       (newline)
+       (displayln "A closed expression can always be used in place of a named function.")]
+      [_ (printf "Unknown command ~a; use help for command list\n" cmd)])))
+
+(define (repl-main p)
   (let/ec k
     (parameterize ([read-decimal-as-inexact #f]
                    [*rival-name-constants* #t])
@@ -189,56 +241,30 @@
       (when (terminal-port? p)
         (display "> "))
       (for ([cmd (in-port read p)])
-        (with-handlers ([exn:fail:user? (lambda (e) (eprintf "ERROR ~a\n" (exn-message e)))])
-          (match cmd
-            [`(set precision fp64)
-             (set-repl-precision! repl 'fp64)]
-            [`(set precision ,(? integer? n))
-             (when (< n 4)
-               (raise-user-error 'set "Precision must be an integer greater than 3"))
-             (set-repl-precision! repl (list 'bf n))]
-            [`(define (,(? symbol? name) ,(? symbol? args) ...)
-                ,bodies ...)
-             (repl-save-machine! repl name args bodies)]
-            [`(eval ,name ,(? (disjoin real? boolean?) vals) ...)
-             (define machine (repl-get-machine repl name))
-             (check-args! name machine vals)
-             (define out (repl-apply repl machine vals))
-             (if (string? out)
-                 (displayln out)
-                 (for ([val (in-vector out)])
-                   (displayln (bigfloat->string val))))]
-            [`(explain ,name ,(? (disjoin real? boolean?) vals) ...)
-             (define machine (repl-get-machine repl name))
-             (check-args! name machine vals)
-
-             ;; Make sure the cache is warm
-             (repl-apply repl machine vals)
-             ;; Make sure the profile is clear
-             (rival-profile machine 'executions)
-
-             ;; Time the actual execution
-             (define start (current-inexact-milliseconds))
-             (repl-apply repl machine vals)
-             (define end (current-inexact-milliseconds))
-
-             (write-explain machine)
-
-             (printf "\nTotal: ~aµs\n" (~r (* (- end start) 1000) #:precision '(= 1)))]
-            [(or '(help) 'help)
-             (displayln "This is the Rival REPL, a demo of the Rival real evaluator.")
-             (newline)
-             (displayln "Commands:")
-             (displayln "  (set precision <n>)                      Set working precision to n")
-             (displayln "  (define (<name> <args> ...) <body> ...)  Define a named function")
-             (displayln "  (eval <name> <vals> ...)                 Evaluate a named function")
-             (displayln
-              "  (explain <name> <vals> ...)          Show profile for evaluating a named function")
-             (newline)
-             (displayln "A closed expression can always be used in place of a named function.")]
-            [(or '(exit) 'exit) (k)]
-            [_ (printf "Unknown command ~a; use help for command list\n" cmd)]))
+        (if (set-member? '((exit) exit) cmd)
+            (k)
+            (repl-run repl cmd))
         (when (terminal-port? p)
-          (display "> "))))
-    (when (terminal-port? p)
-      (displayln "exit"))))
+          (display "> ")))))
+  (when (terminal-port? p)
+    (displayln "exit")))
+
+(define (repl-profile p)
+  (define cmds
+    (parameterize ([read-decimal-as-inexact #f])
+      (for/list ([cmd (in-port read p)])
+        cmd)))
+  (define t0 (current-inexact-milliseconds))
+  (define m0 (current-memory-use 'cumulative))
+  (define repl (make-repl))
+  (match-define (cons t1 m1)
+    (profile
+     (begin
+       (for ([cmd (in-list cmds)])
+         (repl-run repl cmd #:print? #f))
+       (cons (current-inexact-milliseconds)
+             (current-memory-use 'cumulative)))
+     #:delay 0.001))
+  (eprintf "Ran in ~ams, allocated ~aMB\n"
+           (~r (- t1 t0) #:precision '(= 3))
+           (~r (/ (- m1 m0) 1000000) #:precision '(= 3))))

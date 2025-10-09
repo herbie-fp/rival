@@ -138,8 +138,11 @@
 (module+ main
   (require "repl.rkt"
            racket/cmdline)
+  (define repl-mode repl-main)
   (command-line #:program "racket -l rival"
+                #:once-each [("--profile") "Print timing results"
+                                           (set! repl-mode repl-profile)]
                 #:args ([file #f])
                 (if file
-                    (call-with-input-file file rival-repl)
-                    (rival-repl (current-input-port)))))
+                    (call-with-input-file file repl-mode)
+                    (repl-mode (current-input-port)))))
