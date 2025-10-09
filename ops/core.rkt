@@ -351,7 +351,7 @@
      (define-values (tmp1 tmp2) (make-endpoint-pair))
      (define abs-lo (epunary! tmp1 mpfr-abs! (ival-lo x) 'up))
      (define abs-hi (epunary! tmp2 mpfr-abs! (ival-hi x) 'up))
-     (ival (endpoint (bf 0) (and xlo! xhi!)) (endpoint-max2 abs-lo abs-hi 'nearest) xerr? xerr)]))
+     (ival (endpoint (bf 0) (and xlo! xhi!)) (endpoint-max2 abs-lo abs-hi 'up) xerr? xerr)]))
 
 ;; These functions execute ival-fabs and ival-neg with input's precision
 (define (ival-max-prec x)
