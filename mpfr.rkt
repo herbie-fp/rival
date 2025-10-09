@@ -155,10 +155,12 @@
          bfnan?
          bfinfinite?
          bfnegative?
+         bfrational?
          bfeven?
          bfodd?
          bfcopy
          bfstep
+         bigfloat->flonum
          bigfloats-between
          bfprev
          bfnext
