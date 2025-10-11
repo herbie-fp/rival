@@ -13,7 +13,6 @@
          classify-ival-strict
          mk-big-ival
          new-ival
-         ival-exact-fabs
          ival-maybe
          epfn
          epunary!
@@ -21,8 +20,6 @@
          comonotonic-mpfr
          split-ival
          ival-max-prec
-         ival-exact-neg
-         ival-exact-fabs
          bf-return-exact?
          ival-lo-fixed?
          ival-hi-fixed?
@@ -357,18 +354,6 @@
 (define (ival-max-prec x)
   (max (bigfloat-precision (ival-lo-val x)) (bigfloat-precision (ival-hi-val x))))
 
-(define (ival-exact-fabs x)
-  (define saved-prec (bf-precision))
-  (bf-precision (ival-max-prec x))
-  (begin0 (ival-fabs x)
-    (bf-precision saved-prec)))
-
-(define (ival-exact-neg x)
-  (define saved-prec (bf-precision))
-  (bf-precision (ival-max-prec x))
-  (begin0 (ival-neg x)
-    (bf-precision saved-prec)))
-
 ;; Since MPFR has a cap on exponents, no value can be more than twice MAX_VAL
 (define exp-overflow-threshold (bfadd (bflog (bfprev +inf.bf)) 1.bf))
 (define exp2-overflow-threshold (bfadd (bflog2 (bfprev +inf.bf)) 1.bf))
@@ -389,7 +374,7 @@
 (define* ival-log2 (compose (monotonic-mpfr mpfr-log2!) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log10 (compose (monotonic-mpfr mpfr-log10!) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log1p (compose (monotonic-mpfr mpfr-log1p!) (clamp-strict -1.bf +inf.bf)))
-[define* ival-logb (compose ival-floor ival-log2 ival-exact-fabs)]
+[define* ival-logb (compose ival-floor ival-log2 ival-fabs)]
 
 (define* ival-sqrt (compose (monotonic-mpfr mpfr-sqrt!) (clamp 0.bf +inf.bf)))
 (define* ival-cbrt (monotonic-mpfr mpfr-cbrt!))
@@ -450,7 +435,7 @@
          (compose (overflows-at (monotonic-mpfr mpfr-cosh!)
                                 (bfneg acosh-overflow-threshold)
                                 acosh-overflow-threshold)
-                  ival-exact-fabs))
+                  ival-fabs))
 (define*
  ival-sinh
  (overflows-at (monotonic-mpfr mpfr-sinh!) (bfneg sinh-overflow-threshold) sinh-overflow-threshold))
