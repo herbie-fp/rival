@@ -124,6 +124,12 @@
 
 (define mpfr-trunc! (get-mpfr-fun 'mpfr_trunc (_fun _mpfr-pointer _mpfr-pointer -> _int)))
 
+(define mpfr-min!
+  (get-mpfr-fun 'mpfr_min (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-max!
+  (get-mpfr-fun 'mpfr_max (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
 (define mpfr-cosh! (get-mpfr-fun 'mpfr_cosh (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
 (define mpfr-init2! (get-mpfr-fun 'mpfr_init2 (_fun _mpfr-pointer _prec_t -> _void)))
@@ -333,6 +339,8 @@
          mpfr-ceil!
          mpfr-floor!
          mpfr-trunc!
+         mpfr-min!
+         mpfr-max!
          mpfr-log!
          mpfr-set-prec!
          mpfr-set!

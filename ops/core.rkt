@@ -194,21 +194,19 @@
 (define (endpoint-min2 e1 e2 rnd)
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
-  (define src (endpoint-val (if (bflte? x y) e1 e2)))
   (define out
     (parameterize ([bf-precision (bf-precision)])
       (bf 0)))
-  (mpfr-set! out src rnd)
+  (mpfr-min! out x y rnd)
   (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
 (define (endpoint-max2 e1 e2 rnd)
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
-  (define src (endpoint-val (if (bfgte? x y) e1 e2)))
   (define out
     (parameterize ([bf-precision (bf-precision)])
       (bf 0)))
-  (mpfr-set! out src rnd)
+  (mpfr-max! out x y rnd)
   (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
 (define (ival-union x y)
