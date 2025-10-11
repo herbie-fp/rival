@@ -419,11 +419,8 @@
     [(-1 1) (mkatan yhi xhi ylo xlo)]
     [(_ 0)
      (define pi-int (ival-pi))
-     (define-values (hi-out lo-out) (make-endpoint-pair))
-     (mpfr-set! hi-out (endpoint-val (ival-hi pi-int)) 'up)
-     (mpfr-neg! lo-out (endpoint-val (ival-hi pi-int)) 'down)
-     (ival (endpoint lo-out #f)
-           (endpoint hi-out #f)
+     (ival (ival-lo (ival-neg pi-int))
+           (ival-hi pi-int)
            (or err? (bfgte? (ival-hi-val x) 0.bf))
            (or err
                (and (bfzero? (ival-lo-val x))
