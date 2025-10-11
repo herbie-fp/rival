@@ -59,7 +59,8 @@
 (define mpfr-remainder!
   (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
-;(define mpfr-set-prec! (get-mpfr-fun 'mpfr_set_prec (_fun _mpfr-pointer _prec_t -> _void)))
+(define mpfr-hypot!
+  (get-mpfr-fun 'mpfr_hypot (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
 (define mpfr-set! (get-mpfr-fun 'mpfr_set (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _void)))
 
@@ -227,5 +228,6 @@
          mpfr-sub!
          mpfr-mul!
          mpfr-div!
+         mpfr-hypot!
          mpfr-set-prec!
          mpfr-set!)
