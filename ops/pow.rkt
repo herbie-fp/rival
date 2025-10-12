@@ -129,17 +129,17 @@
           ; If y is an integer point interval, there's no error,
           ; because it's always valid to raise to an integer power.
           (if (bfodd? (ival-lo-val y))
-              (ival-neg (ival-pow-pos (ival-exact-fabs x) y)) ; Use fabs in case of [x, 0]
-              (ival-pow-pos (ival-exact-fabs x) y))
+              (ival-neg (ival-pow-pos (ival-fabs x) y)) ; Use fabs in case of [x, 0]
+              (ival-pow-pos (ival-fabs x) y))
           ; If y is non-integer point interval, it must be an even
           ; fraction (because all bigfloats are) so we always error
           ival-illegal)
       ; Moreover, if we have (-x)^y, that's basically x^y U -(x^y).
-      (let ([pospow (ival-pow-pos (ival-exact-fabs x) y)])
+      (let ([pospow (ival-pow-pos (ival-fabs x) y)])
         (ival-then (ival-assert ival-maybe) (ival-union (ival-neg pospow) pospow)))))
 
 (define (ival-pow2 x)
-  ((monotonic->ival (lambda (x) (bfmul x x))) (ival-exact-fabs x)))
+  ((monotonic->ival (lambda (x) (bfmul x x))) (ival-fabs x)))
 
 (define (ival-pow x y)
   (cond
