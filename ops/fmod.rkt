@@ -108,8 +108,7 @@
     (or (ival-err x) (ival-err y) (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
   (define y* (ival-fabs y))
   (cond
-    [(= (mpfr-sign (ival-hi-val x)) -1)
-     (ival-neg (ival-remainder-pos (ival-neg x) y* err? err))]
+    [(= (mpfr-sign (ival-hi-val x)) -1) (ival-neg (ival-remainder-pos (ival-neg x) y* err? err))]
     [(= (mpfr-sign (ival-lo-val x)) 1) (ival-remainder-pos x y* err? err)]
     [else
      (define-values (neg pos) (split-ival x 0.bf))
