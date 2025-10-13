@@ -161,8 +161,8 @@
 (define (ival-hypot! out x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (define x* (ival-fabs x))
-  (define y* (ival-fabs y))
+  (define x* (ival-exact-fabs x))
+  (define y* (ival-exact-fabs y))
   (ival (eplinear! (ival-lo-val out) mpfr-hypot! (ival-lo x*) (ival-lo y*) 'down)
         (eplinear! (ival-hi-val out) mpfr-hypot! (ival-hi x*) (ival-hi y*) 'up)
         err?

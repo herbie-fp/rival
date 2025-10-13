@@ -63,14 +63,14 @@
         (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
   (define err
     (or (ival-err x) (ival-err y) (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
-  (define y* (ival-fabs y))
+  (define y* (ival-exact-fabs y))
   (cond
-    [(= (mpfr-sign (ival-hi-val x)) -1) (ival-neg (ival-fmod-pos (ival-neg x) y* err? err))]
+    [(= (mpfr-sign (ival-hi-val x)) -1) (ival-neg (ival-fmod-pos (ival-exact-neg x) y* err? err))]
     [(= (mpfr-sign (ival-lo-val x)) 1) (ival-fmod-pos x y* err? err)]
     [else
      (define-values (neg pos) (split-ival x 0.bf))
      (ival-union (ival-fmod-pos pos y* err? err)
-                 (ival-neg (ival-fmod-pos (ival-neg neg) y* err? err)))]))
+                 (ival-neg (ival-fmod-pos (ival-exact-neg neg) y* err? err)))]))
 
 (define (ival-remainder-pos x y err? err)
   ;; Assumes both `x` and `y` are entirely positive
@@ -106,11 +106,12 @@
         (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
   (define err
     (or (ival-err x) (ival-err y) (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
-  (define y* (ival-fabs y))
+  (define y* (ival-exact-fabs y))
   (cond
-    [(= (mpfr-sign (ival-hi-val x)) -1) (ival-neg (ival-remainder-pos (ival-neg x) y* err? err))]
+    [(= (mpfr-sign (ival-hi-val x)) -1)
+     (ival-neg (ival-remainder-pos (ival-exact-neg x) y* err? err))]
     [(= (mpfr-sign (ival-lo-val x)) 1) (ival-remainder-pos x y* err? err)]
     [else
      (define-values (neg pos) (split-ival x 0.bf))
      (ival-union (ival-remainder-pos pos y* err? err)
-                 (ival-neg (ival-remainder-pos (ival-neg neg) y* err? err)))]))
+                 (ival-neg (ival-remainder-pos (ival-exact-neg neg) y* err? err)))]))

@@ -17,6 +17,8 @@
          epfn
          split-ival
          ival-max-prec
+         ival-exact-neg
+         ival-exact-fabs
          bf-return-exact?
          ival-lo-fixed?
          ival-hi-fixed?
@@ -191,18 +193,14 @@
 (define (endpoint-min2 e1 e2 rnd)
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
-  (define out
-    (parameterize ([bf-precision (bf-precision)])
-      (bf 0)))
+  (define out (bf 0))
   (mpfr-min! out x y rnd)
   (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
 (define (endpoint-max2 e1 e2 rnd)
   (match-define (endpoint x x!) e1)
   (match-define (endpoint y y!) e2)
-  (define out
-    (parameterize ([bf-precision (bf-precision)])
-      (bf 0)))
+  (define out (bf 0))
   (mpfr-max! out x y rnd)
   (endpoint out (or (and (bf=? out x) x!) (and (bf=? out y) y!))))
 
@@ -349,6 +347,14 @@
 (define (ival-max-prec x)
   (max (bigfloat-precision (ival-lo-val x)) (bigfloat-precision (ival-hi-val x))))
 
+(define (ival-exact-fabs x)
+  (parameterize ([bf-precision (ival-max-prec x)])
+    (ival-fabs x)))
+
+(define (ival-exact-neg x)
+  (parameterize ([bf-precision (ival-max-prec x)])
+    (ival-neg x)))
+
 ;; Since MPFR has a cap on exponents, no value can be more than twice MAX_VAL
 (define exp-overflow-threshold (bfadd (bflog (bfprev +inf.bf)) 1.bf))
 (define exp2-overflow-threshold (bfadd (bflog2 (bfprev +inf.bf)) 1.bf))
@@ -369,7 +375,7 @@
 (define* ival-log2 (compose (monotonic-mpfr mpfr-log2!) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log10 (compose (monotonic-mpfr mpfr-log10!) (clamp-strict 0.bf +inf.bf)))
 (define* ival-log1p (compose (monotonic-mpfr mpfr-log1p!) (clamp-strict -1.bf +inf.bf)))
-[define* ival-logb (compose ival-floor ival-log2 ival-fabs)]
+[define* ival-logb (compose ival-floor ival-log2 ival-exact-fabs)]
 
 (define* ival-sqrt (compose (monotonic-mpfr mpfr-sqrt!) (clamp 0.bf +inf.bf)))
 (define* ival-cbrt (monotonic-mpfr mpfr-cbrt!))
@@ -427,7 +433,7 @@
          (compose (overflows-at (monotonic-mpfr mpfr-cosh!)
                                 (bfneg acosh-overflow-threshold)
                                 acosh-overflow-threshold)
-                  ival-fabs))
+                  ival-exact-fabs))
 (define*
  ival-sinh
  (overflows-at (monotonic-mpfr mpfr-sinh!) (bfneg sinh-overflow-threshold) sinh-overflow-threshold))
