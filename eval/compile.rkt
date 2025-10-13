@@ -73,6 +73,7 @@
     [(list '- x y) (list ival-sub! (alloc-outreg!) x y)]
     [(list '* x y) (list ival-mult! (alloc-outreg!) x y)]
     [(list '/ x y) (list ival-div! (alloc-outreg!) x y)]
+    [(list 'hypot x y) (list ival-hypot! (alloc-outreg!) x y)]
     #;[(list '+ x y) (list ival-add x y)]
     #;[(list '- x y) (list ival-sub x y)]
     #;[(list '* x y) (list ival-mult x y)]

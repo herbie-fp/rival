@@ -31,6 +31,7 @@
          ival-sqrt
          ival-cbrt
          ival-hypot
+         ival-hypot!
          ival-exp
          ival-exp2
          ival-expm1

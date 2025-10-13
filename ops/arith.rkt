@@ -12,6 +12,7 @@
          ival-div
          ival-fma
          ival-fdim
+         ival-hypot!
          ival-hypot)
 
 ;; Endpoint computation for both `add`, `sub`, and `hypot` (which has an add inside)
@@ -46,7 +47,7 @@
 (define (ival-sub x y)
   (ival-sub! (new-ival (bf-precision)) x y))
 
-(define (epmul! out a-endpoint b-endpoint a-class b-class)
+(define (epmul! out a-endpoint b-endpoint a-class b-class rnd)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
   (define a0 (bfzero? a))
@@ -57,7 +58,7 @@
       [(or a0 b0)
        (mpfr-set! out 0.bf 'nearest)
        #t]
-      [else (= 0 (mpfr-mul! out a b (bf-rounding-mode)))]))
+      [else (= 0 (mpfr-mul! out a b rnd))]))
   (endpoint out
             (or (and a! b! exact?)
                 (and a! a0)
@@ -77,8 +78,8 @@
 
   (define (mkmult out a b c d)
     (match-define (ival (endpoint rlo _) (endpoint rhi _) _ _) out)
-    (ival (rnd 'down epmul! rlo a b x-sign y-sign)
-          (rnd 'up epmul! rhi c d x-sign y-sign)
+    (ival (epmul! rlo a b x-sign y-sign 'down)
+          (epmul! rhi c d x-sign y-sign 'up)
           (or xerr? yerr?)
           (or xerr yerr)))
 
@@ -106,11 +107,11 @@
      (mpfr-set! (ival-hi-val out) hi 'up) ; should be exact
      (ival (endpoint (ival-lo-val out) lo!) (endpoint (ival-hi-val out) hi!) err? err)]))
 
-(define (epdiv! out a-endpoint b-endpoint a-class)
+(define (epdiv! out a-endpoint b-endpoint a-class rnd)
   (match-define (endpoint a a!) a-endpoint)
   (match-define (endpoint b b!) b-endpoint)
   (mpfr-set-prec! out (bf-precision))
-  (define exact? (= 0 (mpfr-div! out a b (bf-rounding-mode))))
+  (define exact? (= 0 (mpfr-div! out a b rnd)))
   (endpoint out
             (or (and a! b! exact?)
                 (and a! (bfzero? a))
@@ -128,7 +129,7 @@
   (define y-class (classify-ival-strict y))
 
   (define (mkdiv a b c d)
-    (ival (rnd 'down epdiv! rlo a b x-class) (rnd 'up epdiv! rhi c d x-class) err? err))
+    (ival (epdiv! rlo a b x-class 'down) (epdiv! rhi c d x-class 'up) err? err))
 
   (match* (x-class y-class)
     [(_ 0) ; In this case, y stradles 0
@@ -157,12 +158,15 @@
 (define (ival-fdim x y)
   (ival-fmax (ival-sub x y) (mk-ival 0.bf)))
 
-(define (ival-hypot x y)
+(define (ival-hypot! out x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
   (define x* (ival-exact-fabs x))
   (define y* (ival-exact-fabs y))
-  (ival (rnd 'down eplinear bfhypot (ival-lo x*) (ival-lo y*))
-        (rnd 'up eplinear bfhypot (ival-hi x*) (ival-hi y*))
+  (ival (eplinear! (ival-lo-val out) mpfr-hypot! (ival-lo x*) (ival-lo y*) 'down)
+        (eplinear! (ival-hi-val out) mpfr-hypot! (ival-hi x*) (ival-hi y*) 'up)
         err?
         err))
+
+(define (ival-hypot x y)
+  (ival-hypot! (new-ival (bf-precision)) x y))
