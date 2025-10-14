@@ -305,14 +305,14 @@
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (define err? (or xerr? (bflt? xlo lo) (bfgt? xhi hi)))
   (define err (or (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
-
-  (if (and (bfzero? lo) (bfzero? xhi))
-      (ival (endpoint (bf 0) xlo!) (endpoint (bf 0) xhi!) err? err)
-      (let ([clamped-x (ival (endpoint (if (bflt? xlo lo) lo xlo) xlo!)
-                             (endpoint (if (bfgt? xhi hi) hi xhi) xhi!)
-                             err?
-                             err)])
-        (fn! out clamped-x))))
+  (define clamped-x
+    (if (and (bfzero? lo) (bfzero? xhi))
+        (ival (endpoint (bf 0) xlo!) (endpoint (bf 0) xhi!) err? err)
+        (ival (endpoint (if (bflt? xlo lo) lo xlo) xlo!)
+              (endpoint (if (bfgt? xhi hi) hi xhi) xhi!)
+              err?
+              err)))
+  (fn! out clamped-x))
 
 (define ((clamp lo hi) x)
   ((clamp! (lambda (out x) x) lo hi) (new-ival (bf-precision)) x))
