@@ -22,6 +22,7 @@
          ival-sub
          ival-sub!
          ival-neg
+         ival-neg!
          ival-mult
          ival-mult!
          ival-div
@@ -29,16 +30,25 @@
          ival-fma
          ival-fabs
          ival-sqrt
+         ival-sqrt!
          ival-cbrt
+         ival-cbrt!
          ival-hypot
          ival-hypot!
          ival-exp
+         ival-exp!
          ival-exp2
+         ival-exp2!
          ival-expm1
+         ival-expm1!
          ival-log
+         ival-log!
          ival-log2
+         ival-log2!
          ival-log10
+         ival-log10!
          ival-log1p
+         ival-log1p!
          ival-logb
          ival-pow
          ival-pow2
@@ -49,22 +59,34 @@
          ival-sinu
          ival-tanu
          ival-asin
+         ival-asin!
          ival-acos
+         ival-acos!
          ival-atan
+         ival-atan!
          ival-atan2
          ival-sinh
+         ival-sinh!
          ival-cosh
+         ival-cosh!
          ival-tanh
+         ival-tanh!
          ival-asinh
+         ival-asinh!
          ival-acosh
+         ival-acosh!
          ival-atanh
+         ival-atanh!
          ival-erf
+         ival-erf!
          ival-erfc
+         ival-erfc!
          ival-lgamma
          ival-tgamma
          ival-fmod
          ival-remainder
          ival-rint
+         ival-rint!
          ival-round
          ival-ceil
          ival-floor
