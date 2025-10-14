@@ -140,8 +140,7 @@
            racket/cmdline)
   (define repl-mode repl-main)
   (command-line #:program "racket -l rival"
-                #:once-each [("--profile") "Print timing results"
-                                           (set! repl-mode repl-profile)]
+                #:once-each [("--profile") "Print timing results" (set! repl-mode repl-profile)]
                 #:args ([file #f])
                 (if file
                     (call-with-input-file file repl-mode)
