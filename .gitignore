@@ -8,3 +8,4 @@ report/*
 rival-compiled
 *~
 test.rival
+.worktrees/
