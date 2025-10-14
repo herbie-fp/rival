@@ -3,6 +3,8 @@
 (require math/private/bigfloat/mpfr
          ffi/unsafe)
 
+(define *rival-max-precision* (make-parameter 10000))
+
 (provide -inf.bf
          -1.bf
          0.bf
@@ -13,7 +15,8 @@
          +inf.bf
          +nan.bf
          bf-return-exact?
-         rnd)
+         rnd
+         *rival-max-precision*)
 
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
@@ -56,16 +59,86 @@
 (define mpfr-remainder!
   (get-mpfr-fun 'mpfr_remainder (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
-(define mpfr-set-prec! (get-mpfr-fun 'mpfr_set_prec (_fun _mpfr-pointer _prec_t -> _void)))
+(define mpfr-hypot!
+  (get-mpfr-fun 'mpfr_hypot (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
-(define mpfr-init2! (get-mpfr-fun 'mpfr_init2 (_fun _mpfr-pointer _prec_t -> _void)))
+(define mpfr-pow!
+  (get-mpfr-fun 'mpfr_pow (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-log! (get-mpfr-fun 'mpfr_log (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-exp! (get-mpfr-fun 'mpfr_exp (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-expm1! (get-mpfr-fun 'mpfr_expm1 (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-sqrt! (get-mpfr-fun 'mpfr_sqrt (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-sin! (get-mpfr-fun 'mpfr_sin (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-cos! (get-mpfr-fun 'mpfr_cos (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-tan! (get-mpfr-fun 'mpfr_tan (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-cbrt! (get-mpfr-fun 'mpfr_cbrt (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-neg! (get-mpfr-fun 'mpfr_neg (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-abs! (get-mpfr-fun 'mpfr_abs (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-asin! (get-mpfr-fun 'mpfr_asin (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-acos! (get-mpfr-fun 'mpfr_acos (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-atan! (get-mpfr-fun 'mpfr_atan (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-sinh! (get-mpfr-fun 'mpfr_sinh (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-tanh! (get-mpfr-fun 'mpfr_tanh (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-asinh! (get-mpfr-fun 'mpfr_asinh (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-acosh! (get-mpfr-fun 'mpfr_acosh (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-atanh! (get-mpfr-fun 'mpfr_atanh (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-erf! (get-mpfr-fun 'mpfr_erf (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-erfc! (get-mpfr-fun 'mpfr_erfc (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-log2! (get-mpfr-fun 'mpfr_log2 (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-log10! (get-mpfr-fun 'mpfr_log10 (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-log1p! (get-mpfr-fun 'mpfr_log1p (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-exp2! (get-mpfr-fun 'mpfr_exp2 (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-rint! (get-mpfr-fun 'mpfr_rint (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-round! (get-mpfr-fun 'mpfr_round (_fun _mpfr-pointer _mpfr-pointer -> _int)))
+
+(define mpfr-ceil! (get-mpfr-fun 'mpfr_ceil (_fun _mpfr-pointer _mpfr-pointer -> _int)))
+
+(define mpfr-floor! (get-mpfr-fun 'mpfr_floor (_fun _mpfr-pointer _mpfr-pointer -> _int)))
+
+(define mpfr-trunc! (get-mpfr-fun 'mpfr_trunc (_fun _mpfr-pointer _mpfr-pointer -> _int)))
+
+(define mpfr-min!
+  (get-mpfr-fun 'mpfr_min (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-max!
+  (get-mpfr-fun 'mpfr_max (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-cosh! (get-mpfr-fun 'mpfr_cosh (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-const-pi! (get-mpfr-fun 'mpfr_const_pi (_fun _mpfr-pointer _rnd_t -> _int)))
+
+(define mpfr-atan2!
+  (get-mpfr-fun 'mpfr_atan2 (_fun _mpfr-pointer _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
 (define mpfr-set! (get-mpfr-fun 'mpfr_set (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _void)))
 
-(define (mpfr-new! prec)
-  (define bf (make-mpfr 0 0 0 #f))
-  (mpfr-init2! bf prec)
-  bf)
+(define mpfr-set-prec! set-mpfr-prec!)
 
 (define (bfremainder x mod)
   (define out (bf 0))
@@ -229,6 +302,44 @@
          mpfr-sub!
          mpfr-mul!
          mpfr-div!
+         mpfr-hypot!
+         mpfr-pow!
+         mpfr-exp!
+         mpfr-expm1!
+         mpfr-sqrt!
+         mpfr-sin!
+         mpfr-cos!
+         mpfr-tan!
+         mpfr-cosu!
+         mpfr-sinu!
+         mpfr-tanu!
+         mpfr-cbrt!
+         mpfr-neg!
+         mpfr-abs!
+         mpfr-asin!
+         mpfr-acos!
+         mpfr-atan!
+         mpfr-sinh!
+         mpfr-cosh!
+         mpfr-tanh!
+         mpfr-asinh!
+         mpfr-acosh!
+         mpfr-atanh!
+         mpfr-erf!
+         mpfr-erfc!
+         mpfr-log2!
+         mpfr-log10!
+         mpfr-log1p!
+         mpfr-exp2!
+         mpfr-rint!
+         mpfr-round!
+         mpfr-ceil!
+         mpfr-floor!
+         mpfr-trunc!
+         mpfr-min!
+         mpfr-max!
+         mpfr-log!
+         mpfr-const-pi!
+         mpfr-atan2!
          mpfr-set-prec!
-         mpfr-new!
          mpfr-set!)

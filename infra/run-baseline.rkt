@@ -23,6 +23,7 @@
                    registers
                    precisions
                    best-known-precisions
+                   max-precision
                    repeats
                    initial-repeats
                    default-hint
@@ -161,7 +162,7 @@
                  [n (in-naturals num-vars)])
       (fn->ival-fn node ; mappings are taken from Rival machine
                    (lambda ()
-                     (vector-set! registers n (new-ival))
+                     (vector-set! registers n (new-ival (*rival-max-precision*)))
                      n))))
 
   (define start-prec (+ (discretization-target (last discs)) 10))
@@ -182,6 +183,7 @@
                     registers
                     precisions
                     best-known-precisions
+                    (*rival-max-precision*)
                     repeats
                     initial-repeats
                     default-hint
@@ -201,6 +203,7 @@
 
 (define (baseline-apply machine pt [hint #f])
   (define discs (baseline-machine-discs machine))
+  (define max-precision (baseline-machine-max-precision machine))
   (define start-prec (+ (discretization-target (last discs)) 10))
   ; Load arguments
   (baseline-machine-load machine (vector-map ival-real pt))
@@ -214,7 +217,7 @@
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
       [stuck? (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-      [(> (* 2 prec) (*rival-max-precision*)) ; max precision is taken from eval/machine.rkt
+      [(> (* 2 prec) max-precision) ; max precision is taken from eval/machine.rkt
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else (loop (* 2 prec) (+ iter 1))])))
 
