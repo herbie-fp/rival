@@ -138,11 +138,6 @@
 (define (mk-ival x)
   (mk-big-ival x x))
 
-(define (and-fn . as)
-  (andmap identity as))
-(define (or-fn . as)
-  (ormap identity as))
-
 (define (ival-pi)
   (define-values (lo hi) (make-endpoint-pair))
   (mpfr-const-pi! lo 'down)
@@ -214,10 +209,12 @@
            (or (ival-err? x) (ival-err? y))
            (and (ival-err x) (ival-err y)))]
     [(boolean? (ival-lo-val x))
-     (ival (epfn and-fn (ival-lo x) (ival-lo y))
-           (epfn or-fn (ival-hi x) (ival-hi y))
-           (or (ival-err? x) (ival-err? y))
-           (and (ival-err x) (ival-err y)))]))
+     (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+     (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) y)
+     (ival (endpoint (and xlo ylo) (and xlo! ylo!))
+           (endpoint (or xhi yhi) (and xhi! yhi!))
+           (or xerr? yerr?)
+           (and xerr yerr))]))
 
 ;; This function computes and propagates the immovable? flag for endpoints
 (define (epfn op . args)
@@ -393,7 +390,8 @@
         (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (epfn not (ival-hi x)) (epfn not (ival-lo x)) (ival-err? x) (ival-err x)))
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (ival (endpoint (not xhi) xhi!) (endpoint (not xlo) xlo!) xerr? xerr))
 
 (define* ival-asin (compose (monotonic-mpfr mpfr-asin!) (clamp -1.bf 1.bf)))
 (define* ival-acos (compose (comonotonic-mpfr mpfr-acos!) (clamp -1.bf 1.bf)))
@@ -446,10 +444,12 @@
 (define* ival-erfc (comonotonic-mpfr mpfr-erfc!))
 
 (define (ival-cmp x y)
-  (define can-< (epfn bflt? (ival-lo x) (ival-hi y)))
-  (define must-< (epfn bflt? (ival-hi x) (ival-lo y)))
-  (define can-> (epfn bfgt? (ival-hi x) (ival-lo y)))
-  (define must-> (epfn bfgt? (ival-lo x) (ival-hi y)))
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) _ _) x)
+  (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) _ _) y)
+  (define can-< (endpoint (bflt? xlo yhi) (and xlo! yhi!)))
+  (define must-< (endpoint (bflt? xhi ylo) (and xhi! ylo!)))
+  (define can-> (endpoint (bfgt? xhi ylo) (and xhi! ylo!)))
+  (define must-> (endpoint (bfgt? xlo yhi) (and xlo! yhi!)))
   (values can-< must-< can-> must->))
 
 (define (ival-<2 x y)
@@ -458,7 +458,12 @@
 
 (define (ival-<=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn not c>) (epfn not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (match-define (endpoint c>-val c>!) c>)
+  (match-define (endpoint m>-val m>!) m>)
+  (ival (endpoint (not c>-val) c>!)
+        (endpoint (not m>-val) m>!)
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival->2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
@@ -466,12 +471,21 @@
 
 (define (ival->=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn not c<) (epfn not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (match-define (endpoint c<-val c<!) c<)
+  (match-define (endpoint m<-val m<!) m<)
+  (ival (endpoint (not c<-val) c<!)
+        (endpoint (not m<-val) m<!)
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))))
 
 (define (ival-==2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn and-fn (epfn not c<) (epfn not c>))
-        (epfn and-fn (epfn not m<) (epfn not m>))
+  (match-define (endpoint c<-val c<!) c<)
+  (match-define (endpoint c>-val c>!) c>)
+  (match-define (endpoint m<-val m<!) m<)
+  (match-define (endpoint m>-val m>!) m>)
+  (ival (endpoint (and (not c<-val) (not c>-val)) (and c<! c>!))
+        (endpoint (and (not m<-val) (not m>-val)) (and m<! m>!))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
@@ -491,8 +505,12 @@
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (epfn or-fn m< m>)
-        (epfn or-fn c< c>)
+  (match-define (endpoint m<-val m<!) m<)
+  (match-define (endpoint m>-val m>!) m>)
+  (match-define (endpoint c<-val c<!) c<)
+  (match-define (endpoint c>-val c>!) c>)
+  (ival (endpoint (or m<-val m>-val) (and m<! m>!))
+        (endpoint (or c<-val c>-val) (and c<! c>!))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
