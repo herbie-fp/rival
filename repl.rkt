@@ -11,7 +11,8 @@
 (require "eval/main.rkt"
          "eval/machine.rkt"
          "utils.rkt")
-(provide repl-main repl-profile)
+(provide repl-main
+         repl-profile)
 
 (define (create-discs args bodies repl)
   (for/list ([body (in-list bodies)])
@@ -185,8 +186,7 @@
 (define (repl-run repl cmd #:print? [print? #t])
   (with-handlers ([exn:fail:user? (lambda (e) (eprintf "ERROR ~a\n" (exn-message e)))])
     (match cmd
-      [`(set precision fp64)
-       (set-repl-precision! repl 'fp64)]
+      [`(set precision fp64) (set-repl-precision! repl 'fp64)]
       [`(set precision ,(? integer? n))
        (when (< n 4)
          (raise-user-error 'set "Precision must be an integer greater than 3"))
@@ -258,13 +258,11 @@
   (define m0 (current-memory-use 'cumulative))
   (define repl (make-repl))
   (match-define (cons t1 m1)
-    (profile
-     (begin
-       (for ([cmd (in-list cmds)])
-         (repl-run repl cmd #:print? #f))
-       (cons (current-inexact-milliseconds)
-             (current-memory-use 'cumulative)))
-     #:delay 0.001))
+    (profile (begin
+               (for ([cmd (in-list cmds)])
+                 (repl-run repl cmd #:print? #f))
+               (cons (current-inexact-milliseconds) (current-memory-use 'cumulative)))
+             #:delay 0.001))
   (eprintf "Ran in ~ams, allocated ~aMB\n"
            (~r (- t1 t0) #:precision '(= 3))
            (~r (/ (- m1 m0) 1000000) #:precision '(= 3))))
