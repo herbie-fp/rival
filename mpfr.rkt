@@ -85,6 +85,8 @@
 
 (define mpfr-abs! (get-mpfr-fun 'mpfr_abs (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
+(define mpfr-cmpabs (get-mpfr-fun 'mpfr_cmpabs (_fun _mpfr-pointer _mpfr-pointer -> _int)))
+
 (define mpfr-asin! (get-mpfr-fun 'mpfr_asin (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
 
 (define mpfr-acos! (get-mpfr-fun 'mpfr_acos (_fun _mpfr-pointer _mpfr-pointer _rnd_t -> _int)))
@@ -316,6 +318,7 @@
          mpfr-cbrt!
          mpfr-neg!
          mpfr-abs!
+         mpfr-cmpabs
          mpfr-asin!
          mpfr-acos!
          mpfr-atan!

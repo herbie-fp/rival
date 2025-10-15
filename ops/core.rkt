@@ -19,6 +19,7 @@
          ival-max-prec
          ival-exact-neg
          ival-exact-fabs
+         ival-pre-fabs
          bf-return-exact?
          ival-lo-fixed?
          ival-hi-fixed?
@@ -342,6 +343,19 @@
      (define abs-lo (epunary! tmp1 mpfr-abs! (ival-lo x) 'up))
      (define abs-hi (epunary! tmp2 mpfr-abs! (ival-hi x) 'up))
      (ival (endpoint (bf 0) (and xlo! xhi!)) (endpoint-max2 abs-lo abs-hi 'up) xerr? xerr)]))
+
+(define (ival-pre-fabs x)
+  (match-define (ival xlo xhi xerr? xerr) x)
+  (define match-result
+    (match (classify-ival x)
+      [1 x]
+      [-1 (ival xhi xlo xerr? xerr)]
+      [0
+       (ival (endpoint 0.bf (and (endpoint-immovable? xlo) (endpoint-immovable? xhi)))
+             (if (= (mpfr-cmpabs (endpoint-val xlo) (endpoint-val xhi)) 1) xlo xhi)
+             xerr?
+             xerr)]))
+  match-result)
 
 ;; These functions execute ival-fabs and ival-neg with input's precision
 (define (ival-max-prec x)

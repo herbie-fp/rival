@@ -139,7 +139,7 @@
         (ival-then (ival-assert ival-maybe) (ival-union (ival-neg pospow) pospow)))))
 
 (define (ival-pow2 x)
-  ((monotonic->ival (lambda (x) (bfmul x x))) (ival-exact-fabs x)))
+  ((monotonic->ival (lambda (x) (bfmul x x))) (ival-pre-fabs x)))
 
 (define (ival-pow x y)
   (cond
