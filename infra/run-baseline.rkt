@@ -6,6 +6,7 @@
 
 (require (only-in "../eval/compile.rkt" exprs->batch fn->ival-fn make-initial-repeats)
          (only-in "../eval/machine.rkt" *rival-max-precision* *rival-profile-executions*)
+         "../eval/machine.rkt"
          "../eval/main.rkt"
          (only-in "../ops/core.rkt" new-ival)
          "../ops/all.rkt")
@@ -13,35 +14,13 @@
 (provide baseline-compile
          baseline-analyze
          baseline-apply
-         baseline-profile
-         (struct-out baseline-machine))
-
-(struct baseline-machine
-        (arguments instructions
-                   outputs
-                   discs
-                   registers
-                   precisions
-                   best-known-precisions
-                   max-precision
-                   repeats
-                   initial-repeats
-                   default-hint
-                   [iteration #:mutable]
-                   [precision #:mutable]
-                   [profile-ptr #:mutable]
-                   profile-instruction
-                   profile-number
-                   profile-time
-                   profile-memory
-                   profile-precision
-                   profile-iteration))
+         baseline-profile)
 
 (define (make-hint machine old-hint)
-  (define args (baseline-machine-arguments machine))
-  (define ivec (baseline-machine-instructions machine))
-  (define rootvec (baseline-machine-outputs machine))
-  (define vregs (baseline-machine-registers machine))
+  (define args (rival-machine-arguments machine))
+  (define ivec (rival-machine-instructions machine))
+  (define rootvec (rival-machine-outputs machine))
+  (define vregs (rival-machine-registers machine))
 
   (define varc (vector-length args))
   (define vhint (make-vector (vector-length ivec) #f))
@@ -169,50 +148,54 @@
   (define precisions
     (make-vector (- register-count num-vars) start-prec)) ; vector that stores working precisions
   (define best-known-precisions (make-vector (- register-count num-vars) 0)) ; for constant ops
+  (define initial-precisions (make-vector (- register-count num-vars) start-prec))
 
   (define repeats (make-vector (- register-count num-vars)))
   (define initial-repeats
-    (make-initial-repeats instructions num-vars registers precisions best-known-precisions))
+    (make-initial-repeats instructions num-vars registers initial-precisions best-known-precisions))
 
   (define default-hint (make-vector (- register-count num-vars) #t))
 
-  (baseline-machine (list->vector vars)
-                    instructions
-                    roots
-                    discs
-                    registers
-                    precisions
-                    best-known-precisions
-                    (*rival-max-precision*)
-                    repeats
-                    initial-repeats
-                    default-hint
-                    0
-                    0
-                    0
-                    (make-vector (*rival-profile-executions*))
-                    (make-vector (*rival-profile-executions*))
-                    (make-flvector (*rival-profile-executions*))
-                    (make-vector (*rival-profile-executions*))
-                    (make-vector (*rival-profile-executions*))
-                    (make-vector (*rival-profile-executions*))))
+  (rival-machine (list->vector vars)
+                 instructions
+                 roots
+                 (list->vector discs)
+                 registers
+                 repeats
+                 initial-repeats
+                 precisions
+                 initial-precisions
+                 best-known-precisions
+                 (make-vector (vector-length roots)) ; output-distance
+                 default-hint
+                 (make-vector (- register-count num-vars) '()) ; constant-lookup
+                 (*rival-max-precision*)
+                 0 ; iteration
+                 0 ; bumps
+                 0 ; profile-ptr
+                 (make-vector (*rival-profile-executions*))
+                 (make-vector (*rival-profile-executions*))
+                 (make-flvector (*rival-profile-executions*))
+                 (make-vector (*rival-profile-executions*))
+                 (make-vector (*rival-profile-executions*))
+                 (make-vector (*rival-profile-executions*))))
 
 ; ------------------------------------------- APPLY --------------------------------------------------
 (define (ival-real x)
   (ival x))
 
 (define (baseline-apply machine pt [hint #f])
-  (define discs (baseline-machine-discs machine))
-  (define max-precision (baseline-machine-max-precision machine))
-  (define start-prec (+ (discretization-target (last discs)) 10))
+  (define discs (rival-machine-discs machine))
+  (define max-precision (rival-machine-max-precision machine))
+  (define start-prec (+ (discretization-target (vector-ref discs (- (vector-length discs) 1))) 10))
   ; Load arguments
   (baseline-machine-load machine (vector-map ival-real pt))
   (let loop ([prec start-prec]
              [iter 0])
-    (set-baseline-machine-iteration! machine iter)
+    (set-rival-machine-iteration! machine iter)
     (define-values (good? done? bad? stuck? fvec)
       (parameterize ([bf-precision prec])
-        (baseline-machine-full machine (or hint (baseline-machine-default-hint machine)))))
+        (baseline-machine-full machine (or hint (rival-machine-default-hint machine)))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [done? fvec]
@@ -223,30 +206,29 @@
 
 (define (baseline-analyze machine rect [hint #f])
   (baseline-machine-load machine rect)
-  (set-baseline-machine-iteration! machine 0)
+  (set-rival-machine-iteration! machine 0)
   (define-values (good? done? bad? stuck? fvec)
-    (baseline-machine-full machine (or hint (baseline-machine-default-hint machine))))
+    (baseline-machine-full machine (or hint (rival-machine-default-hint machine))))
   (define-values (hint* hint*-converged?)
-    (make-hint machine (or hint (baseline-machine-default-hint machine))))
+    (make-hint machine (or hint (rival-machine-default-hint machine))))
   (list (ival (or bad? stuck?) (not good?)) hint* hint*-converged?))
 
 (define (baseline-machine-adjust machine)
   (let ([start-time (current-inexact-milliseconds)]
         [start-memory (current-memory-use 'cumulative)])
     (define new-prec (bf-precision))
-    (set-baseline-machine-precision! machine new-prec)
-    (vector-fill! (baseline-machine-precisions machine) new-prec)
+    (vector-fill! (rival-machine-precisions machine) new-prec)
 
     ; Whether a register is fixed already
-    (define iter (baseline-machine-iteration machine))
+    (define iter (rival-machine-iteration machine))
     (unless (zero? iter)
-      (define ivec (baseline-machine-instructions machine))
-      (define vregs (baseline-machine-registers machine))
-      (define rootvec (baseline-machine-outputs machine))
-      (define vrepeats (baseline-machine-repeats machine))
-      (define args (baseline-machine-arguments machine))
-      (define vbest-precs (baseline-machine-best-known-precisions machine))
-      (define vinitial-repeats (baseline-machine-initial-repeats machine))
+      (define ivec (rival-machine-instructions machine))
+      (define vregs (rival-machine-registers machine))
+      (define rootvec (rival-machine-outputs machine))
+      (define vrepeats (rival-machine-repeats machine))
+      (define args (rival-machine-arguments machine))
+      (define vbest-precs (rival-machine-best-known-precisions machine))
+      (define vinitial-repeats (rival-machine-initial-repeats machine))
       (define varc (vector-length args))
       (define vuseful (make-vector (vector-length ivec) #f))
 
@@ -304,17 +286,17 @@
   (baseline-machine-return machine))
 
 (define (baseline-machine-load machine args)
-  (vector-copy! (baseline-machine-registers machine) 0 args))
+  (vector-copy! (rival-machine-registers machine) 0 args))
 
 (define (baseline-machine-run machine vhint)
-  (define ivec (baseline-machine-instructions machine))
-  (define varc (vector-length (baseline-machine-arguments machine)))
-  (define vregs (baseline-machine-registers machine))
-  (define precisions (baseline-machine-precisions machine))
-  (define repeats (baseline-machine-repeats machine))
-  (define initial-repeats (baseline-machine-initial-repeats machine))
-  (define iter (baseline-machine-iteration machine))
-  (define first-iter? (zero? (baseline-machine-iteration machine)))
+  (define ivec (rival-machine-instructions machine))
+  (define varc (vector-length (rival-machine-arguments machine)))
+  (define vregs (rival-machine-registers machine))
+  (define precisions (rival-machine-precisions machine))
+  (define repeats (rival-machine-repeats machine))
+  (define initial-repeats (rival-machine-initial-repeats machine))
+  (define iter (rival-machine-iteration machine))
+  (define first-iter? (zero? (rival-machine-iteration machine)))
 
   (for ([instr (in-vector ivec)]
         [n (in-naturals varc)]
@@ -353,9 +335,9 @@
     [(list op args ...) (apply op (map (curryr vector-ref regs) args))]))
 
 (define (baseline-machine-return machine)
-  (define discs (baseline-machine-discs machine))
-  (define vregs (baseline-machine-registers machine))
-  (define rootvec (baseline-machine-outputs machine))
+  (define discs (rival-machine-discs machine))
+  (define vregs (rival-machine-registers machine))
+  (define rootvec (rival-machine-outputs machine))
   (define ovec (make-vector (vector-length rootvec)))
   (define good? #t)
   (define done? #t)
@@ -364,7 +346,7 @@
   (define fvec
     (for/vector #:length (vector-length rootvec)
                 ([root (in-vector rootvec)]
-                 [disc (in-list discs)]
+                 [disc (in-vector discs)]
                  [n (in-naturals)])
       (define out (vector-ref vregs root))
       (define lo ((discretization-convert disc) (ival-lo out)))
@@ -383,17 +365,17 @@
 ; ---------------------------------------- PROFILING -------------------------------------------------
 (define (baseline-profile machine param)
   (match param
-    ['iteration (baseline-machine-iteration machine)]
-    ['precision (baseline-machine-precision machine)]
-    ['instructions (vector-length (baseline-machine-instructions machine))]
+    ['iteration (rival-machine-iteration machine)]
+    ['precision (bf-precision)]
+    ['instructions (vector-length (rival-machine-instructions machine))]
     ['executions
-     (define profile-ptr (baseline-machine-profile-ptr machine))
-     (define profile-instruction (baseline-machine-profile-instruction machine))
-     (define profile-number (baseline-machine-profile-number machine))
-     (define profile-time (baseline-machine-profile-time machine))
-     (define profile-memory (baseline-machine-profile-memory machine))
-     (define profile-precision (baseline-machine-profile-precision machine))
-     (define profile-iteration (baseline-machine-profile-iteration machine))
+     (define profile-ptr (rival-machine-profile-ptr machine))
+     (define profile-instruction (rival-machine-profile-instruction machine))
+     (define profile-number (rival-machine-profile-number machine))
+     (define profile-time (rival-machine-profile-time machine))
+     (define profile-memory (rival-machine-profile-memory machine))
+     (define profile-precision (rival-machine-profile-precision machine))
+     (define profile-iteration (rival-machine-profile-iteration machine))
      (begin0 (for/vector #:length profile-ptr
                          ([instruction (in-vector profile-instruction 0 profile-ptr)]
                           [number (in-vector profile-number 0 profile-ptr)]
@@ -402,21 +384,21 @@
                           [memory (in-vector profile-memory 0 profile-ptr)]
                           [iter (in-vector profile-iteration 0 profile-ptr)])
                (make-execution instruction number precision time memory iter))
-       (set-baseline-machine-profile-ptr! machine 0))]))
+       (set-rival-machine-profile-ptr! machine 0))]))
 
 (define (baseline-machine-record machine name number precision time memory iter)
-  (define profile-ptr (baseline-machine-profile-ptr machine))
-  (define profile-instruction (baseline-machine-profile-instruction machine))
+  (define profile-ptr (rival-machine-profile-ptr machine))
+  (define profile-instruction (rival-machine-profile-instruction machine))
   (when (< profile-ptr (vector-length profile-instruction))
-    (define profile-number (baseline-machine-profile-number machine))
-    (define profile-time (baseline-machine-profile-time machine))
-    (define profile-memory (baseline-machine-profile-memory machine))
-    (define profile-precision (baseline-machine-profile-precision machine))
-    (define profile-iteration (baseline-machine-profile-iteration machine))
+    (define profile-number (rival-machine-profile-number machine))
+    (define profile-time (rival-machine-profile-time machine))
+    (define profile-memory (rival-machine-profile-memory machine))
+    (define profile-precision (rival-machine-profile-precision machine))
+    (define profile-iteration (rival-machine-profile-iteration machine))
     (vector-set! profile-instruction profile-ptr name)
     (vector-set! profile-number profile-ptr number)
     (vector-set! profile-memory profile-ptr memory)
     (vector-set! profile-precision profile-ptr precision)
     (vector-set! profile-iteration profile-ptr iter)
     (flvector-set! profile-time profile-ptr time)
-    (set-baseline-machine-profile-ptr! machine (add1 profile-ptr))))
+    (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))

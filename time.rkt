@@ -117,7 +117,7 @@
           (timeline-push! timeline
                           'instr-executed-cnt
                           (list 'baseline (execution-iteration execution) 1)))
-        (define ivec-len (vector-length (baseline-machine-instructions baseline-machine)))
+        (define ivec-len (vector-length (rival-machine-instructions baseline-machine)))
         (for ([n (in-range (add1 baseline-iteration))])
           (timeline-push! timeline 'instr-executed-cnt (list 'baseline-no-repeats n ivec-len))))
 
