@@ -202,7 +202,7 @@
          (if (string? out)
              (displayln out)
              (for ([val (in-vector out)])
-               (displayln (bigfloat->string val)))))]
+               (displayln (repl-value->string val)))))]
       [`(explain ,name ,(? (disjoin real? boolean?) vals) ...)
        (define machine (repl-get-machine repl name))
        (check-args! name machine vals)
