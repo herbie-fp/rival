@@ -8,7 +8,6 @@
          *rival-max-iterations*
          *rival-profile-executions*
          *ampl-tuning-bits*
-         *sampling-iteration*
          *lower-bound-early-stopping*
          *base-tuning-precision*
          *bumps-activated*)
@@ -46,5 +45,4 @@
                    profile-iteration))
 
 (define *ampl-tuning-bits* (make-parameter 2))
-(define *sampling-iteration* (make-parameter 0))
 (define *base-tuning-precision* (make-parameter 5))

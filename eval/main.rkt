@@ -34,13 +34,12 @@
          *rival-profile-executions*)
 
 (define (rival-machine-full machine vhint)
-  (set-rival-machine-iteration! machine (*sampling-iteration*))
-  (rival-machine-adjust machine vhint)
-  (cond
-    [(>= (*sampling-iteration*) (*rival-max-iterations*)) (values #f #f #f #t #f)]
-    [else
-     (rival-machine-run machine vhint)
-     (rival-machine-return machine)]))
+  (define early-stop? (rival-machine-adjust machine vhint))
+  (if early-stop?
+      (values #f #f #f #t #f)
+      (begin
+        (rival-machine-run machine vhint)
+        (rival-machine-return machine))))
 
 (struct exn:rival exn:fail ())
 (struct exn:rival:invalid exn:rival (pt))
@@ -82,9 +81,9 @@
   ; Load arguments
   (rival-machine-load machine (vector-map ival-real pt))
   (let loop ([iter 0])
+    (set-rival-machine-iteration! machine iter)
     (define-values (good? done? bad? stuck? fvec)
-      (parameterize ([*sampling-iteration* iter]
-                     [*rival-max-precision* (rival-machine-max-precision machine)])
+      (parameterize ([*rival-max-precision* (rival-machine-max-precision machine)])
         (rival-machine-full machine (or hint (rival-machine-default-hint machine)))))
     (cond
       [bad? (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
@@ -98,9 +97,9 @@
 (define (rival-analyze-with-hints machine rect [hint #f])
   ; Load arguments
   (rival-machine-load machine rect)
+  (set-rival-machine-iteration! machine 0)
   (define-values (good? done? bad? stuck? fvec)
-    (parameterize ([*sampling-iteration* 0])
-      (rival-machine-full machine (or hint (rival-machine-default-hint machine)))))
+    (rival-machine-full machine (or hint (rival-machine-default-hint machine))))
   (define-values (hint* hint*-converged?)
     (make-hint machine (or hint (rival-machine-default-hint machine))))
   (list (ival (or bad? stuck?) (not good?)) hint* hint*-converged?))

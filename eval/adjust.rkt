@@ -166,7 +166,7 @@
         [out-dr? (in-vector slackvec)]
         #:when (>= root-reg varc)
         #:when out-dr?)
-    (vector-set! vprecs-new (- root-reg varc) (get-slack)))
+    (vector-set! vprecs-new (- root-reg varc) (get-slack current-iter)))
 
   ; Step 1b. Checking if a operation should be computed again at all
   ;   This step traverses instructions top-down and check whether a reevaluation is needed
@@ -188,15 +188,17 @@
       [else (path-reduction vrepeats vregs varc instr i #:reexec-val #f)]))
 
   ; Step 2. Precision tuning
-  (precision-tuning (rival-machine-max-precision machine)
-                    ivec
-                    vregs
-                    vprecs-new
-                    varc
-                    vstart-precs
-                    vrepeats
-                    vhint
-                    constants-lookup)
+  (define hit-max?
+    (precision-tuning (rival-machine-max-precision machine)
+                      ivec
+                      vregs
+                      vprecs-new
+                      varc
+                      vstart-precs
+                      vrepeats
+                      vhint
+                      constants-lookup
+                      current-iter))
 
   ; Step 3. Repeating precisions check + Assigning if a operation should be computed again at all
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
@@ -235,19 +237,23 @@
     ; clean progress of the current tuning pass and start over
     (vector-fill! vprecs-new 0)
     (vector-fill! vrepeats #f)
-    (precision-tuning (rival-machine-max-precision machine)
-                      ivec
-                      vregs
-                      vprecs-new
-                      varc
-                      vstart-precs
-                      vrepeats
-                      vhint
-                      constants-lookup)
+    (define hit-max2?
+      (precision-tuning (rival-machine-max-precision machine)
+                        ivec
+                        vregs
+                        vprecs-new
+                        varc
+                        vstart-precs
+                        vrepeats
+                        vhint
+                        constants-lookup
+                        current-iter))
+    (set! hit-max? (or hit-max? hit-max2?))
     (repeats)) ; do repeats again
 
   ; Step 5. Copying new precisions into vprecs
-  (vector-copy! vprecs 0 vprecs-new))
+  (vector-copy! vprecs 0 vprecs-new)
+  hit-max?)
 
 ; Usually, add-bang instructions have a pointer to itself that is needed to be dropped
 (define (drop-self-pointer tail-regs n)
@@ -269,8 +275,10 @@
                           vstart-precs
                           vrepeats
                           vhint
-                          constants)
+                          constants
+                          iter)
   (define vprecs-min (make-vector (vector-length ivec) 0))
+  (define hit-max? #f)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [repeat? (in-vector vrepeats (- (vector-length vrepeats) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)]
@@ -296,13 +304,14 @@
     (match (*lower-bound-early-stopping*)
       [#t
        (when (>= min-prec machine-max-precision)
-         (*sampling-iteration* (*rival-max-iterations*)))]
+         (set! hit-max? #t))]
       [#f
        (when (equal? final-precision machine-max-precision)
-         (*sampling-iteration* (*rival-max-iterations*)))])
+         (set! hit-max? #t))])
 
     ; Precision propogation for each tail instruction
-    (define ampl-bounds (get-bounds op output srcs)) ; amplification bounds for children instructions
+    (define ampl-bounds
+      (get-bounds op output srcs iter)) ; amplification bounds for children instructions
     (for ([x (in-list tail-registers)]
           [bound (in-list ampl-bounds)]
           #:when (>= x varc)) ; when tail register is not a variable
@@ -316,4 +325,5 @@
       ; Lower precision bound propogation
       (vector-set! vprecs-min
                    (- x varc)
-                   (max (vector-ref vprecs-min (- x varc)) (+ min-prec (max 0 lo-bound)))))))
+                   (max (vector-ref vprecs-min (- x varc)) (+ min-prec (max 0 lo-bound))))))
+  hit-max?)

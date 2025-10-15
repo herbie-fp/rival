@@ -118,12 +118,15 @@
   (define iter (rival-machine-iteration machine))
   (let ([start-time (current-inexact-milliseconds)]
         [start-memory (current-memory-use 'cumulative)])
-    (unless (zero? iter)
-      (backward-pass machine vhint))
+    (define early-stop?
+      (if (zero? iter)
+          #f
+          (backward-pass machine vhint)))
     (rival-machine-record machine
                           'adjust
                           -1
                           (* iter 1000)
                           (- (current-inexact-milliseconds) start-time)
                           (- (current-memory-use 'cumulative) start-memory)
-                          iter)))
+                          iter)
+    early-stop?))

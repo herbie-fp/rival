@@ -10,3 +10,8 @@
   task to format your code correctly.
 - When editing an interval arithmetic function, always run the tests.
   Run tests with `racket -y test.rkt add` (for the right function).
+- When editing the eval stuff, always run the tests. Run them with
+  `racket -y time.rkt --id N ../../infra/points.json`. The number `N`
+  is a benchmark ID; some common choices are 12 and 57, but there are
+  a bit over 500 in total and sometimes you're asked to focus on a
+  particular one. Smaller numbers are faster to run.
