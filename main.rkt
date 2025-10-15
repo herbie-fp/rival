@@ -108,8 +108,7 @@
           [baseline-apply
            (->* (rival-machine? (vectorof value?))
                 ((or/c (vectorof any/c) boolean?))
-                (vectorof any/c))]
-          [baseline-profile (-> rival-machine? symbol? any/c)])
+                (vectorof any/c))])
          (struct-out discretization)
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
