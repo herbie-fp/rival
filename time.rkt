@@ -94,9 +94,10 @@
             (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt))) 1))
             (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
-      (define baseline-precision (bf-precision))
       (define baseline-executions (rival-profile baseline-machine 'executions))
       (define baseline-iteration (rival-profile baseline-machine 'iterations))
+      (define baseline-precision
+        (apply max (vector->list (vector-map execution-precision baseline-executions))))
 
       ; Store histograms data
       (when (> baseline-iteration 0)
