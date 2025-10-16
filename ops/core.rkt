@@ -118,7 +118,7 @@
       [(_me name lo hi) #'(and name (ival (endpoint lo _) (endpoint hi _) _ _))]))
   (λ (stx)
     (syntax-case stx ()
-      [(_ lo) #'(mk-big-ival lo lo)]
+      [(_ lo) #'(mk-ival lo)]
       [(_ lo hi) #'(mk-big-ival lo hi)])))
 
 (struct endpoint (val immovable?) #:transparent)
@@ -158,7 +158,9 @@
     [else (error 'ival "Invalid interval endpoints" x y)]))
 
 (define (mk-ival x)
-  (mk-big-ival x x))
+  (define err? (and (bigfloat? x) (not (bfrational? x))))
+  (define ep (endpoint x #t))
+  (ival ep ep err? err?))
 
 (define (ival-pi)
   (define-values (lo hi) (make-endpoint-pair))
