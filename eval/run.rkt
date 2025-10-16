@@ -14,6 +14,7 @@
          rival-machine-run
          rival-machine-return
          rival-machine-adjust
+         rival-machine-record
          apply-instruction) ; for compile.rkt
 
 (define (rival-machine-load machine args)

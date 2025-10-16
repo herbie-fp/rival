@@ -7,7 +7,8 @@
          racket/match)
 
 (provide backward-pass
-         make-hint)
+         make-hint
+         drop-self-pointer)
 
 ; Hint is a vector with len(ivec) elements which
 ;   guides Rival on which instructions should not be executed

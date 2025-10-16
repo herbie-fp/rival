@@ -102,17 +102,13 @@
           [rival-analyze (-> rival-machine? (vectorof ival?) ival?)]
           [rival-profile (-> rival-machine? symbol? any/c)]
           [baseline-compile
-           (-> (listof any/c) (listof symbol?) (listof discretization?) baseline-machine?)]
+           (-> (listof any/c) (listof symbol?) (listof discretization?) rival-machine?)]
           [baseline-analyze
-           (->* (baseline-machine? (vectorof ival?))
-                ((or/c (vectorof any/c) boolean?))
-                (listof any/c))]
+           (->* (rival-machine? (vectorof ival?)) ((or/c (vectorof any/c) boolean?)) (listof any/c))]
           [baseline-apply
-           (->* (baseline-machine? (vectorof value?))
+           (->* (rival-machine? (vectorof value?))
                 ((or/c (vectorof any/c) boolean?))
-                (vectorof any/c))]
-          [baseline-profile (-> baseline-machine? symbol? any/c)])
-         (struct-out baseline-machine)
+                (vectorof any/c))])
          (struct-out discretization)
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
