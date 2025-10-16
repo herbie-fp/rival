@@ -2,7 +2,8 @@
 
 (require racket/match
          racket/function
-         racket/flonum)
+         racket/flonum
+         racket/performance-hint)
 
 (require "machine.rkt"
          "adjust.rkt"
@@ -20,7 +21,8 @@
   (set-rival-machine-bumps! machine 0)
   (*bumps-activated* #f))
 
-(define (rival-machine-record machine name number precision time memory iter)
+;; Inlining critical, otherwise `time` is heap-allocated (Chez boxes floats)
+(define-inline (rival-machine-record machine name number precision time memory iter)
   (define profile-ptr (rival-machine-profile-ptr machine))
   (define profile-instruction (rival-machine-profile-instruction machine))
   (when (< profile-ptr (vector-length profile-instruction))
