@@ -386,16 +386,14 @@
 
 (define (ival-pre-fabs x)
   (match-define (ival xlo xhi xerr? xerr) x)
-  (define match-result
-    (match (classify-ival x)
-      [1 x]
-      [-1 (ival xhi xlo xerr? xerr)]
-      [0
-       (ival (endpoint 0.bf (and (endpoint-immovable? xlo) (endpoint-immovable? xhi)))
-             (if (= (mpfr-cmpabs (endpoint-val xlo) (endpoint-val xhi)) 1) xlo xhi)
-             xerr?
-             xerr)]))
-  match-result)
+  (match (classify-ival x)
+    [1 x]
+    [-1 (ival xhi xlo xerr? xerr)]
+    [0
+     (ival (endpoint 0.bf (and (endpoint-immovable? xlo) (endpoint-immovable? xhi)))
+           (if (> (mpfr-cmpabs (endpoint-val xlo) (endpoint-val xhi)) 0) xlo xhi)
+           xerr?
+           xerr)]))
 
 ;; These functions execute ival-fabs and ival-neg with input's precision
 (define (ival-max-prec x)
