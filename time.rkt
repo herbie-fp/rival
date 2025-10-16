@@ -58,11 +58,15 @@
 
   ; Rival machine
   (define start-compile (current-inexact-milliseconds))
-  (define rival-machine (rival-compile exprs vars discs))
+  (define rival-machine
+    (parameterize ([*rival-max-precision* 32256])
+      (rival-compile exprs vars discs)))
   (define compile-time (- (current-inexact-milliseconds) start-compile))
 
   ; Baseline and Sollya machines
-  (define baseline-machine (baseline-compile exprs vars discs))
+  (define baseline-machine
+    (parameterize ([*rival-max-precision* 32256])
+      (baseline-compile exprs vars discs)))
 
   (define sollya-machine
     (match (or (equal? (cdr exprs) `((* (fmod (exp x) (sqrt (cos x))) (exp (neg x))))) ; id 65
