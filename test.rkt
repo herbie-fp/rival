@@ -3,19 +3,7 @@
 (require racket/math
          math/base
          math/flonum
-         (only-in math/bigfloat
-                  bf>
-                  bf<
-                  bf=
-                  bf>=
-                  bf<=
-                  bf-
-                  bf+
-                  bf*
-                  bf/
-                  bfmin
-                  bfmax
-                  bfshift))
+         (only-in math/bigfloat bf> bf< bf= bf>= bf<= bf- bf+ bf* bf/ bfmin bfmax bfshift))
 (require rackunit)
 (require "main.rkt"
          "mpfr.rkt")
