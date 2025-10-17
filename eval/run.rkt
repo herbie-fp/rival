@@ -2,7 +2,8 @@
 
 (require racket/match
          racket/function
-         racket/flonum)
+         racket/flonum
+         racket/performance-hint)
 
 (require "machine.rkt"
          "adjust.rkt"
@@ -13,6 +14,7 @@
          rival-machine-run
          rival-machine-return
          rival-machine-adjust
+         rival-machine-record
          apply-instruction) ; for compile.rkt
 
 (define (rival-machine-load machine args)
@@ -20,22 +22,23 @@
   (set-rival-machine-bumps! machine 0)
   (*bumps-activated* #f))
 
-(define (rival-machine-record machine name number precision time memory iter)
-  (define profile-ptr (rival-machine-profile-ptr machine))
-  (define profile-instruction (rival-machine-profile-instruction machine))
-  (when (< profile-ptr (vector-length profile-instruction))
-    (define profile-number (rival-machine-profile-number machine))
-    (define profile-time (rival-machine-profile-time machine))
-    (define profile-memory (rival-machine-profile-memory machine))
-    (define profile-precision (rival-machine-profile-precision machine))
-    (define profile-iteration (rival-machine-profile-iteration machine))
-    (vector-set! profile-instruction profile-ptr name)
-    (vector-set! profile-number profile-ptr number)
-    (vector-set! profile-memory profile-ptr memory)
-    (vector-set! profile-precision profile-ptr precision)
-    (vector-set! profile-iteration profile-ptr iter)
-    (flvector-set! profile-time profile-ptr time)
-    (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
+;; Inlining critical, otherwise `time` is heap-allocated (Chez boxes floats)
+(define-inline (rival-machine-record machine name number precision time memory iter)
+               (define profile-ptr (rival-machine-profile-ptr machine))
+               (define profile-instruction (rival-machine-profile-instruction machine))
+               (when (< profile-ptr (vector-length profile-instruction))
+                 (define profile-number (rival-machine-profile-number machine))
+                 (define profile-time (rival-machine-profile-time machine))
+                 (define profile-memory (rival-machine-profile-memory machine))
+                 (define profile-precision (rival-machine-profile-precision machine))
+                 (define profile-iteration (rival-machine-profile-iteration machine))
+                 (vector-set! profile-instruction profile-ptr name)
+                 (vector-set! profile-number profile-ptr number)
+                 (vector-set! profile-memory profile-ptr memory)
+                 (vector-set! profile-precision profile-ptr precision)
+                 (vector-set! profile-iteration profile-ptr iter)
+                 (flvector-set! profile-time profile-ptr time)
+                 (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
 
 (define (rival-machine-run machine vhint)
   (define ivec (rival-machine-instructions machine))

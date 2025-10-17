@@ -94,9 +94,10 @@
             (define exs (vector-ref (baseline-apply baseline-machine (list->vector (map bf pt))) 1))
             (list 'valid exs))))
       (define baseline-apply-time (- (current-inexact-milliseconds) baseline-start-apply))
-      (define baseline-precision (baseline-profile baseline-machine 'precision))
-      (define baseline-executions (baseline-profile baseline-machine 'executions))
-      (define baseline-iteration (baseline-profile baseline-machine 'iteration))
+      (define baseline-executions (rival-profile baseline-machine 'executions))
+      (define baseline-iteration (rival-profile baseline-machine 'iterations))
+      (define baseline-precision
+        (apply max (vector->list (vector-map execution-precision baseline-executions))))
 
       ; Store histograms data
       (when (> baseline-iteration 0)
@@ -117,7 +118,7 @@
           (timeline-push! timeline
                           'instr-executed-cnt
                           (list 'baseline (execution-iteration execution) 1)))
-        (define ivec-len (vector-length (baseline-machine-instructions baseline-machine)))
+        (define ivec-len (vector-length (rival-machine-instructions baseline-machine)))
         (for ([n (in-range (add1 baseline-iteration))])
           (timeline-push! timeline 'instr-executed-cnt (list 'baseline-no-repeats n ivec-len))))
 
