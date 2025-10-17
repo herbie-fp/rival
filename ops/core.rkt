@@ -32,6 +32,12 @@
          ival-union
          ival-split
          (rename-out [monotonic monotonic->ival] [comonotonic comonotonic->ival])
+         define*
+         immutable
+         monotonic-mpfr!
+         comonotonic-mpfr!
+         monotonic-mpfr
+         comonotonic-mpfr
          ival-illegal
          ival-pi
          ival-e
