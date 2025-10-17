@@ -142,6 +142,9 @@
 
 (define mpfr-set-prec! set-mpfr-prec!)
 
+(define (mpfr-pow2! out a rnd)
+  (mpfr-mul! out a a rnd))
+
 (define (bfremainder x mod)
   (define out (bf 0))
   (mpfr-remainder! out x mod (bf-rounding-mode))
@@ -346,5 +349,6 @@
          mpfr-log!
          mpfr-const-pi!
          mpfr-atan2!
+         mpfr-pow2!
          mpfr-set-prec!
          mpfr-set!)
