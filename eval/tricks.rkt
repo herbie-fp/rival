@@ -85,6 +85,14 @@
 ; Output: '( '(upper-ampl-bound lower-ampl-bound) ...) with len(srcs) number of elements
 (define (get-bounds op z srcs)
   (case (object-name op)
+    [(ival-neg ival-neg!)
+     ; Γ[*]'x     = 1
+     ; ↑ampl[*]'x = 0
+     ; ↓ampl[*]'x = 0
+     (define x (first srcs))
+     (list (cons 0 0))] ; bounds per x
+
+
     [(ival-mult ival-mult!)
      ; Γ[*]'x     = 1
      ; ↑ampl[*]'x = logspan(y)
@@ -111,7 +119,7 @@
      (list (cons (logspan y) 0) ; bounds per x
            (cons (+ (logspan x) (* 2 (logspan y))) 0))] ; bounds per y
 
-    [(ival-sqrt ival-cbrt)
+    [(ival-sqrt ival-cbrt ival-sqrt! ival-cbrt!)
      ; Γ[sqrt]'x     = 0.5
      ; ↑ampl[sqrt]'x = logspan(x)/2 - 1
      ; ↓ampl[sqrt]'x = 0
@@ -180,7 +188,7 @@
                           y-slack)
                      0)))] ; bounds per y
 
-    [(ival-exp ival-exp2)
+    [(ival-exp ival-exp2 ival-exp! ival-exp2!)
      ; Γ[exp & exp2]'x     = |x| & |x*ln(2)|
      ; ↑ampl[exp & exp2]'x = maxlog(x) + logspan(z)
      ; ↓ampl[exp & exp2]'x = minlog(x)
@@ -224,7 +232,7 @@
                      (- (- 2) (maxlog z #:less-slack #t))))
          (list (cons (+ (- (maxlog x) (minlog z)) (min (maxlog x) 0)) 0)))]
 
-    [(ival-sinh)
+    [(ival-sinh ival-sinh!)
      ; Γ[sinh]'x     = |x * cosh(x) / sinh(x)|
      ; ↑ampl[sinh]'x = maxlog(x) + logspan(z) - min(minlog(x), 0)
      ; ↓ampl[sinh]'x = max(0, minlog(x))
@@ -234,7 +242,7 @@
                      (max 0 (minlog x #:less-slack #t))))
          (list (cons (- (+ (maxlog x) (logspan z)) (min (minlog x) 0)) 0)))]
 
-    [(ival-cosh)
+    [(ival-cosh ival-cosh!)
      ; Γ[cosh]'x     = |x * sinh(x) / cosh(x)|
      ; ↑ampl[cosh]'x = maxlog(x) + logspan(z) + min(maxlog(x), 0)
      ; ↓ampl[cosh]'x = max(0, minlog(x) - 1)
@@ -244,7 +252,7 @@
                      (max 0 (- (minlog x #:less-slack #t) 1))))
          (list (cons (+ (maxlog x) (logspan z) (min (maxlog x) 0)) 0)))]
 
-    [(ival-log ival-log2 ival-log10)
+    [(ival-log ival-log2 ival-log10 ival-log! ival-log2! ival-log10!)
      ; Γ[log & log2 & log10]'x     = |1 / ln(x)| & |ln(2) / ln(x)| & |ln(10) / ln(x)|
      ; ↑ampl[log & log2 & log10]'x = logspan(x) - minlog(z) + 1
      ; ↓ampl[log & log2 & log10]'x = - maxlog(z)
@@ -253,7 +261,7 @@
          (list (cons (+ (- (logspan x) (minlog z)) 1) (- (maxlog z #:less-slack #t))))
          (list (cons (+ (- (logspan x) (minlog z)) 1) 0)))]
 
-    [(ival-asin)
+    [(ival-asin ival-asin!)
      ; Γ[asin]'x     = |x / (sqrt(1-x^2) * arcsin(x))|
      ; ↑ampl[asin]'x = | slack, if maxlog(z) > 1
      ;                 | 1 else
@@ -263,7 +271,7 @@
                (cons (get-slack) 0) ; assumes that log[1-x^2]/2 is equal to slack
                (cons 1 0)))]
 
-    [(ival-acos)
+    [(ival-acos ival-acos!)
      ; Γ[acos]'x     = |-x / (sqrt(1-x^2) * arccos(x))|
      ; ↑ampl[acos]'x = | slack, if maxlog(x) >= 0
      ;                 | 0 else
@@ -273,7 +281,7 @@
                (cons (get-slack) 0) ; assumes that log[1-x^2]/2 is equal to slack
                (cons 0 0)))]
 
-    [(ival-atan)
+    [(ival-atan ival-atan!)
      ; Γ[atan]'x     = | x / ((1+x^2) * arctan(x))|
      ; ↑ampl[atan]'x = - min(|minlog(x)|, |maxlog(x)|) - minlog(z) + logspan(x)
      ; ↓ampl[atan]'x = - max(|minlog(x)|, |maxlog(x)|) - maxlog(z) - 2
@@ -306,7 +314,7 @@
            (cons (+ (- (maxlog x) (minlog z)) slack) 0))] ; bounds per y
 
     ; Currently log1p has a very poor approximation
-    [(ival-log1p)
+    [(ival-log1p ival-log1p!)
      ; Γ[log1p]'x     ~ |x * log1p(x) / (1+x)|
      ; ↑ampl[log1p]'x = | maxlog(x) - minlog(z) + slack, if x is negative
      ;                  | maxlog(x) - minlog(z), else
@@ -320,7 +328,7 @@
                (cons (- (maxlog x) (minlog z)) 0)))]
 
     ; Currently expm1 has a very poor solution for negative values
-    [(ival-expm1)
+    [(ival-expm1 ival-expm1!)
      ; Γ[expm1]'x     = |x * e^x / expm1|
      ; ↑ampl[expm1]'x = max(1 + maxlog(x), 1 + maxlog(x) - minlog(z))
      ; ↓ampl[expm1]'x = 0
@@ -344,14 +352,14 @@
                     (cons (- (+ (maxlog x) (maxlog y)) (* 2 (min (minlog x) (minlog y))) (minlog z))
                           0)))]
 
-    [(ival-tanh)
+    [(ival-tanh ival-tanh!)
      ; Γ[tanh]'x     = |x / (sinh(x) * cosh(x))|
      ; ↑ampl[tanh]'x = logspan(z) + logspan(x)
      ; ↓ampl[tanh]'x = 0
      (define x (first srcs))
      (list (cons (+ (logspan z) (logspan x)) 0))]
 
-    [(ival-atanh)
+    [(ival-atanh ival-atanh!)
      ; Γ[atanh]'x     = |x / (log(1-x^2) * atanh(x))|
      ; ↑ampl[atanh]'x = | 1, if x < 0.5
      ;                  | slack
@@ -361,7 +369,7 @@
                (cons (get-slack) 0)
                (cons 1 0)))]
 
-    [(ival-acosh)
+    [(ival-acosh ival-acosh!)
      ; Γ[acosh]'x     = |x / (sqrt(x-1) * sqrt(x+1) * acosh)|
      ; ↑ampl[acosh]'x = | -minlog(z) + slack, if minlog(z) < 2
      ;                  | 0
@@ -400,13 +408,16 @@
      (list (cons (- (maxlog x) n (- (max (abs (maxlog z)) (abs (minlog z)))) -3) 0))]
 
     ; TODO
-    ; ↑ampl[...] = slack
-    ; ↓ampl[...] = 0
-    [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb) (list (cons (get-slack) 0))]
+    ; hypot
 
     ; TODO
     ; ↑ampl[...] = slack
     ; ↓ampl[...] = 0
-    [(ival-ceil ival-floor ival-rint ival-round ival-trunc) (list (cons (get-slack) 0))]
+    [(ival-erfc ival-erf ival-erfc! ival-erf! ival-lgamma ival-tgamma ival-asinh ival-asinh! ival-logb) (list (cons (get-slack) 0))]
+
+    ; TODO
+    ; ↑ampl[...] = slack
+    ; ↓ampl[...] = 0
+    [(ival-ceil ival-floor ival-rint ival-rint! ival-round ival-trunc) (list (cons (get-slack) 0))]
 
     [else (map (λ (_) (cons 0 0)) srcs)])) ; exponents for arguments
