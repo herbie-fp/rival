@@ -92,7 +92,6 @@
      (define x (first srcs))
      (list (cons 0 0))] ; bounds per x
 
-
     [(ival-mult ival-mult!)
      ; Γ[*]'x     = 1
      ; ↑ampl[*]'x = logspan(y)
@@ -408,12 +407,16 @@
      (list (cons (- (maxlog x) n (- (max (abs (maxlog z)) (abs (minlog z)))) -3) 0))]
 
     ; TODO
-    ; hypot
+    [(ival-asinh ival-asinh!) (list (cons (get-slack) 0))]
+
+    ; TODO
+    [(ival-hypot ival-hypot!) (list (cons (get-slack) 0) (cons (get-slack) 0))]
 
     ; TODO
     ; ↑ampl[...] = slack
     ; ↓ampl[...] = 0
-    [(ival-erfc ival-erf ival-erfc! ival-erf! ival-lgamma ival-tgamma ival-asinh ival-asinh! ival-logb) (list (cons (get-slack) 0))]
+    [(ival-erfc ival-erf ival-erfc! ival-erf! ival-lgamma ival-tgamma ival-logb)
+     (list (cons (get-slack) 0))]
 
     ; TODO
     ; ↑ampl[...] = slack
