@@ -46,10 +46,8 @@ Contributing
 
 Please file issues and submit patches [on
 Github](https://github.com/herbie-fp/rival). All code should be
-formatted using `raco fmt`; you can set this up to happen on commit
-with:
-
-    make hook
+formatted using `make fmt`, which runs `raco fmt` across the
+repository; run it before committing your changes.
 
 Additionally, all code must pass the automated tests, which you can
 run with:
