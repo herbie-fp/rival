@@ -14,7 +14,8 @@
          mk-big-ival
          new-ival
          ival-maybe
-         epfn
+         epunary
+         epbinary
          split-ival
          ival-max-prec
          ival-exact-neg
@@ -247,11 +248,14 @@
            (or xerr? yerr?)
            (and xerr yerr))]))
 
-;; This function computes and propagates the immovable? flag for endpoints
-(define (epfn op . args)
-  (define args-bf (map endpoint-val args))
-  (define-values (result exact?) (bf-return-exact? op args-bf))
-  (endpoint result (and (andmap endpoint-immovable? args) exact?)))
+;; These functions compute and propagate the immovable? flag for endpoints
+(define (epunary op arg)
+  (define-values (result exact?) (bf-return-exact? op (list (endpoint-val arg))))
+  (endpoint result (and (endpoint-immovable? arg) exact?)))
+
+(define (epbinary op arg0 arg1)
+  (define-values (result exact?) (bf-return-exact? op (list (endpoint-val arg0) (endpoint-val arg1))))
+  (endpoint result (and (endpoint-immovable? arg0) (endpoint-immovable? arg1) exact?)))
 
 (define (epunary! out mpfr-fun! a-endpoint rnd)
   (match-define (endpoint a a!) a-endpoint)
@@ -296,11 +300,11 @@
 
 (define ((monotonic bffn) x)
   (match-define (ival lo hi err? err) x)
-  (ival (rnd 'down epfn bffn lo) (rnd 'up epfn bffn hi) err? err))
+  (ival (rnd 'down epunary bffn lo) (rnd 'up epunary bffn hi) err? err))
 
 (define ((comonotonic bffn) x)
   (match-define (ival lo hi err? err) x)
-  (ival (rnd 'down epfn bffn hi) (rnd 'up epfn bffn lo) err? err))
+  (ival (rnd 'down epunary bffn hi) (rnd 'up epunary bffn lo) err? err))
 
 (define ((close-enough->ival bffn) x)
   (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) x)
@@ -677,8 +681,8 @@
   (define err? (or (ival-err? y) xerr?))
   (define err (or (ival-err y) xerr))
   (match* (can-neg can-pos)
-    [(#t #t) (ival (rnd 'down epfn bfneg xhi) (rnd 'up epfn bfcopy xhi) err? err)]
-    [(#t #f) (ival (rnd 'down epfn bfneg xhi) (rnd 'up epfn bfneg xlo) err? err)]
+    [(#t #t) (ival (rnd 'down epunary bfneg xhi) (rnd 'up epunary bfcopy xhi) err? err)]
+    [(#t #f) (ival (rnd 'down epunary bfneg xhi) (rnd 'up epunary bfneg xlo) err? err)]
     [(#f #t) (ival xlo xhi err? err)]
     [(#f #f)
      (unless (ival-err y)
