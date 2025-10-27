@@ -81,9 +81,9 @@
        (vector-set! optimal-precs idx (rival-machine-search-precision machine pt optimal-precs idx)))
 
      ; Time run with optimal precisions
-     (define optimal-time (time-min (lambda () (rival-machine-test-precision machine pt optimal-precs))))
+     (define optimal-time
+       (time-min (lambda () (rival-machine-test-precision machine pt optimal-precs))))
 
      ; Return both ratios and precision vectors
      (list optimal-precs optimal-time max-precs final-time)]
-    [else
-     #f]))
+    [else #f]))

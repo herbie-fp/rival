@@ -232,13 +232,16 @@
          (printf "~a optimal ~aµs faster (~a×)\n"
                  name
                  (~r (* 1000 (- cur-time optimal-time)) #:precision '(= 1))
-                 (if (zero? optimal-time) "∞" (~r (/ cur-time optimal-time) #:precision '(= 3))))
+                 (if (zero? optimal-time)
+                     "∞"
+                     (~r (/ cur-time optimal-time) #:precision '(= 3))))
          (define ivec (rival-machine-instructions machine))
          (for ([instr (in-vector ivec)]
                [final (in-vector cur-precs)]
                [optimal (in-vector optimal-precs)])
            (define instr-name (normalize-function-name (~a (object-name (car instr)))))
-           (printf "~a ~a ~a\n" (~a instr-name #:width 20 #:align 'left)
+           (printf "~a ~a ~a\n"
+                   (~a instr-name #:width 20 #:align 'left)
                    (~a final #:width 6 #:align 'right)
                    (~a optimal #:width 6 #:align 'right)))
          (newline))]
