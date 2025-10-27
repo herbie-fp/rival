@@ -58,7 +58,7 @@
     (for/first ([exec (in-list execs)]
                 #:when (and (or (not target-iter) (= (car exec) target-iter))
                             (or (not target-id) (= (execution-number (cdr exec)) target-id))
-                            (or (not target-name) (= (execution-name (cdr exec)) target-name))))
+                            (or (not target-name) (eq? (execution-name (cdr exec)) target-name))))
       exec))
   (if entry
       (value (car entry) (cdr entry))
@@ -85,7 +85,7 @@
 (define (repl-value->string val)
   (cond
     [(bigfloat? val) (bigfloat->string val)]
-    [(number? val) (~r val)]
+    [(number? val) (~a val)]
     [else (~a val)]))
 
 (define (repl-precision-bits repl)
