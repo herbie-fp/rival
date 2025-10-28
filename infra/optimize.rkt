@@ -2,10 +2,10 @@
 
 (require json
          math/bigfloat)
-(require "main.rkt"
-         "eval/machine.rkt"
-         "eval/optimal.rkt"
-         "utils.rkt")
+(require "../main.rkt"
+         "../eval/machine.rkt"
+         "../eval/optimal.rkt"
+         "../utils.rkt")
 
 (define (read-from-string s)
   (read (open-input-string s)))
