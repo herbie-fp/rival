@@ -105,6 +105,7 @@
          ival-==
          ival-!=
          ival-if
+         ival-mobilize
          ival-and
          ival-or
          ival-not
@@ -661,16 +662,46 @@
   (ival (endpoint lo #f) (endpoint hi #f) err? err))
 
 (define (ival-fmin x y)
-  (ival (endpoint-min2 (ival-lo x) (ival-lo y) 'down)
-        (endpoint-min2 (ival-hi x) (ival-hi y) 'up)
-        (or (ival-err? x) (ival-err? y))
-        (or (ival-err x) (ival-err y))))
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) y)
+  (define lo (bf 0))
+  (define hi (bf 0))
+  (define lo-exact? (= 0 (mpfr-min! lo xlo ylo 'down)))
+  (define hi-exact? (= 0 (mpfr-min! hi xhi yhi 'up)))
+  ;; For lower endpoints (which can only move upward under refinement),
+  ;; a fixed minimum is stable if one fixed endpoint is <= the other.
+  (define lo-stable?
+    (cond
+      [(and xlo! ylo!) #t]
+      [xlo! (bflte? xlo ylo)]
+      [ylo! (bflte? ylo xlo)]
+      [else #f]))
+  (define lo! (and lo-exact? lo-stable?))
+  ;; For upper endpoints (which can only move downward), a fixed minimum is
+  ;; only guaranteed when both endpoints are fixed.
+  (define hi! (and hi-exact? xhi! yhi!))
+  (ival (endpoint lo lo!) (endpoint hi hi!) (or xerr? yerr?) (or xerr yerr)))
 
 (define (ival-fmax x y)
-  (ival (endpoint-max2 (ival-lo x) (ival-lo y) 'down)
-        (endpoint-max2 (ival-hi x) (ival-hi y) 'up)
-        (or (ival-err? x) (ival-err? y))
-        (or (ival-err x) (ival-err y))))
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) y)
+  (define lo (bf 0))
+  (define hi (bf 0))
+  (define lo-exact? (= 0 (mpfr-max! lo xlo ylo 'down)))
+  (define hi-exact? (= 0 (mpfr-max! hi xhi yhi 'up)))
+  ;; For lower endpoints (which can only move upward), a fixed maximum is
+  ;; only guaranteed when both endpoints are fixed.
+  (define lo! (and lo-exact? xlo! ylo!))
+  ;; For upper endpoints (which can only move downward), a fixed maximum is
+  ;; stable if one fixed endpoint is >= the other.
+  (define hi-stable?
+    (cond
+      [(and xhi! yhi!) #t]
+      [xhi! (bfgte? xhi yhi)]
+      [yhi! (bfgte? yhi xhi)]
+      [else #f]))
+  (define hi! (and hi-exact? hi-stable?))
+  (ival (endpoint lo lo!) (endpoint hi hi!) (or xerr? yerr?) (or xerr yerr)))
 
 (define (ival-copysign x y)
   (match-define (ival xlo xhi xerr? xerr) (ival-fabs x))
@@ -678,10 +709,15 @@
   ;; 0 is both positive and negative because we don't handle signed zero well
   (define can-neg (or (= (mpfr-sign (ival-lo-val y)) -1) can-zero))
   (define can-pos (or (= (mpfr-sign (ival-hi-val y)) 1) can-zero))
+  (define sign-immovable? (and can-neg can-pos (ival-lo-fixed? y) (ival-hi-fixed? y)))
   (define err? (or (ival-err? y) xerr?))
   (define err (or (ival-err y) xerr))
   (match* (can-neg can-pos)
-    [(#t #t) (ival (rnd 'down epunary bfneg xhi) (rnd 'up epunary bfcopy xhi) err? err)]
+    [(#t #t)
+     (define out (ival (rnd 'down epunary bfneg xhi) (rnd 'up epunary bfcopy xhi) err? err))
+     (if sign-immovable?
+         out
+         (ival-mobilize out))]
     [(#t #f) (ival (rnd 'down epunary bfneg xhi) (rnd 'up epunary bfneg xlo) err? err)]
     [(#f #t) (ival xlo xhi err? err)]
     [(#f #f)
