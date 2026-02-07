@@ -7,5 +7,7 @@ profile.json
 report/*
 rival-compiled
 *~
+.DS_Store
+*.swp
 test.rival
 .worktrees/
