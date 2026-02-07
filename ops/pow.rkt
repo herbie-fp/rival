@@ -161,4 +161,9 @@
     [(or (= (mpfr-sign (ival-lo-val x)) 1) (bfzero? (ival-lo-val x))) (ival-pow-pos x y)]
     [else
      (define-values (neg pos) (split-ival x 0.bf))
-     (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
+     (define out (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y)))
+     ;; If x straddles 0 with movable endpoints, a refinement can drop one
+     ;; branch entirely, so branch-derived endpoint fixedness is not stable.
+     (if (and (ival-lo-fixed? x) (ival-hi-fixed? x))
+         out
+         (ival-mobilize out))]))
