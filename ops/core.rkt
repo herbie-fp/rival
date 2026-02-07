@@ -678,10 +678,15 @@
   ;; 0 is both positive and negative because we don't handle signed zero well
   (define can-neg (or (= (mpfr-sign (ival-lo-val y)) -1) can-zero))
   (define can-pos (or (= (mpfr-sign (ival-hi-val y)) 1) can-zero))
+  (define sign-immovable? (and can-neg can-pos (ival-lo-fixed? y) (ival-hi-fixed? y)))
   (define err? (or (ival-err? y) xerr?))
   (define err (or (ival-err y) xerr))
   (match* (can-neg can-pos)
-    [(#t #t) (ival (rnd 'down epunary bfneg xhi) (rnd 'up epunary bfcopy xhi) err? err)]
+    [(#t #t)
+     (define out (ival (rnd 'down epunary bfneg xhi) (rnd 'up epunary bfcopy xhi) err? err))
+     (if sign-immovable?
+         out
+         (ival-mobilize out))]
     [(#t #f) (ival (rnd 'down epunary bfneg xhi) (rnd 'up epunary bfneg xlo) err? err)]
     [(#f #t) (ival xlo xhi err? err)]
     [(#f #f)
