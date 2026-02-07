@@ -105,6 +105,7 @@
          ival-==
          ival-!=
          ival-if
+         ival-mobilize
          ival-and
          ival-or
          ival-not
