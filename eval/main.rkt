@@ -104,7 +104,9 @@
       (rival-machine-full machine (or hint (rival-machine-default-hint machine)))))
   (define-values (hint* hint*-converged?)
     (make-hint machine (or hint (rival-machine-default-hint machine))))
-  (list (ival (or bad? stuck?) (not good?)) hint* hint*-converged?))
+  ;; `stuck?` should be terminal for sampling, same as invalid.
+  ;; Keep the boolean interval valid by setting the upper bit as well.
+  (list (ival (or bad? stuck?) (or (not good?) stuck?)) hint* hint*-converged?))
 
 (define (rival-analyze machine rect)
   (car (rival-analyze-with-hints machine rect)))

@@ -103,7 +103,7 @@
     (baseline-machine-full machine (or hint (rival-machine-default-hint machine))))
   (define-values (hint* hint*-converged?)
     (make-hint machine (or hint (rival-machine-default-hint machine))))
-  (list (ival (or bad? stuck?) (not good?)) hint* hint*-converged?))
+  (list (ival (or bad? stuck?) (or (not good?) stuck?)) hint* hint*-converged?))
 
 (define (baseline-machine-adjust machine)
   (let ([start-time (current-inexact-milliseconds)]
