@@ -315,7 +315,10 @@
          (with-check-info (['split-argument k] ['ilo ilo] ['ihi ihi] ['iylo iylo] ['iyhi iyhi])
                           (check-ival-equals? iy
                                               (parameterize ([bf-precision out-prec])
-                                                (ival-union iylo iyhi))))))
+                                                (ival-union iylo iyhi)))
+                          ;; Refining an input argument should refine the output.
+                          (check ival-refines? iy iylo)
+                          (check ival-refines? iy iyhi))))
      (when (or (ival-lo-fixed? iy) (ival-hi-fixed? iy))
        (define iy*
          (parameterize ([bf-precision 128])
