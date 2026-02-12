@@ -10,6 +10,7 @@
          profile)
 (require "eval/main.rkt"
          "eval/machine.rkt"
+         "eval/optimal.rkt"
          "utils.rkt")
 (provide repl-main
          repl-profile)
@@ -220,6 +221,30 @@
        (when print?
          (write-explain machine)
          (printf "\nTotal: ~aµs\n" (~r (* (- end start) 1000) #:precision '(= 1))))]
+      [`(optimize ,name ,(? (disjoin real? boolean?) vals) ...)
+       (define machine (repl-get-machine repl name))
+       (check-args! name machine vals)
+       (define result
+         (parameterize ([bf-precision (repl-precision-bits repl)])
+           (rival-machine-find-optimal-precisions machine (list->vector (map ->bf vals)))))
+       (when print?
+         (match-define (list optimal-precs optimal-time cur-precs cur-time) result)
+         (printf "~a optimal ~aµs faster (~a×)\n"
+                 name
+                 (~r (* 1000 (- cur-time optimal-time)) #:precision '(= 1))
+                 (if (zero? optimal-time)
+                     "∞"
+                     (~r (/ cur-time optimal-time) #:precision '(= 3))))
+         (define ivec (rival-machine-instructions machine))
+         (for ([instr (in-vector ivec)]
+               [final (in-vector cur-precs)]
+               [optimal (in-vector optimal-precs)])
+           (define instr-name (normalize-function-name (~a (object-name (car instr)))))
+           (printf "~a ~a ~a\n"
+                   (~a instr-name #:width 20 #:align 'left)
+                   (~a final #:width 6 #:align 'right)
+                   (~a optimal #:width 6 #:align 'right)))
+         (newline))]
       [(or '(help) 'help)
        (displayln "This is the Rival REPL, a demo of the Rival real evaluator.")
        (newline)
@@ -229,6 +254,7 @@
        (displayln "  (eval <name> <vals> ...)                 Evaluate a named function")
        (displayln
         "  (explain <name> <vals> ...)          Show profile for evaluating a named function")
+       (displayln "  (optimize <name> <vals> ...)         Find optimal precisions and report speedup")
        (newline)
        (displayln "A closed expression can always be used in place of a named function.")]
       [_ (printf "Unknown command ~a; use help for command list\n" cmd)])))
