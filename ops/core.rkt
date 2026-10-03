@@ -164,9 +164,30 @@
     [(and (boolean? x) (boolean? y))
      (define fix? (equal? x y))
      (ival (endpoint x fix?) (endpoint y fix?) #f #f)]
-    [else (error 'ival "Invalid interval endpoints" x y)]))
+    [else
+     (unless (or (bigfloat? x)
+                 (boolean? x))
+       (raise-argument-error 'ival
+                             (format "~s" `(or/c bigfloat? boolean?))
+                             0
+                             x
+                             y))
+     (unless (or (bigfloat? y)
+                 (boolean? y))
+       (raise-argument-error 'ival
+                             (format "~s" `(or/c bigfloat? boolean?))
+                             1
+                             x
+                             y))
+     (error 'ival "arguments must both be bigfloat? or both be boolean?\n  argument 1: ~e\n  argument 2: ~e"
+            x y)]))
 
 (define (mk-ival x)
+  (unless (or (bigfloat? x)
+              (boolean? x))
+    (raise-argument-error 'ival
+                          (format "~s" `(or/c bigfloat? boolean?))
+                          x))
   (define err? (and (bigfloat? x) (not (bfrational? x))))
   (define ep (endpoint x #t))
   (ival ep ep err? err?))
